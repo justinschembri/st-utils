@@ -1,0 +1,215 @@
+# Sensor Type: Netatmo NWS03
+sensors:
+  70:ee:50:7f:9d:32: 
+    name: 70:ee:50:7f:9d:32
+    description: Netatmo Weather Station NWS03 with indoor and outdoor module.
+    metadata: test
+    encodingType: plain/text
+    properties:
+      connectivity: Wi-Fi 802.11 b/g/n (2.4 GHz)
+      recording_frequency: 5 minutes
+      accuracy:
+        temperature: ± 0.3°C
+        humidity: 3%
+        pressure: ± 1mbar
+      measurement_range:
+        temperature: 0°C to 50°C
+        humidity: 0% to 100%
+        pressure: 260mbar to 1160mbar
+        CO2: 0ppm to 5000ppm
+        noise: 35db to 120db
+    iot_links:
+      datastreams: &datastreams #TODO: #2 Enforcing (and documenting) these names is critical.
+        - temperature_indoor
+        - temperature_outdoor
+        - humidity
+        - co2
+        - pressure
+        - noise
+        - absolute_pressure
+
+things:
+  Room 120: 
+    name: Room 120
+    description: An office room.
+    properties: null
+    iot_links:
+      datastreams: *datastreams
+      locations:
+        - BK Room 120
+
+locations:
+  BK Room 120: 
+    name: BK Room 120
+    description: Room 120 on the First Floor of the West Wing of the BK Building.
+    properties: null
+    encodingType: plain/wkt
+    location:
+      coordinates: POINT()
+      crs: WGS
+    iot_links:
+      things:
+        - Room 120
+
+datastreams:
+  temperature_indoor:
+    name: temperature_indoor
+    description:  Datastream for observations of internal temperature in Room 120.
+    observationType: instant
+    unitOfMeasurement: &temperature
+      name: degree Celsius
+      symbol: °C
+      definition: https://unitsofmeasure.org/ucum#para-30
+    observed_area: &room120-observed_area
+      coordinates: POLYGON(())
+      crs: WGS
+    phenomenon_time: null
+    result_time: null
+    properties: null
+    iot_links:
+      observed_properties:
+        - indoor_temperature
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  temperature_outdoor:
+    name: temperature_outdoor
+    description: This datastream is measuring the air temperature in a room.
+    observationType: instant
+    unitOfMeasurement: *temperature
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - outdoor_temperature
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  humidity:
+    name: humidity
+    description:  Datastream for observations of humidity levels in Room 120.
+    observationType: instant
+    unitOfMeasurement: 
+      name: percent
+      symbol: "%"
+      definition: https://unitsofmeasure.org/ucum#para-29
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - internal_humidity
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  co2:
+    name: co2
+    description:  Datastream for observations of CO2 levels in Room 120.
+    observationType: instant
+    unitOfMeasurement:
+      name: parts per million
+      symbol: ppm
+      definition: https://unitsofmeasure.org/ucum#para-29
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - co2_levels
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  pressure:
+    name: pressure
+    description:  Datastream for observations of pressure levels in Room 120.
+    observationType: instant
+    unitOfMeasurement: &millibar
+      name: millibar
+      symbol: mbar
+      definition: https://unitsofmeasure.org/ucum#datyp2apdxatblxmp
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - internal_pressure
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  absolute_pressure:
+    name: absolute_pressure
+    description: Datastream for observations of absolute pressure levels in Room 120.
+    observationType: instant
+    unitOfMeasurement: *millibar
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - absolute_pressure
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+  noise:
+    name: noise
+    description:  Datastream for observations of noise levels in Room 120.
+    observationType: instant
+    unitOfMeasurement: 
+      name: decibel
+      symbol: db
+      definition: https://unitsofmeasure.org/ucum#para-46
+    observed_area: *room120-observed_area
+    iot_links:
+      observed_properties:
+        - internal_noise_levels
+      sensors:
+        - 70:ee:50:7f:9d:32
+      things:
+        - Room 120
+
+
+observed_properties:
+  indoor_temperature:
+    name: indoor_temperature
+    definition: ...
+    description: The temperature in Room 120.
+    properties: null
+
+  outdoor_temperature:
+    name: outdoor_temperature
+    definition: ...
+    description: The temperature outside Room 120.
+    properties: null
+  
+  absolute_pressure:
+    name: absolute_pressure
+    definition: ...
+    description: The absolute pressure inside Room 120.
+    properties: null
+
+  internal_pressure:
+    name: internal_pressure
+    definition: ...
+    description: The pressure inside Room 120.
+    properties: null
+
+  internal_noise_levels:
+    name: internal_noise_levels
+    definition: ...
+    description: The pressure inside Room 120.
+    properties: null
+
+  co2_levels:
+    name: co2_levels
+    definition: ...
+    description: The pressure inside Room 120.
+    properties: null
+
+  internal_humidity:
+    name: internal_humidity
+    definition: ...
+    description: The pressure inside Room 120.
+    properties: null
