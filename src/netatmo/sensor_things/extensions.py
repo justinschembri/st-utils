@@ -150,7 +150,7 @@ class SensorArrangement:
     def get_entities(
         self,
         entity: Literal[
-            "Sensor", "Thing", "Location", "Datastream ", "ObservedProperty"
+            "Sensor", "Thing", "Location", "Datastream", "ObservedProperty"
         ],
     ) -> List["SensorThingsObject"]:
         entity_list = []

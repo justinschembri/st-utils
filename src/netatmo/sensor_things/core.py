@@ -41,6 +41,7 @@ class SensorThingsObject(BaseModel):
         List[str],
     ] = {}
 
+    # TODO: #4 The state of iot_links as 'str' should be temporary or stored in another attribute.
     def __hash__(self) -> int:
         return hash((self.name, str(self.__class__)))
 
@@ -53,11 +54,11 @@ class SensorThingsObject(BaseModel):
             "sensors", "things", "locations", "datastreams", "observed_properties"
         ],
         instance: str,
-        value: "SensorThingsObject",
+        sensor_things_object: "SensorThingsObject",
     ) -> None:
         """Set an `iot_link` dict value."""
         set_index = self.iot_links[entity].index(instance)
-        self.iot_links[entity][set_index] = value  # type: ignore
+        self.iot_links[entity][set_index] = sensor_things_object  # type: ignore
 
 
 class Sensor(SensorThingsObject):
