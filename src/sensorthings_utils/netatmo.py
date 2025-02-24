@@ -1,3 +1,5 @@
+"""FROST server support for Netatmo Sensor NWS03."""
+
 # standard
 import urllib.request as request
 from urllib.parse import quote
@@ -5,22 +7,28 @@ from urllib import error
 import json
 import logging
 import time
-from datetime import datetime
-from typing import List, Dict, Any, Generator, Tuple, Literal, TYPE_CHECKING
-import re
+from typing import List, Dict, Any, Generator, Tuple, TYPE_CHECKING
+import os
 
 # external
 import lnetatmo as ln
+import dotenv
+from .config import ENV_FILE
 
 # internal
 from .sensor_things.core import Observation
 
+# type checking only
 if TYPE_CHECKING:
     from .sensor_things.core import SensorThingsObject, Datastream
     from .sensor_things.extensions import SensorArrangement
 
-BASE_URL = "http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1"
+# environment setup
+dotenv.load_dotenv(ENV_FILE)
+FROST_ENDPOINT = os.getenv("FROST_ENDPOINT")
+AUTHENTICATION = ln.ClientAuth()
 
+# logging setup
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s: %(levelname)s - %(message)s",
@@ -28,7 +36,7 @@ logging.basicConfig(
 )
 logger = logging.getLogger("netatmo")
 
-AUTHENTICATION = ln.ClientAuth()
+# common definitions
 NETATMO_TO_DATASTREAM_MAP = {
     "Temperature": "temperature_indoor",
     "CO2": "co2",
@@ -144,7 +152,7 @@ def make_frost_object(
         "Location": ("HistoricalLocations", "Things"),
     }
     expected_links = expected_links_map[entity.st_type]
-    url = iot_url or (BASE_URL + ENTITY_ENDPOINTS[entity.st_type])
+    url = iot_url or (FROST_ENDPOINT + ENTITY_ENDPOINTS[entity.st_type])
     make_request = request.Request(
         url=url,
         data=entity.model_dump_json(exclude={"iot_links", "id", "st_type"}).encode(
@@ -178,7 +186,7 @@ def make_frost_datastream(
     if check_existing_object(entity):
         logging.info(f"Creation Skipped: object {entity.st_type} already exists.")
         return None
-    url = BASE_URL + "/Datastreams"
+    url = FROST_ENDPOINT + "/Datastreams"
     data = entity.model_dump(exclude={"iot_links", "id", "st_type"})
     links = {
         "Thing": {"@iot.id": thing_id},
@@ -202,7 +210,7 @@ def filter_query(
     filter_string: str, entity: str | None, url: str | None
 ) -> Dict[str, str]:
     if not url:
-        query_url = BASE_URL + f"{entity}?$filter=" + quote(filter_string)
+        query_url = FROST_ENDPOINT + f"{entity}?$filter=" + quote(filter_string)
     else:
         query_url = url + "?$filter=" + quote(filter_string)
     make_request = request.Request(url=query_url, method="GET")

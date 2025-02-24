@@ -14,3 +14,6 @@ wheels/
 
 # Jupyter
 *.ipynb
+
+# Env Files
+.env

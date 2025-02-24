@@ -1,10 +1,16 @@
-# Sensor Type: Netatmo NWS03
-sensors:
-  70:ee:50:7f:9d:32: 
-    name: 70:ee:50:7f:9d:32
+# SENSOR TYPE: Netatmo NWS03
+# INSTRUCTIONS
+# 1 - Input the data near the *fill tag AND remove the tag
+# 2 - ONE (1) Sensor per config file, 
+# 3 - Filename, sensor key / sensor name attribute should be device MAC address,
+# 4 - iot_links shall use entity NAMES to refer to other entities, 
+
+sensors: 
+  *fill <MAC address>: 
+    name: *fill <must match line above (str)> 
     description: Netatmo Weather Station NWS03 with indoor and outdoor module.
-    metadata: test
-    encodingType: plain/text
+    metadata: *fill <str>
+    encodingType: *fill <str>
     properties:
       connectivity: Wi-Fi 802.11 b/g/n (2.4 GHz)
       recording_frequency: 5 minutes
@@ -19,7 +25,7 @@ sensors:
         CO2: 0ppm to 5000ppm
         noise: 35db to 120db
     iot_links:
-      datastreams: &datastreams #TODO: #2 Enforcing (and documenting) these names is critical.
+      datastreams: &datastreams
         - temperature_indoor
         - temperature_outdoor
         - humidity
@@ -29,40 +35,42 @@ sensors:
         - absolute_pressure
 
 things:
-  Room 120: 
-    name: Room 120
-    description: An office room.
-    properties: null
+  *fill <thing nam (str)>: 
+    name: *fill <must match line above (str)>
+    description: *fill <str>
+    properties: *fill <dict or null> 
     iot_links:
       datastreams: *datastreams
       locations:
-        - BK Room 120
+        - *fill <location 1 (str)>
+        - *fill <location 2 (str)> # usually 1 location, remove if required
 
 locations:
-  BK Room 120: 
-    name: BK Room 120
+  *fill <location name (str)>: 
+    name: *fill <str>
     description: Room 120 on the First Floor of the West Wing of the BK Building.
-    properties: null
+    properties: *fill <str>
     encodingType: application/geo+json
-    location:
-      type: Point
-      coordinates: [8.10, 50.00]
+    location: # GeoJSON geometry field
+      type: *fill 
+      coordinates:  [*fill <array>]
     iot_links:
       things:
-        - Room 120
+        - *fill <thing 1 str>
+        - *fill <thing 2 str> # usually 1 location, remove if required
 
 datastreams:
   temperature_indoor:
     name: temperature_indoor
-    description:  Datastream for observations of internal temperature in Room 120.
-    observationType: instant
+    description:  *fill <str>
+    observationType: *fill <str>
     unitOfMeasurement: &temperature
       name: degree Celsius
       symbol: °C
       definition: https://unitsofmeasure.org/ucum#para-30
-    observed_area: &room120-observed_area
-      coordinates: POLYGON(())
-      crs: WGS
+    observedArea: &observedArea # GeoJSON geometry field
+      type: Polygon
+      coordinates: [*fill <array<array>>]
     phenomenon_time: null
     result_time: null
     properties: null
@@ -70,23 +78,23 @@ datastreams:
       observed_properties:
         - indoor_temperature
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   temperature_outdoor:
     name: temperature_outdoor
     description: This datastream is measuring the air temperature in a room.
     observationType: instant
     unitOfMeasurement: *temperature
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - outdoor_temperature
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   humidity:
     name: humidity
@@ -96,14 +104,14 @@ datastreams:
       name: percent
       symbol: "%"
       definition: https://unitsofmeasure.org/ucum#para-29
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - internal_humidity
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   co2:
     name: co2
@@ -113,14 +121,14 @@ datastreams:
       name: parts per million
       symbol: ppm
       definition: https://unitsofmeasure.org/ucum#para-29
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - co2_levels
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   pressure:
     name: pressure
@@ -130,28 +138,28 @@ datastreams:
       name: millibar
       symbol: mbar
       definition: https://unitsofmeasure.org/ucum#datyp2apdxatblxmp
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - internal_pressure
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   absolute_pressure:
     name: absolute_pressure
     description: Datastream for observations of absolute pressure levels in Room 120.
     observationType: instant
     unitOfMeasurement: *millibar
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - absolute_pressure
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
   noise:
     name: noise
@@ -161,55 +169,55 @@ datastreams:
       name: decibel
       symbol: db
       definition: https://unitsofmeasure.org/ucum#para-46
-    observed_area: *room120-observed_area
+    observedArea: *observedArea
     iot_links:
       observed_properties:
         - internal_noise_levels
       sensors:
-        - 70:ee:50:7f:9d:32
+        - *fill <str>
       things:
-        - Room 120
+        - *fill <str>
 
 
 observed_properties:
   indoor_temperature:
     name: indoor_temperature
-    definition: ...
-    description: The temperature in Room 120.
+    definition: The indoor temperature where the indoor module is placed.
+    description: *fill <str>
     properties: null
 
   outdoor_temperature:
     name: outdoor_temperature
-    definition: ...
-    description: The temperature outside Room 120.
+    definition: The outdoor temperature wherever the outdoor module is placed.
+    description: *fill <str>
     properties: null
   
   absolute_pressure:
     name: absolute_pressure
-    definition: ...
-    description: The absolute pressure inside Room 120.
+    definition: The absolute pressure where the indoor module is placed.
+    description: *fill <str>
     properties: null
 
   internal_pressure:
     name: internal_pressure
-    definition: ...
-    description: The pressure inside Room 120.
+    definition: The internal pressure where the indoor module is placed.
+    description: *fill <str>
     properties: null
 
   internal_noise_levels:
     name: internal_noise_levels
-    definition: ...
-    description: The pressure inside Room 120.
+    definition: The internal noise levels where the indoor module is placed.
+    description: *fill <str>
     properties: null
 
   co2_levels:
     name: co2_levels
-    definition: ...
-    description: The pressure inside Room 120.
+    definition: The internal Co2 levels where the indoor module is placed.
+    description: *fill <str>
     properties: null
 
   internal_humidity:
     name: internal_humidity
-    definition: ...
-    description: The pressure inside Room 120.
+    definition: The internal Co2 levels where the indoor module is placed.
+    description: *fill <str>
     properties: null

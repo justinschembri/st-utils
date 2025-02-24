@@ -4,7 +4,10 @@ from pathlib import Path
 
 # external
 # internal
-from netatmo.sensor_things.extensions import SensorArrangementMap, SensorArrangement
+from sensorthings_utils.sensor_things.extensions import (
+    SensorArrangementMap,
+    SensorArrangement,
+)
 
 
 class Test_SensorArrangement(unittest.TestCase):
