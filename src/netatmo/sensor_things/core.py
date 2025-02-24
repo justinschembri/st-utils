@@ -8,7 +8,13 @@ from typing_extensions import Annotated, Self
 from datetime import datetime
 
 # external
-from pydantic import BaseModel, Field, StringConstraints, model_validator
+from pydantic import (
+    BaseModel,
+    Field,
+    StringConstraints,
+    model_validator,
+    computed_field,
+)
 
 # internal
 # TODO: #1 consider the implementation of ENUMS for SensorThingsObjects throughout?
@@ -40,6 +46,11 @@ class SensorThingsObject(BaseModel):
         Literal["sensors", "things", "locations", "datastreams", "observed_properties"],
         List[str],
     ] = {}
+
+    @computed_field
+    @property
+    def st_type(self) -> str:
+        return self.__class__.__name__
 
     # TODO: #4 The state of iot_links as 'str' should be temporary or stored in another attribute.
     def __hash__(self) -> int:
@@ -96,10 +107,15 @@ class ObservedProperty(SensorThingsObject):
 
 class Observation(BaseModel):
     result: Any
-    result_time: datetime
-    phenomenon_time: datetime | None = None  # result time vs phenomenon time is what?
+    phenomenonTime: datetime | None
+    iot_links: int | None = None
+    resultTime: datetime | None = None
     validTime: "TimePeriod | None" = None
-    iot_links: List["Datastream"]
+
+    @computed_field
+    @property
+    def st_type(self) -> str:
+        return self.__class__.__name__
 
 
 class TimePeriod(BaseModel):

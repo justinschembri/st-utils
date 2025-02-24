@@ -13,12 +13,13 @@ import re
 import lnetatmo as ln
 
 # internal
+from .sensor_things.core import Observation
 
 if TYPE_CHECKING:
     from .sensor_things.core import SensorThingsObject, Datastream
     from .sensor_things.extensions import SensorArrangement
 
-BASE_URL = "http://localhost:8080/FROST-Server.HTTP-2.3.1/v1.1"
+BASE_URL = "http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,11 +31,21 @@ logger = logging.getLogger("netatmo")
 AUTHENTICATION = ln.ClientAuth()
 NETATMO_TO_DATASTREAM_MAP = {
     "Temperature": "temperature_indoor",
-    "C02": "co2",
+    "CO2": "co2",
     "Humidity": "humidity",
     "Noise": "noise",
     "Pressure": "pressure",
     "AbsolutePressure": "absolute_pressure",
+}
+ENTITY_ENDPOINTS: Dict[str, str] = {
+    "Sensor": "/Sensors",
+    "Datastream": "/Datastreams",
+    "ObservedProperty": "/ObservedProperties",
+    "Thing": "/Things",
+    "Observation": "/Observations",
+    "FeatureOfInterest": "/FeaturesOfInterest",
+    "HistoricalLocation": "/HistoricalLocations",
+    "Location": "/Locations",
 }
 
 
@@ -61,13 +72,48 @@ def _retrieve_latest_observations(
 
 def _generate_query_params(data: Dict[str, str | int | float]) -> Generator[Tuple[Any]]:
     sensor_name = data["station_id"]
-    result_time = datetime.fromtimestamp(data["time_utc"])  # type: ignore
+    result_time = data["time_utc"]  # type: ignore
     for observation_type, result_value in data.items():
         # there are a number of values in a response we're not interested in.
         if observation_type not in NETATMO_TO_DATASTREAM_MAP:
             continue
         datastream_name = NETATMO_TO_DATASTREAM_MAP[observation_type]
         yield (sensor_name, datastream_name, result_time, result_value)  # type: ignore
+
+
+def check_existing_object(entity: "SensorThingsObject") -> bool:
+    """
+    Check if an existing SensorThingsObject already exists.
+    """
+    match entity.st_type:
+        case (
+            "Sensor"
+            | "Thing"
+            | "ObservedProperty"
+            | "Locations"
+        ):  # TODO: #5 Sort out references, sometimes plural, sometimes singular.
+            if filter_query(
+                entity=ENTITY_ENDPOINTS[entity.st_type],
+                filter_string=f"name eq '{entity.name}'",
+                url=None,
+            )["value"]:
+                return True
+        case "Datastream":
+            response = filter_query(
+                entity="/Datastreams",
+                filter_string=f"name eq '{entity.name}'",
+                url=None,
+            )
+            r_objects = response["value"]
+            if r_objects:
+                sensor_url = r_objects[0]["Sensor@iot.navigationLink"]
+                sensor_request = request.Request(url=sensor_url, method="GET")
+                with request.urlopen(sensor_request) as response:
+                    response = json.loads(response.read())
+                    response = response["name"]
+                    if response == entity.iot_links["sensors"][0].name:
+                        return True
+    return False
 
 
 def make_frost_object(
@@ -84,32 +130,26 @@ def make_frost_object(
     :rtype: Dict[str]
 
     """
+    if check_existing_object(entity):
+        logging.info(f"Creation Skipped: object {entity.st_type} already exists.")
+        return {}
     expected_links_map: Dict[str, Tuple[str, ...]] = {
         "Sensor": ("Datastreams",),
         "Datastream": ("ObservedProperties", "Observations", "Sensors", "Things"),
         "ObservedProperty": ("Datastreams",),
         "Thing": ("Datastreams", "HistoricalLocations", "Locations"),
-        "Observation": ("Datastreams", "FeaturesOfInterest"),
+        "Observation": ("Datastream", "FeatureOfInterest"),
         "FeatureOfInterest": ("Observations",),
         "HistoricalLocation": ("Things", "Locations"),
         "Location": ("HistoricalLocations", "Things"),
     }
-    entity_endpoints: Dict[str, str] = {
-        "Sensor": "/Sensors",
-        "Datastream": "/Datastreams",
-        "ObservedProperty": "/ObservedProperties",
-        "Thing": "/Things",
-        "Observation": "/Observations",
-        "FeatureOfInterest": "/FeaturesOfInterest",
-        "HistoricalLocation": "/HistoricalLocations",
-        "Location": "/Locations",
-    }
-    entity_type = entity.__class__.__name__
-    expected_links = expected_links_map[entity_type]
-    url = iot_url or (BASE_URL + entity_endpoints[entity_type])
+    expected_links = expected_links_map[entity.st_type]
+    url = iot_url or (BASE_URL + ENTITY_ENDPOINTS[entity.st_type])
     make_request = request.Request(
         url=url,
-        data=entity.model_dump_json(exclude={"iot_links", "id"}).encode("UTF-8"),
+        data=entity.model_dump_json(exclude={"iot_links", "id", "st_type"}).encode(
+            "UTF-8"
+        ),
         method="POST",
     )
     try:
@@ -117,7 +157,7 @@ def make_frost_object(
             new_object_url = response.getheader(
                 "Location"
             )  # "Location" does not refer to a SensorThings Location
-            logger.info(f"New {entity_type} created at {new_object_url}")
+            logger.info(f"New {entity.st_type} created at {new_object_url}")
     except error.HTTPError as e:
         logger.critical(f"{e} {e.read()}")
         return {}
@@ -135,8 +175,11 @@ def make_frost_object(
 def make_frost_datastream(
     entity: "Datastream", sensor_id: int, thing_id: int, observed_property_id: int
 ) -> None:
+    if check_existing_object(entity):
+        logging.info(f"Creation Skipped: object {entity.st_type} already exists.")
+        return None
     url = BASE_URL + "/Datastreams"
-    data = entity.model_dump(exclude={"iot_links", "id"})
+    data = entity.model_dump(exclude={"iot_links", "id", "st_type"})
     links = {
         "Thing": {"@iot.id": thing_id},
         "Sensor": {"@iot.id": sensor_id},
@@ -155,8 +198,13 @@ def make_frost_datastream(
         logger.critical(f"{e} {e.read()}")
 
 
-def filter_query(entity: str, filter_string: str) -> Dict[str, str]:
-    query_url = BASE_URL + f"/{entity}?$filter=" + quote(filter_string)
+def filter_query(
+    filter_string: str, entity: str | None, url: str | None
+) -> Dict[str, str]:
+    if not url:
+        query_url = BASE_URL + f"{entity}?$filter=" + quote(filter_string)
+    else:
+        query_url = url + "?$filter=" + quote(filter_string)
     make_request = request.Request(url=query_url, method="GET")
     try:
         with request.urlopen(make_request) as response:
@@ -170,21 +218,10 @@ def filter_query(entity: str, filter_string: str) -> Dict[str, str]:
 def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
     """Initial set up of a Sensor Arrangement."""
 
-    # def _parse_iot_url(iot_url: str) -> int:
-    #     """
-    #     Parse IoT Url and return ID.
-
-    #     ID is embedded in URL which has a format of ".../<EntityType>(n)"
-    #     """
-    #     pat = r"\((\d+)\)"
-    #     id = re.search(pat, iot_url)
-    #     if id:
-    #         return int(id.group(1))
-    #     else:
-    #         raise ValueError(f"Unable to find id in url: {iot_url}")
-    # Firstly, make all Things and their associated Locations
     for thing in sensor_arrangement.get_entities("Thing"):
         make_thing = make_frost_object(thing)
+        if not make_thing:
+            break
         iot_url = make_thing["locations_url"]
         # lookup linked locations of the thing and make them:
         for loc in thing.iot_links["locations"]:
@@ -203,13 +240,17 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
         oprop_name = ds.iot_links["observed_properties"][0].name
         thing_name = ds.iot_links["things"][0].name
         # Query server and lookup ids:
-        sen_id = filter_query("Sensors", f"name eq '{sen_name}'")["value"][0]["@iot.id"]
-        oprop_id = filter_query("ObservedProperties", f"name eq '{oprop_name}'")[
-            "value"
-        ][0]["@iot.id"]
-        thing_id = filter_query("Things", f"name eq '{thing_name}'")["value"][0][
-            "@iot.id"
-        ]
+        sen_id = filter_query(
+            entity="/Sensors", filter_string=f"name eq '{sen_name}'", url=None
+        )["value"][0]["@iot.id"]  # type: ignore
+        oprop_id = filter_query(
+            entity="/ObservedProperties",
+            filter_string=f"name eq '{oprop_name}'",
+            url=None,
+        )["value"][0]["@iot.id"]  # type: ignore
+        thing_id = filter_query(
+            entity="/Things", filter_string=f"name eq '{thing_name}'", url=None
+        )["value"][0]["@iot.id"]  # type: ignore
         make_frost_datastream(
             ds,
             sensor_id=int(sen_id),
@@ -223,5 +264,28 @@ def netatmo_stream(sleep_time: int) -> None:
     for data in _retrieve_latest_observations().values():
         observation_stream = _generate_query_params(data)
         for o in observation_stream:
-            print(o)  # query / construct end point / push
+            sensor_name = o[0]
+            datastream_name = o[1]
+            phenomenon_time = o[2]
+            result = o[3]
+
+            sensor_datastreams = filter_query(
+                entity="/Sensors", filter_string=f"name eq '{sensor_name}'", url=None
+            )
+            sensor_datastreams = sensor_datastreams["value"][0][
+                "Datastreams@iot.navigationLink"
+            ]  # url of datastreams #type: ignore
+
+            datastream = filter_query(
+                entity=None,
+                filter_string=f"name eq '{datastream_name}'",
+                url=sensor_datastreams,
+            )  # type: ignore
+
+            push_link = datastream["value"][0]["Observations@iot.navigationLink"]
+            observation = Observation(
+                result=result,
+                phenomenonTime=phenomenon_time,
+            )
+            observation = make_frost_object(observation, push_link)
         time.sleep(sleep_time)

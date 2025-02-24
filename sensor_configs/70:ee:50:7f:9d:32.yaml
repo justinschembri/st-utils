@@ -43,10 +43,10 @@ locations:
     name: BK Room 120
     description: Room 120 on the First Floor of the West Wing of the BK Building.
     properties: null
-    encodingType: plain/wkt
+    encodingType: application/geo+json
     location:
-      coordinates: POINT()
-      crs: WGS
+      type: Point
+      coordinates: [8.10, 50.00]
     iot_links:
       things:
         - Room 120
