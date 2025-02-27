@@ -23,7 +23,7 @@ SENSOR_THINGS_OBJECTS = [
     "things",
     "locations",
     "datastreams",
-    "observed_properties",
+    "observedProperties",
 ]
 
 
@@ -43,7 +43,7 @@ class SensorThingsObject(BaseModel):
     ]
     properties: Optional[Dict[str, Any]] = Field(default_factory=dict)
     iot_links: Dict[
-        Literal["sensors", "things", "locations", "datastreams", "observed_properties"],
+        Literal["sensors", "things", "locations", "datastreams", "observedProperties"],
         List[str],
     ] = {}
 
@@ -62,7 +62,7 @@ class SensorThingsObject(BaseModel):
     def set_iot_link(
         self,
         entity: Literal[
-            "sensors", "things", "locations", "datastreams", "observed_properties"
+            "sensors", "things", "locations", "datastreams", "observedProperties"
         ],
         instance: str,
         sensor_things_object: "SensorThingsObject",

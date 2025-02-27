@@ -74,7 +74,7 @@ class SensorArrangement:
         "things": Thing,
         "locations": Location,
         "datastreams": Datastream,
-        "observed_properties": ObservedProperty,
+        "observedProperties": ObservedProperty,
     }
 
     name_mappings: Dict[
@@ -84,7 +84,7 @@ class SensorArrangement:
         "things": "Thing",
         "locations": "Location",
         "datastreams": "Datastream",
-        "observed_properties": "ObservedProperty",
+        "observedProperties": "ObservedProperty",
     }
 
     def __init__(self, arrangement_map: "SensorArrangementMap"):

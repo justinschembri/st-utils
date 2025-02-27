@@ -37,14 +37,7 @@ logging.basicConfig(
 logger = logging.getLogger("netatmo")
 
 # common definitions
-NETATMO_TO_DATASTREAM_MAP = {
-    "Temperature": "temperature_indoor",
-    "CO2": "co2",
-    "Humidity": "humidity",
-    "Noise": "noise",
-    "Pressure": "pressure",
-    "AbsolutePressure": "absolute_pressure",
-}
+
 ENTITY_ENDPOINTS: Dict[str, str] = {
     "Sensor": "/Sensors",
     "Datastream": "/Datastreams",
@@ -57,9 +50,9 @@ ENTITY_ENDPOINTS: Dict[str, str] = {
 }
 
 
-def _retrieve_latest_observations(
+def _extract(
     station_ids: List[str] | None = None,
-) -> Dict[str, Dict[str, str | int | float]]:
+) -> Dict[str, Dict[str, Any]]:
     """
     Return latest observations from all Netatmo weather stations.
 
@@ -78,7 +71,16 @@ def _retrieve_latest_observations(
     return data
 
 
-def _generate_query_params(data: Dict[str, str | int | float]) -> Generator[Tuple[Any]]:
+# TODO: #7 Consider creating a standard namedTuple for returns.
+def _transform(data: Dict[str, Any]) -> Generator[Tuple[Any, ...]]:
+    NETATMO_TO_DATASTREAM_MAP = {
+        "Temperature": "temperature_indoor",
+        "CO2": "co2",
+        "Humidity": "humidity",
+        "Noise": "noise",
+        "Pressure": "pressure",
+        "AbsolutePressure": "absolute_pressure",
+    }
     sensor_name = data["station_id"]
     result_time = data["time_utc"]  # type: ignore
     for observation_type, result_value in data.items():
@@ -245,7 +247,7 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
     for ds in sensor_arrangement.get_entities("Datastream"):
         # Lookup the names's of the relevant Sensor, ObservedProperty and Thing:
         sen_name = ds.iot_links["sensors"][0].name  # only 1 object in list
-        oprop_name = ds.iot_links["observed_properties"][0].name
+        oprop_name = ds.iot_links["observedProperties"][0].name
         thing_name = ds.iot_links["things"][0].name
         # Query server and lookup ids:
         sen_id = filter_query(
@@ -267,10 +269,10 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
         )
 
 
-def netatmo_stream(sleep_time: int) -> None:
+def stream(sleep_time: int) -> None:
     """Placeholder function."""
-    for data in _retrieve_latest_observations().values():
-        observation_stream = _generate_query_params(data)
+    for data in _extract().values():
+        observation_stream = _transform(data)
         for o in observation_stream:
             sensor_name = o[0]
             datastream_name = o[1]

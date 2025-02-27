@@ -1,0 +1,96 @@
+# SENSOR TYPE: <Sensor Type>
+# INSTRUCTIONS
+# 1 - Input the data near the *fill tag AND remove the tag
+# 2 - ONE (1) Sensor per config file, 
+# 3 - Filename, sensor key / sensor name attribute should be device MAC address,
+# 4 - iot_links shall use entity NAMES to refer to other entities, 
+
+sensors: 
+  *fill <MAC address>: 
+    name: *fill <must match line above (str)> 
+    description: *fill <str>
+    metadata: *fill <str>
+    encodingType: *fill <str>
+    properties: *fill <dict-like object or null> #e.g.:
+      #connectivity: Wi-Fi 802.11 b/g/n (2.4 GHz)
+      #recording_frequency: 5 minutes
+      #accuracy:
+        #temperature: 1°C
+        #humidity: 3%
+      #measurement_range:
+        #temperature: 0°C to 50°C
+    iot_links:
+      datastreams: *fill <array(datastream names(str))> #e.g.:
+        #- temperature_indoor
+        #- humidity
+things:
+  *fill <thing name (str)>: 
+    name: *fill <must match line above (str)>
+    description: *fill <str>
+    properties: *fill <dict-like object or null> #e.g.,:
+      #type: room
+      #materials:
+        #wall: masonry
+        #floor: concrete
+      #occupants:
+        #- staff
+        #- students
+    iot_links:
+      datastreams: *fill <array(datastream names(str))>
+      locations: *fill <array(locations_names(str))> 
+
+
+locations:
+  *fill <location name (str)>: 
+    name: *fill <str>
+    description: fill <str>
+    properties: *fill <str>
+    encodingType: application/geo+json
+    location: # Complies with GeoJSON schema: https://geojson.org/
+      type: *fill <literal (Position, Point, MultiPoint, LineString, Polygon,
+      MultiPolygon)
+      coordinates:  *fill <array (varies)> #depends on geometry type
+    iot_links:
+      things: *fill <array(things names(str))> #e.g.,:
+        #- gasket
+
+datastreams:
+  # quite crucially, there should be the same amount of datastreams as defined in the
+  # sensor item earlier.
+  *fill <datastream name(str)>:
+    name: *fill <must match line above (str)>
+    description:  *fill <str>
+    observationType: *fill <str>
+    unitOfMeasurement: &temperature
+      name: *fill <str>
+      symbol: *fill <str>
+      definition: *fill <url(str)>
+    observedArea: # Complies with GeoJSON schema: https://geojson.org/
+      type: <literal (Position, Point, MultiPoint, LineString, Polygon,
+      MultiPolygon)
+      coordinates: *fill <array (varies)> #depends on geometry type
+    phenomenon_time: *fill
+      - start: <unix timestamp or null>
+      - end: <unix timestamp or null> #TODO: #6 check validity of these hints
+    result_time: *fill
+      - start: <unix timestamp or null>
+      - end: <unix timestamp or null>
+    properties: *fill <dict-like object or null>
+    iot_links:
+      observedProperties:
+        - *fill <str> # ONE ObservedProperty, name should match
+      sensors:
+        - *fill <str> # ONE Sensor, name should match
+      things:
+        - *fill <str> # ONE Thing, name should match
+  
+  # more datastreams ...
+
+observedProperties:
+  *fill <observedProperty name(str)>:
+    name: *fill <must match line above (str)>
+    definition: *fill <str>
+    description: *fill <str>
+    properties: *fill <dict-like object or null>
+    iot_links:
+      datastreams: *fill <array(datastream names(str))> 
