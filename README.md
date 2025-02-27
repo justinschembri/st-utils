@@ -4,6 +4,25 @@
 
 **st-utils** (SensorThings Utilities) is a suite of tools for managing networks of *heterogeneous* sensors using the [OGC SensorThings](https://www.ogc.org/publications/standard/sensorthings/) data model.
 
+## Table of Contents
+
+- [st-utils](#st-utils)
+  - [What is it?](#what-is-it)
+  - [Table of Contents](#table-of-contents)
+  - [Requirements](#requirements)
+  - [Installation](#installation)
+    - [Using UV](#using-uv)
+    - [Using Pip](#using-pip)
+  - [Sensors](#sensors)
+  - [YAML Sensor Configuration Files](#yaml-sensor-configuration-files)
+    - [Add a YAML Template for New Sensor Support](#add-a-yaml-template-for-new-sensor-support)
+    - [Add Real World Sensor Configurations](#add-real-world-sensor-configurations)
+  - [Extract, Transform and Stream Functions](#extract-transform-and-stream-functions)
+    - [Extract Function](#extract-function)
+    - [Transform Function](#transform-function)
+    - [Stream Function](#stream-function)
+  - [Supported Sensor Models](#supported-sensor-models)
+
 ## Requirements
 
 **st-utils** requires the following: 
