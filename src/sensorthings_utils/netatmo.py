@@ -298,4 +298,4 @@ def stream(sleep_time: int = 240) -> None:
                 phenomenonTime=phenomenon_time,
             )
             observation = make_frost_object(observation, push_link)
-        time.sleep(sleep_time)
+    time.sleep(sleep_time)

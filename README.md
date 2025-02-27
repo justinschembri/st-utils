@@ -13,6 +13,7 @@
   - [Installation](#installation)
     - [Using UV](#using-uv)
     - [Using Pip](#using-pip)
+  - [Running](#running)
   - [Sensors](#sensors)
   - [YAML Sensor Configuration Files](#yaml-sensor-configuration-files)
     - [Add a YAML Template for New Sensor Support](#add-a-yaml-template-for-new-sensor-support)
@@ -28,32 +29,47 @@
 **st-utils** requires the following: 
 
 - **Python 3.13**
-- A running instance of [FROST Server](https://github.com/FraunhoferIOSB/FROST-Server) must be available; follow the [instructions](https://fraunhoferiosb.github.io/FROST-Server/deployment/tomcat.html) for installation. `FROST Server` will handle connections and transactions with a `PostgreSQL` database with the `PostGIS` extension (all included in the instructions above).
+- A running instance of [**`FROST Server`**](https://github.com/FraunhoferIOSB/FROST-Server) must be available; follow the [instructions](https://fraunhoferiosb.github.io/FROST-Server/deployment/tomcat.html) for installation. `FROST Server` will handle connections and transactions with a `PostgreSQL` database with the `PostGIS` extension (all included in the instructions above).
 - An `.env` file at the project root with the following environment variables:
     - `FROST_ENDPOINT` = "\<END POINT URL\>" , e.g.:
 
 ```bash
 FROST_ENDPOINT=http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1
 ```
-- Sensors, of course (see [Sensors](#sensors))
+- Sensor configuration [files](#yaml-sensor-configuration-files), and the required authentication details to access observations in the `.env`.
 
 ## Installation
 
-Navigate to wherever you want the application to live, and:
+Navigate to wherever you want the application to live, and clone the repository and prepare a virtual environment:
 
 ### Using UV
 
-```bash
-uv venv --python=3.13
-uv pip install git+<URL>
+```zsh
+git clone https://github.com/justinschembri/gist-iot.git
+cd gist-iot
+uv venv
+uv pip install .
+source .venv/bin/activate
 ```
 
 ### Using Pip
 
 ```bash
+git clone https://github.com/justinschembri/gist-iot.git
+cd gist-iot
 python -m venv venv
 source venv/bin/activate
-pip install git+<URL>
+pip install -r requirements.txt
+pip install .
+```
+
+## Running
+
+Running the application will start a streaming script, querying observations from defined sources and pushing them to the remote `FROST` server:
+
+```zsh
+source .venv/bin/activate 
+python src/sensorthings_utils/main.py
 ```
 
 ## Sensors
