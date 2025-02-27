@@ -39,6 +39,8 @@ FROST_ENDPOINT=http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1
 
 ## Installation
 
+Navigate to wherever you want the application to live, and:
+
 ### Using UV
 
 ```bash

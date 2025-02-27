@@ -269,7 +269,7 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
         )
 
 
-def stream(sleep_time: int) -> None:
+def stream(sleep_time: int = 240) -> None:
     """Placeholder function."""
     for data in _extract().values():
         observation_stream = _transform(data)
