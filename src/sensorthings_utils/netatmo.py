@@ -141,7 +141,9 @@ def make_frost_object(
 
     """
     if check_existing_object(entity):
-        logging.info(f"Creation Skipped: object {entity.st_type} already exists.")
+        logging.info(
+            f"Creation Skipped: {entity.st_type}: {entity.name} already exists."
+        )
         return {}
     expected_links_map: Dict[str, Tuple[str, ...]] = {
         "Sensor": ("Datastreams",),
@@ -270,7 +272,7 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
 
 
 def stream(sleep_time: int = 240) -> None:
-    """Placeholder function."""
+    """Extract, transform and load Netatmo devices linked to your account."""
     for data in _extract().values():
         observation_stream = _transform(data)
         for o in observation_stream:
