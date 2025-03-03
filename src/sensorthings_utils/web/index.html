@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <style>
+        body {
+            display: flex;
+            height: 100vh;
+            margin: 0;
+            font-family: Helvetica, Arial, sans-serif;
+            background-color: #f4f4f4;
+        }
+        #location-list {
+            width: 25vw;
+            padding: 20px;
+            border-right: 5px solid #ccc;
+            overflow-y: auto;
+            background: white;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        #sensor-list h3 {
+            text-align: center;
+            font-size: 1.5em;
+            color: #333;
+        }
+        #sensor-list ul {
+            list-style: none;
+            padding: 0;
+        }
+        #sensor-list li {
+            padding: 10px;
+            border-bottom: 1px solid #ddd;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        #sensor-list li:hover {
+            background: #eee;
+        }
+        #map {
+            flex-grow: 1;
+            height: 100vh;
+        }
+        .active-location {
+            background-color: #e0f7fa;
+            font-weight: bold;
+        }
+        #status {
+            position: fixed;
+            bottom: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 5px 10px;
+            border-radius: 4px;
+            z-index: 1000;
+            font-size: 12px;
+        }
+        .error {
+            color: red;
+        }
+        .success {
+            color: green;
+        }
+        .warning {
+            color: orange;
+        }
+        .location-details {
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .datastream-item {
+            margin-left: 15px;
+            font-size: 0.9em;
+        }
+        .datastream-name {
+            font-weight: bold;
+        }
+        .datastream-unit {
+            color: #666;
+            font-style: italic;
+        }
+        .popup-content {
+            max-height: 300px;
+            overflow-y: auto;
+            min-width: 250px;
+        }
+        .popup-section {
+            margin-top: 10px;
+            border-top: 1px solid #eee;
+            padding-top: 5px;
+        }
+        .thing-name {
+            font-weight: bold;
+            color: #2196F3;
+        }
+    </style>
+</head>
+<body>
+    <div id="location-list">
+        <h3>Things List</h3>
+        <ul id="locations"></ul>
+    </div>
+    <div id="map"></div>
+    <div id="status">Initializing map...</div>
+    <script src="app.js"></script>
+    <script>
+        // Status display element
+        const statusEl = document.getElementById('status');
+        
+        // Update status with message and optional class
+        function updateStatus(message, className = '') {
+            statusEl.textContent = message;
+            statusEl.className = className;
+        }
+
+        // Initialize map
+        updateStatus('Initializing map...');
+        const map = L.map('map').setView([52.00482, 4.37034], 13); // Default center based on sample data
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        const thingsData = {}; // Store location data by ID
+        const thingsByName = {}; // Store location data by name for easier lookup
+
+        fetchThings()
+            .catch(error => {
+                console.error("Error initializing application:", error);
+                updateStatus(`Error initializing application: ${error.message}`, 'error');
+                useSampleData();
+            });
+    </script>
+
+</body>
+</html>
