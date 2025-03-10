@@ -5,11 +5,15 @@ from typing import List, Literal
 # internal
 from sensorthings_utils import netatmo
 
-SupportedSensors = Literal["netatmo",]
+SupportedSensors = Literal[
+    "all",
+    "netatmo",
+]
 
 
 def stream_all(sensor_types: List[SupportedSensors]) -> None:
-    if "netatmo" in sensor_types:
+    ALL = True if "all" in sensor_types else False
+    if "netatmo" in sensor_types or ALL:
         netatmo.stream()
 
 
