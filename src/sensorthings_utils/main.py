@@ -7,4 +7,5 @@ def stream_all() -> None:
 
 if __name__ == "__main__":
     while True:
-        stream_all()
+        print("Application being called!")
+        # stream_all()
