@@ -14,9 +14,11 @@ import os
 import lnetatmo as ln
 import dotenv
 from .config import ENV_FILE
+from pathlib import Path
 
 # internal
 from .sensor_things.core import Observation
+from .config import ROOT_DIRECTORY
 
 # type checking only
 if TYPE_CHECKING:
@@ -26,10 +28,23 @@ if TYPE_CHECKING:
 # environment setup
 dotenv.load_dotenv(ENV_FILE)
 FROST_ENDPOINT = os.getenv("FROST_ENDPOINT")
-NETATMO_CLIENT_ID = os.getenv("NETATMO_CLIENT_ID")
-NETATMO_CLIENT_SECRET = os.getenv("NETATMO_CLIENT_SECRET")
-NETATMO_REFRESH_TOKEN = os.getenv("NETATMO_REFRESH_TOKEN")
-AUTHENTICATION = ln.ClientAuth(NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET)
+
+NETATMO_CREDENTIALS_FILE = Path(ROOT_DIRECTORY / ".netatmo.credentials")
+if not NETATMO_CREDENTIALS_FILE.exists():
+    # Get credentials from the .env, but create a .netatmo.credentials file; the
+    # credentials then become redundant.
+    NETATMO_CLIENT_ID = os.getenv("NETATMO_CLIENT_ID")
+    NETATMO_CLIENT_SECRET = os.getenv("NETATMO_CLIENT_SECRET")
+    NETATMO_REFRESH_TOKEN = os.getenv("NETATMO_REFRESH_TOKEN")
+    credentials = {
+        "CLIENT_ID": NETATMO_CLIENT_ID,
+        "CLIENT_SECRET": NETATMO_CLIENT_SECRET,
+        "REFRESH_TOKEN": NETATMO_REFRESH_TOKEN,
+    }
+    with open(NETATMO_CREDENTIALS_FILE, "w") as f:
+        json.dump(credentials, f, indent=4)
+
+AUTHENTICATION = ln.ClientAuth(credentialFile=NETATMO_CREDENTIALS_FILE)
 
 # logging setup
 logging.basicConfig(
