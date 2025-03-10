@@ -26,7 +26,10 @@ if TYPE_CHECKING:
 # environment setup
 dotenv.load_dotenv(ENV_FILE)
 FROST_ENDPOINT = os.getenv("FROST_ENDPOINT")
-AUTHENTICATION = ln.ClientAuth()
+NETATMO_CLIENT_ID = os.getenv("NETATMO_CLIENT_ID")
+NETATMO_CLIENT_SECRET = os.getenv("NETATMO_CLIENT_SECRET")
+NETATMO_REFRESH_TOKEN = os.getenv("NETATMO_REFRESH_TOKEN")
+AUTHENTICATION = ln.ClientAuth(NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET)
 
 # logging setup
 logging.basicConfig(
@@ -279,6 +282,9 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
 
 def stream(sleep_time: int = 240) -> None:
     """Extract, transform and load Netatmo devices linked to your account."""
+    if not any((NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET, NETATMO_REFRESH_TOKEN)):
+        logging.info("Netatmo credentials not found in .env.")
+        return None
     for data in _extract().values():
         observation_stream = _transform(data)
         for o in observation_stream:
