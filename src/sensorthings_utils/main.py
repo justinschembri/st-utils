@@ -21,7 +21,7 @@ SupportedSensors = Literal[
 
 
 def stream_all(sensor_types: List[SupportedSensors]) -> None:
-    logging.info("Sensor Stream starting (sleep.)")
+    logging.info("Sensor stream starts in 30s.")
     time.sleep(30)
     for f in SENSOR_CONFIG_FILES:
         sensor_arrangement_map = SensorArrangementMap(f)

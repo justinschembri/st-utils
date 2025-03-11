@@ -8,8 +8,6 @@ services:
       - database
     environment:
       - FROST_ENDPOINT=http://web:8080/FROST-Server/v1.1
-    volumes:
-      - python_app_volume:/app/data
     command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
 
   web:
