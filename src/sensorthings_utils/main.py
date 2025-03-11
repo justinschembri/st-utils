@@ -1,9 +1,18 @@
 # standard
 from typing import List, Literal
+import time
+
+
 # external
 
 # internal
+from sensorthings_utils.config import SENSOR_CONFIG_FILES
 from sensorthings_utils import netatmo
+from sensorthings_utils.sensor_things.extensions import (
+    SensorArrangementMap,
+    SensorArrangement,
+)
+from sensorthings_utils.netatmo import initial_setup
 
 SupportedSensors = Literal[
     "all",
@@ -12,6 +21,10 @@ SupportedSensors = Literal[
 
 
 def stream_all(sensor_types: List[SupportedSensors]) -> None:
+    for f in SENSOR_CONFIG_FILES:
+        sensor_arrangement_map = SensorArrangementMap(f)
+        sensor_arrangement = SensorArrangement(sensor_arrangement_map)
+        initial_setup(sensor_arrangement)
     ALL = True if "all" in sensor_types else False
     if "netatmo" in sensor_types or ALL:
         netatmo.stream()
@@ -19,5 +32,5 @@ def stream_all(sensor_types: List[SupportedSensors]) -> None:
 
 if __name__ == "__main__":
     while True:
-        print("Application being called!")
-        # stream_all()
+        time.sleep(30)
+        stream_all(["netatmo"])

@@ -17,3 +17,6 @@ wheels/
 
 # Env Files
 .env
+
+# Credential Files
+.netatmo.credentials

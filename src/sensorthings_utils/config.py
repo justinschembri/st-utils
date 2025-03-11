@@ -1,6 +1,7 @@
 # standard
 import logging
 from pathlib import Path
+from typing import List
 
 # external
 # internal
@@ -9,7 +10,19 @@ from lnetatmo import ClientAuth
 # directory setup
 
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
+CONFIG_PATHS = ROOT_DIRECTORY / "sensor_configs"
 ENV_FILE = ROOT_DIRECTORY / ".env"
+
+
+def generate_sensor_config_files() -> List[Path]:
+    sensor_configs: List[Path] = []
+    for f in CONFIG_PATHS.rglob("*.*ml"):
+        if "template" not in f.stem:
+            sensor_configs.append(f)
+    return sensor_configs
+
+
+SENSOR_CONFIG_FILES = generate_sensor_config_files()
 
 
 def netatmo_auth_check(authentication: ClientAuth) -> bool:
@@ -31,5 +44,6 @@ def netatmo_auth_check(authentication: ClientAuth) -> bool:
 
 
 if __name__ == "__main__":
-    print(ROOT_DIRECTORY)
-    print(f"{ENV_FILE} Status: {ENV_FILE.exists()}")
+    print(f"{ROOT_DIRECTORY} Exists: {ROOT_DIRECTORY.exists()}")
+    print(f"{CONFIG_PATHS} Exists: {CONFIG_PATHS.exists()}")
+    print(f"{ENV_FILE} Exists: {ENV_FILE.exists()}")

@@ -137,8 +137,8 @@ def check_existing_object(entity: "SensorThingsObject") -> bool:
                 entity="/Datastreams",
                 filter_string=f"name eq '{entity.name}'",
                 url=None,
-            )
-            r_objects = response["value"]
+            )["value"]
+            r_objects = response
             if r_objects:
                 sensor_url = r_objects[0]["Sensor@iot.navigationLink"]
                 sensor_request = request.Request(url=sensor_url, method="GET")
@@ -297,9 +297,9 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> None:
 
 def stream(sleep_time: int = 240) -> None:
     """Extract, transform and load Netatmo devices linked to your account."""
-    if not any((NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET, NETATMO_REFRESH_TOKEN)):
-        logging.info("Netatmo credentials not found in .env.")
-        return None
+    # if not any((NETATMO_CLIENT_ID, NETATMO_CLIENT_SECRET, NETATMO_REFRESH_TOKEN)):
+    #     logging.info("Netatmo credentials not found in .env.")
+    #     return None
     for data in _extract().values():
         observation_stream = _transform(data)
         for o in observation_stream:
