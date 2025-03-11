@@ -1,7 +1,7 @@
 # standard
 from typing import List, Literal
 import time
-
+import logging
 
 # external
 
@@ -21,16 +21,17 @@ SupportedSensors = Literal[
 
 
 def stream_all(sensor_types: List[SupportedSensors]) -> None:
+    logging.info("Sensor Stream starting (sleep.)")
+    time.sleep(30)
     for f in SENSOR_CONFIG_FILES:
         sensor_arrangement_map = SensorArrangementMap(f)
         sensor_arrangement = SensorArrangement(sensor_arrangement_map)
         initial_setup(sensor_arrangement)
-    ALL = True if "all" in sensor_types else False
-    if "netatmo" in sensor_types or ALL:
-        netatmo.stream()
+    while True:
+        ALL = True if "all" in sensor_types else False
+        if "netatmo" in sensor_types or ALL:
+            netatmo.stream()
 
 
 if __name__ == "__main__":
-    while True:
-        time.sleep(30)
-        stream_all(["netatmo"])
+    stream_all(["all"])
