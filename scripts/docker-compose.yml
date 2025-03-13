@@ -8,6 +8,7 @@ services:
       - database
     environment:
       - FROST_ENDPOINT=http://web:8080/FROST-Server/v1.1
+      - CONTAINER_ENVIRONMENT=true
     command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
 
   web:
