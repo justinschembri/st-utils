@@ -90,6 +90,7 @@ def _extract(
     for station in weather_stations:
         station_id = station["_id"]
         dashboard_Data = station["dashboard_data"]
+        dashboard_Data["station_id"] = station_id
         data[station_id] = dashboard_Data
     logger.info(f"Retrieved {len(data)} sets of observations.")
     return data
@@ -141,7 +142,8 @@ def check_existing_object(entity: "SensorThingsObject") -> bool:
             r_objects = response
             if r_objects:
                 sensor_url = r_objects[0]["Sensor@iot.navigationLink"]
-                sensor_url = sensor_url.replace("localhost", "web")
+                # sensor_url = sensor_url.replace("localhost", "web") #TODO: #10 Handling of
+                # localhost and web in containerized environments.
                 sensor_request = request.Request(url=sensor_url, method="GET")
                 with request.urlopen(sensor_request) as response:
                     response = json.loads(response.read())
@@ -312,20 +314,26 @@ def stream(sleep_time: int = 240) -> None:
             sensor_datastreams = filter_query(
                 entity="/Sensors", filter_string=f"name eq '{sensor_name}'", url=None
             )
-            sensor_datastreams = sensor_datastreams["value"][0][
-                "Datastreams@iot.navigationLink"
-            ]  # url of datastreams #type: ignore
+            try:
+                sensor_datastreams = sensor_datastreams["value"][0][
+                    "Datastreams@iot.navigationLink"
+                ]  # url of datastreams #type: ignore
 
-            datastream = filter_query(
-                entity=None,
-                filter_string=f"name eq '{datastream_name}'",
-                url=sensor_datastreams,
-            )  # type: ignore
+                datastream = filter_query(
+                    entity=None,
+                    filter_string=f"name eq '{datastream_name}'",
+                    url=sensor_datastreams,
+                )  # type: ignore
 
-            push_link = datastream["value"][0]["Observations@iot.navigationLink"]
-            observation = Observation(
-                result=result,
-                phenomenonTime=phenomenon_time,
-            )
-            observation = make_frost_object(observation, push_link)
+                push_link = datastream["value"][0]["Observations@iot.navigationLink"]
+                observation = Observation(
+                    result=result,
+                    phenomenonTime=phenomenon_time,
+                )
+                observation = make_frost_object(observation, push_link)
+            except IndexError as e:
+                logging.critical(
+                    f"Failure adding observation for {sensor_name}. Has the datastream been set up?"
+                )
+                break
     time.sleep(sleep_time)
