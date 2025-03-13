@@ -12,8 +12,10 @@ services:
 
   web:
     image: fraunhoferiosb/frost-server:2.5.3
+    volumes:
+      - ../web:/usr/local/tomcat/webapps/st-utils
     environment:
-      - serviceRootUrl=http://web:8080/FROST-Server
+      - serviceRootUrl=http://localhost:8080/FROST-Server
       - plugins_multiDatastream.enable=false
       - http_cors_enable=true
       - http_cors_allowed_origins=*
