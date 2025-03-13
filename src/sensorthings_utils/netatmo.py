@@ -28,6 +28,7 @@ if TYPE_CHECKING:
 # environment setup
 dotenv.load_dotenv(ENV_FILE)
 FROST_ENDPOINT = os.getenv("FROST_ENDPOINT")
+CONTAINER_ENVIRONMENT = True if os.getenv("CONTAINER_ENVIRONMENT") else False
 
 NETATMO_CREDENTIALS_FILE = Path(ROOT_DIRECTORY / ".netatmo.credentials")
 if not NETATMO_CREDENTIALS_FILE.exists():
@@ -142,7 +143,9 @@ def check_existing_object(entity: "SensorThingsObject") -> bool:
             r_objects = response
             if r_objects:
                 sensor_url = r_objects[0]["Sensor@iot.navigationLink"]
-                # sensor_url = sensor_url.replace("localhost", "web") #TODO: #10 Handling of
+                if CONTAINER_ENVIRONMENT:
+                    sensor_url = sensor_url.replace("localhost", "web")
+                # TODO: #10 Handling of
                 # localhost and web in containerized environments.
                 sensor_request = request.Request(url=sensor_url, method="GET")
                 with request.urlopen(sensor_request) as response:
@@ -184,6 +187,8 @@ def make_frost_object(
     }
     expected_links = expected_links_map[entity.st_type]
     url = iot_url or (FROST_ENDPOINT + ENTITY_ENDPOINTS[entity.st_type])
+    if CONTAINER_ENVIRONMENT:
+        url = url.replace("localhost", "web")
     make_request = request.Request(
         url=url,
         data=entity.model_dump_json(exclude={"iot_links", "id", "st_type"}).encode(
@@ -200,6 +205,8 @@ def make_frost_object(
     except error.HTTPError as e:
         logger.critical(f"{e} {e.read()}")
         return {}
+    if CONTAINER_ENVIRONMENT:
+        new_object_url = new_object_url.replace("localhost", "web")
     with request.urlopen(new_object_url) as response:
         response = json.loads(response.read())
 
@@ -244,6 +251,8 @@ def filter_query(
         query_url = FROST_ENDPOINT + f"{entity}?$filter=" + quote(filter_string)
     else:
         query_url = url + "?$filter=" + quote(filter_string)
+    if CONTAINER_ENVIRONMENT:
+        query_url = query_url.replace("localhost", "web")
     make_request = request.Request(url=query_url, method="GET")
     try:
         with request.urlopen(make_request) as response:
@@ -331,9 +340,9 @@ def stream(sleep_time: int = 240) -> None:
                     phenomenonTime=phenomenon_time,
                 )
                 observation = make_frost_object(observation, push_link)
-            except IndexError as e:
+            except IndexError:
                 logging.critical(
-                    f"Failure adding observation for {sensor_name}. Has the datastream been set up?"
+                    f"Failure adding observation/s for {sensor_name}. Has the datastream been set up?"
                 )
                 break
     time.sleep(sleep_time)
