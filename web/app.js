@@ -3,7 +3,7 @@ async function fetchThings() {
     updateStatus('Fetching Things...');
     try {
         // Fetch from the Locations API
-        const response = await fetch('http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1/Things');
+        const response = await fetch('http://localhost:8080/FROST-Server/v1.1/Things');
         
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
@@ -162,7 +162,7 @@ async function fetchDatastreamsForThing(thingId) {
     updateStatus(`Fetching Datastreams for Thing ID: ${thingId}...`);
     try {
         // First, fetch the Datastreams associated with this Thing
-        const datastreamResponse = await fetch(`http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1/Things(${thingId})/Datastreams`);
+        const datastreamResponse = await fetch(`http://localhost:8080/FROST-Server/v1.1/Things(${thingId})/Datastreams`);
         
         if (!datastreamResponse.ok) {
             throw new Error(`HTTP error! Status: ${datastreamResponse.status}`);

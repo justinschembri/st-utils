@@ -141,6 +141,7 @@ def check_existing_object(entity: "SensorThingsObject") -> bool:
             r_objects = response
             if r_objects:
                 sensor_url = r_objects[0]["Sensor@iot.navigationLink"]
+                sensor_url = sensor_url.replace("localhost", "web")
                 sensor_request = request.Request(url=sensor_url, method="GET")
                 with request.urlopen(sensor_request) as response:
                     response = json.loads(response.read())
