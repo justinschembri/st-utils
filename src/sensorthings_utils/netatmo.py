@@ -62,11 +62,17 @@ def _extract(
     :rtype: Dict[str, Dict[str, str | int | float]]
     """
     data = {}  # type: Dict[str, Dict[str, str | int | float]]
-    weather_stations = station_ids or ln.WeatherStationData(AUTHENTICATION).stations
+    weather_station_data = ln.WeatherStationData(AUTHENTICATION)
+    if station_ids:
+        weather_stations = [
+            _ for _ in weather_station_data.rawData if _["_id"] in station_ids
+        ]
+    else:
+        weather_stations = weather_station_data.rawData
     for station in weather_stations:
-        station_data = weather_stations[station]["dashboard_data"]  # type: ignore
-        station_data["station_id"] = weather_stations[station]["_id"]  # type: ignore
-        data[station] = station_data
+        station_id = station["_id"]
+        dashboard_Data = station["dashboard_data"]
+        data[station_id] = dashboard_Data
     logger.info(f"Retrieved {len(data)} sets of observations.")
     return data
 
