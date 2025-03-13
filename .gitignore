@@ -20,3 +20,6 @@ wheels/
 
 # Credential Files
 .netatmo.credentials
+
+# Debug scripts
+debug*.py
