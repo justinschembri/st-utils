@@ -18,7 +18,7 @@ from pathlib import Path
 
 # internal
 from .sensor_things.core import Observation
-from .config import ROOT_DIRECTORY
+from .config import ROOT_DIRECTORY, FROST_CREDENTIALS
 
 # type checking only
 if TYPE_CHECKING:
@@ -189,15 +189,17 @@ def make_frost_object(
     url = iot_url or (FROST_ENDPOINT + ENTITY_ENDPOINTS[entity.st_type])
     if CONTAINER_ENVIRONMENT:
         url = url.replace("localhost", "web")
-    make_request = request.Request(
+    post_request = request.Request(
         url=url,
         data=entity.model_dump_json(exclude={"iot_links", "id", "st_type"}).encode(
             "UTF-8"
         ),
         method="POST",
     )
+    post_request.add_header("Content-Type", "application/json")
+    post_request.add_header("Authorization", f"Basic {FROST_CREDENTIALS}")
     try:
-        with request.urlopen(make_request) as response:
+        with request.urlopen(post_request) as response:
             new_object_url = response.getheader(
                 "Location"
             )  # "Location" does not refer to a SensorThings Location
@@ -233,9 +235,11 @@ def make_frost_datastream(
     }
     data.update(links)
     data = json.dumps(data).encode()
-    make_request = request.Request(url=url, data=data, method="POST")
+    post_request = request.Request(url=url, data=data, method="POST")
+    post_request.add_header("Content-Type", "application/json")
+    post_request.add_header("Authorization", f"Basic {FROST_CREDENTIALS}")
     try:
-        with request.urlopen(make_request) as response:
+        with request.urlopen(post_request) as response:
             new_object_url = response.getheader(
                 "Location"
             )  # "Location" does not refer to a SensorThings Location
@@ -253,9 +257,9 @@ def filter_query(
         query_url = url + "?$filter=" + quote(filter_string)
     if CONTAINER_ENVIRONMENT:
         query_url = query_url.replace("localhost", "web")
-    make_request = request.Request(url=query_url, method="GET")
+    get_request = request.Request(url=query_url, method="GET")
     try:
-        with request.urlopen(make_request) as response:
+        with request.urlopen(get_request) as response:
             response = json.loads(response.read())
             return response
     except error.HTTPError as e:

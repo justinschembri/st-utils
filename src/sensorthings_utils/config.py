@@ -2,6 +2,9 @@
 import logging
 from pathlib import Path
 from typing import List
+import os
+import base64
+import dotenv
 
 # external
 # internal
@@ -12,6 +15,14 @@ from lnetatmo import ClientAuth
 ROOT_DIRECTORY = Path(__file__).parent.parent.parent
 CONFIG_PATHS = ROOT_DIRECTORY / "sensor_configs"
 ENV_FILE = ROOT_DIRECTORY / ".env"
+
+# auth set up
+dotenv.load_dotenv(ENV_FILE)
+FROST_USER = os.getenv("FROST_USER")
+FROST_PASSWORD = os.getenv("FROST_PASSWORD")
+FROST_CREDENTIALS = base64.b64encode(f"{FROST_USER}:{FROST_PASSWORD}".encode()).decode(
+    "utf-8"
+)
 
 
 def generate_sensor_config_files() -> List[Path]:
