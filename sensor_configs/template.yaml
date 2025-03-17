@@ -5,7 +5,8 @@
 # 3 - Filename, sensor key / sensor name attribute should be device MAC address,
 # 4 - iot_links shall use entity NAMES to refer to other entities, 
 
-sensors: 
+sensors:
+# the physical sensor 
   *fill <MAC address>: 
     name: *fill <must match line above (str)> 
     description: *fill <str>
@@ -20,10 +21,13 @@ sensors:
       #measurement_range:
         #temperature: 0°C to 50°C
     iot_links:
-      datastreams: *fill <array(datastream names(str))> #e.g.:
+      datastreams: *fill <array(datastream names(str))> 
+      # the datastreams that the sensor might have, for e.g.:
         #- temperature_indoor
         #- humidity
 things:
+# the physical Thing that the sensor monitors, could be a building, a room, a
+# componenet, anything.
   *fill <thing name (str)>: 
     name: *fill <must match line above (str)>
     description: *fill <str>
@@ -41,6 +45,7 @@ things:
 
 
 locations:
+# the physical location on Earth where the Thing is
   *fill <location name (str)>: 
     name: *fill <str>
     description: fill <str>
