@@ -2,77 +2,140 @@
 
 ## What is it?
 
-**st-utils** (SensorThings Utilities) is a suite of tools for managing networks of *heterogeneous* sensors using the [OGC SensorThings](https://www.ogc.org/publications/standard/sensorthings/) data model.
+**st-utils** (SensorThings Utilities) is a suite of tools for managing networks of *heterogeneous* sensors using the [OGC SensorThings](https://www.ogc.org/publications/standard/sensorthings/) standards and data model.
 
-## Table of Contents
+## Capabilities
+
+**Extract** observations from one or more sensors, **transform** the data to the OGC SensorsThings data model and **load** into a persistent PostgreSQL + PostGIS database.
+
+First time deployment of `st-utils` involves:
+
+1. The creation of a A PostgreSQL database with tables matching the OGC SensorThings models are created. This is handled in full by [`FROST-Server`](https://github.com/FraunhoferIOSB/FROST-Server),
+2. Populating the database with the entities found in the sensor configurations (`sensor_configs`),
+3. Start a sensor *stream* requesting observations from sensor APIs,
+4. Incoming observations are extracted, trasnformed, and loaded to the correct database tables,
+5. The stream keeps running, indefinitely until stopped,
+6. Sensor networks are visualized at `http://localhost:8080/st-utils`, 
+
+# Table of Contents
 
 - [st-utils](#st-utils)
   - [What is it?](#what-is-it)
-  - [Table of Contents](#table-of-contents)
-  - [Requirements](#requirements)
-  - [Installation](#installation)
-    - [Using UV](#using-uv)
-    - [Using Pip](#using-pip)
-  - [Running](#running)
-  - [Sensors](#sensors)
-  - [YAML Sensor Configuration Files](#yaml-sensor-configuration-files)
-    - [Add a YAML Template for New Sensor Support](#add-a-yaml-template-for-new-sensor-support)
-    - [Add Real World Sensor Configurations](#add-real-world-sensor-configurations)
+  - [Capabilities](#capabilities)
+- [Table of Contents](#table-of-contents)
+- [Deployment Methods](#deployment-methods)
+  - [Environment Set-up](#environment-set-up)
+    - [Step 1: Clone the Repo](#step-1-clone-the-repo)
+    - [Step 2: Set Sensor Credentials](#step-2-set-sensor-credentials)
+    - [Step 3: Set Sensor Configuration Files](#step-3-set-sensor-configuration-files)
+  - [Startup](#startup)
+    - [Docker](#docker)
+    - [Manual Installation / Deployment](#manual-installation--deployment)
+- [Sensor Configuration Files](#sensor-configuration-files)
+- [Contributing: Additional Sensor Support](#contributing-additional-sensor-support)
+  - [Add a YAML Template for New Sensor Support](#add-a-yaml-template-for-new-sensor-support)
   - [Extract, Transform and Stream Functions](#extract-transform-and-stream-functions)
     - [Extract Function](#extract-function)
     - [Transform Function](#transform-function)
     - [Stream Function](#stream-function)
-  - [Supported Sensor Models](#supported-sensor-models)
+- [Supported Sensor Models](#supported-sensor-models)
 
-## Requirements
+# Deployment Methods
+
+It is assumed the target system includes `git`. For sensors supported by `st-utils`, refer to [Supported Sensors](#supported-sensor-models).
+
+## Environment Set-up
+
+Before anything, the environment must be set-up to match your sensor network. Here, "sensor network" refers to physical collection of (supported) sensors for which you have the necessary credentials to connect to.
+
+### Step 1: Clone the Repo
+Begin by cloning the repository into the target machine and create a `.env` file at the project root:
+
+```bash
+git clone https://github.com/justinschembri/st-utils.git st-utils
+cd st-utils
+touch .env
+```
+### Step 2: Set Sensor Credentials
+Populate the `.env` with the sensor API credentials. Credential requirements vary by sensor, see [supported](#supported-sensor-models) by `st-utils`. Example credentials might look like:
+
+```json
+NETATMO_CLIENT_ID = "67d2becabca425905a081d84"
+NETATMO_CLIENT_SECRET = "4Itqudt6L8PcpSHT7oATXUcmogj12xYxbBGn46A676k"
+NETATMO_REFRESH_TOKEN = "676414d415a6db50d5091272|82ee861f6539bae8bcb953615075eb2f"
+```
+### Step 3: Set Sensor Configuration Files
+Similarly, populate the `sensor_configs` directory with configuration files for each of the sensors on your network. An empty directory exists for each supported sensor type. For more on setting up sensor configuration files, see [Sensor Configuration Files](#yaml-sensor-configuration-files).
+
+## Startup
+
+Deploy with Docker or a manual installation. 
+
+### Docker
+
+Deployment with Docker (requires `docker` and `docker-compose`) is the most straight-forward. Assuming the repository has been cloned and you working directory is the project root:
+
+```bash
+cd st-utils/scripts
+docker-compose up
+```
+
+This should spin up a server, persistent database and deploy the application. After the web-server and database are set up, you should see logs similar too:
+
+```bash
+put logs here
+```
+
+### Manual Installation / Deployment
 
 **st-utils** requires the following: 
 
 - **Python 3.13**
-- A running instance of [**`FROST Server`**](https://github.com/FraunhoferIOSB/FROST-Server) must be available; follow the [instructions](https://fraunhoferiosb.github.io/FROST-Server/deployment/tomcat.html) for installation. `FROST Server` will handle connections and transactions with a `PostgreSQL` database with the `PostGIS` extension (all included in the instructions above).
-- An `.env` file at the project root with the following environment variables:
+- A running instance of [**`FROST Server`**](https://github.com/FraunhoferIOSB/FROST-Server) must be available; follow the official [instructions](https://fraunhoferiosb.github.io/FROST-Server/deployment/tomcat.html) for installation. `FROST Server` will handle connections and transactions with a `PostgreSQL` database with the `PostGIS` extension (all included in the instructions above).
+- `Tomcat Apache` (a requirement for the ` FROST Server`)
+- The `.env` file that includes the sensor credentials should also include the `FROST` endpoint, for example:
     - `FROST_ENDPOINT` = "\<END POINT URL\>" , e.g.:
 
 ```bash
 FROST_ENDPOINT=http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1
 ```
-- Sensor configuration [files](#yaml-sensor-configuration-files), and the required authentication details to access observations in the `.env`.
 
-## Installation
-
-Navigate to wherever you want the application to live, and clone the repository and prepare a virtual environment:
-
-### Using UV
+Next, create the required venv and install the python library using [`UV`]() ...
 
 ```zsh
-git clone https://github.com/justinschembri/gist-iot.git
-cd gist-iot
 uv venv
 uv pip install .
 source .venv/bin/activate
 ```
 
-### Using Pip
+... or `pip`:
 
 ```bash
-git clone https://github.com/justinschembri/gist-iot.git
-cd gist-iot
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 pip install .
 ```
 
-## Running
-
-Running the application will start a streaming script, querying observations from defined sources and pushing them to the remote `FROST` server:
+Ensure the FROST Server is running, and run the application:
 
 ```zsh
 source .venv/bin/activate 
 python src/sensorthings_utils/main.py
 ```
 
-## Sensors
+# Sensor Configuration Files
+
+A requirement for deployment of the application are **sensor configuration files**: `YAML` files which contain five top-level keys, namely: `sensors`, `things`, `locations`, `datastreams` and `observedProperties`. A high-level template is provided in [`\sensor_configs`](sensor_configs/template.yaml). These five keys are equivalent to the main objects in the SensorThings datamodel:
+
+![](docs/readme_sensorThingsDataModel.png)
+
+Using the template for supported sensors, set up a real world sensor arrangement. Each file represents ONE sensor object and all its associations. Thus if you are setting up 10 sensors, you should expect to 10 sensor config files. `Locations`, `Things`, `ObservedProperties` MAY be common among different sensors, just make sure that the items are identical. The function which parses the configuration file will infer the items are the same, and not create two identical locations.
+
+1. Copy the template, the filename should be the sensor MAC address,
+2. Fill out all the details that remain pending, make sure to copy and paste identical items from one file to another to avoid creating duplicate entities later on.
+
+# Contributing: Additional Sensor Support
 
 Methods for accessing sensor observations vary across sensor brands. Some models will handle remote storage and provide web-based such as dashboards and APIs. Other configurations may include data-loggers, and more "DIY" solutions such as Arduino are also valid. Furthermore, the observations themselves are likely to use varying serialization schemas.
 
@@ -86,31 +149,13 @@ What **st-utils** offers is a standarized way of *Extracting, Transforming and L
 
 For example, support for the Netatmo NWS03 is provided by `/sensor_configs/netatmo/netatmo_nws03.yaml`. The `netatmo.stream` function wraps `_extract` and `_transform` methods in the `netatmo.py` file.
 
-## YAML Sensor Configuration Files
-
-`YAML` is a human-readable, nested data structure similar to `JSON`. `st-utils` expects a configuration file to contain at five top-level keys, namely: `sensors`, `things`, `locations`, `datastreams` and `observedProperties`. A high-level template is provided in [`\sensor_configs`](sensor_configs/template.yaml). These five keys are equivalent to the main objects in the SensorThings datamodel:
-
-![](docs/readme_sensorThingsDataModel.png)
-
-Sensor configuration files are generally created twice:
-
-1. When general support for a new sensor is added,
-2. When initializing an actual sensor arrangement, 
-
-### Add a YAML Template for New Sensor Support
+## Add a YAML Template for New Sensor Support
 
 To add support for a new sensor typology:
 
 1. Make a new directory in the [`\sensor_configs`](sensor_configs), whose name should match the sensor name,
 2. Using the general [template](sensor_configs/template.yaml), fill out the fields in the `sensors` and `datastreams` items.
 3. Place a `.gitignore` to ignore all files in these directories, except for the template
-
-### Add Real World Sensor Configurations
-
-Using the template which has just been created (or one provided, if support for your sensor is already available), set up a real world sensor arrangement. Each file represents ONE sensor object and all its associations. Thus if you are setting up 10 sensors, you should expect to 10 sensor config files. `Locations`, `Things`, `ObservedProperties` MAY be common among different sensors, just make sure that the items are identical. The function which parses the configuration file will infer the items are the same, and not create two identical locations.
-
-1. Copy the template, the filename should be the sensor MAC address,
-2. Fill out all the details that remain pending, make sure to copy and paste identical items from one file to another to avoid creating duplicate entities later on.
 
 ## Extract, Transform and Stream Functions
 
@@ -143,7 +188,7 @@ The `_transform` shall take a `Dict[str, Any]` and return a NamedTuple with fiel
 
 The stream function is a wrapper around the the `_extract` and `_transform` functions and returns a `Tuple[Observations, ...]`, and expects a `sleep_time (int)`.
 
-## Supported Sensor Models
+# Supported Sensor Models
 
 The following sensors are currently supported:
 
