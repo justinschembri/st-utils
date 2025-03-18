@@ -23,3 +23,6 @@ wheels/
 
 # Debug scripts
 debug*.py
+
+# Local docker compose
+docker-compose.override.yml
