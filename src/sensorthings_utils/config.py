@@ -17,12 +17,18 @@ CONFIG_PATHS = ROOT_DIRECTORY / "sensor_configs"
 ENV_FILE = ROOT_DIRECTORY / ".env"
 
 # auth set up
-dotenv.load_dotenv(ENV_FILE)
-FROST_USER = os.getenv("FROST_USER")
+if not os.getenv("CONTAINER_ENVIRONMENT"):
+    dotenv.load_dotenv(ENV_FILE)
+
+FROST_USER = os.getenv("FROST_USER") or "sta-manager"
 FROST_PASSWORD = os.getenv("FROST_PASSWORD")
 FROST_CREDENTIALS = base64.b64encode(f"{FROST_USER}:{FROST_PASSWORD}".encode()).decode(
     "utf-8"
 )
+FROST_ENDPOINT = (
+    os.getenv("FROST_ENDPOINT") or "http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1"
+)
+CONTAINER_ENVIRONMENT = os.getenv("CONTAINER_ENVIRONMENT")
 
 
 def generate_sensor_config_files() -> List[Path]:

@@ -18,7 +18,7 @@ from pathlib import Path
 
 # internal
 from .sensor_things.core import Observation
-from .config import ROOT_DIRECTORY, FROST_CREDENTIALS
+from .config import ROOT_DIRECTORY, FROST_ENDPOINT, FROST_CREDENTIALS
 
 # type checking only
 if TYPE_CHECKING:
@@ -27,7 +27,6 @@ if TYPE_CHECKING:
 
 # environment setup
 dotenv.load_dotenv(ENV_FILE)
-FROST_ENDPOINT = os.getenv("FROST_ENDPOINT")
 CONTAINER_ENVIRONMENT = True if os.getenv("CONTAINER_ENVIRONMENT") else False
 
 NETATMO_CREDENTIALS_FILE = Path(ROOT_DIRECTORY / ".netatmo.credentials")
