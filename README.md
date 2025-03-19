@@ -26,7 +26,7 @@ First time deployment of `st-utils` involves:
 - [Deployment Methods](#deployment-methods)
   - [Environment Set-up](#environment-set-up)
     - [Step 1: Clone the Repo](#step-1-clone-the-repo)
-    - [Step 2: Set Sensor Credentials](#step-2-set-sensor-credentials)
+    - [Step 2: Set Environment and Sensor Credentials](#step-2-set-environment-and-sensor-credentials)
     - [Step 3: Set Sensor Configuration Files](#step-3-set-sensor-configuration-files)
   - [Startup](#startup)
     - [Docker](#docker)
@@ -56,8 +56,10 @@ git clone https://github.com/justinschembri/st-utils.git st-utils
 cd st-utils
 touch .env
 ```
-### Step 2: Set Sensor Credentials
-Populate the `.env` with the sensor API credentials. Credential requirements vary by sensor, see [supported](#supported-sensor-models) by `st-utils`. Example credentials might look like:
+### Step 2: Set Environment and Sensor Credentials
+The default username used in all services, is `sta-manager`. This will be the username throughout, for both the database and the FROST server. The `.env` must include a value for the key `FROST_PASSWORD`.
+
+Other than that, the `.env` must be populated with sensor API credentials. Credential requirements vary by sensor, see [supported](#supported-sensor-models) by `st-utils`. Example credentials might look like:
 
 ```json
 NETATMO_CLIENT_ID = "67d2becabca425905a081d84"
@@ -73,17 +75,35 @@ Deploy with Docker or a manual installation.
 
 ### Docker
 
-Deployment with Docker (requires `docker` and `docker-compose`) is the most straight-forward. Assuming the repository has been cloned and you working directory is the project root:
+Deployment with Docker (requires `docker` and `docker-compose`) is the most straight-forward. Assuming the repository has been cloned, follow these steps:
+
+1. copy the template `docker-compose.yml` file as `docker-compose.overide.yml`; your production credentials go here,
+2. fill out the system passwords (note the `FROST_PASSWORD` and `POSTGRES_PASSWORD` must match)
+
+Assuming your working directory is the project root:
 
 ```bash
 cd st-utils/scripts
-docker-compose up
+docker-compose up -p st-utils
 ```
 
 This should spin up a server, persistent database and deploy the application. After the web-server and database are set up, you should see logs similar too:
 
 ```bash
-put logs here
+2025-03-19 17:29:37    Building st-utils @ file:///app
+2025-03-19 17:29:38       Built st-utils @ file:///app
+2025-03-19 17:29:38 Uninstalled 1 package in 4ms
+2025-03-19 17:29:38 Installed 1 package in 0.43ms
+2025-03-19 17:29:38 2025-03-19 16:29:38: INFO - Sensor stream starts in 30s.
+2025-03-19 17:30:09 2025-03-19 16:30:09: INFO - New Thing created at http://localhost:8080/FROST-Server/v1.1/Things(34)
+2025-03-19 17:30:09 2025-03-19 16:30:09: INFO - New Location created at http://localhost:8080/FROST-Server/v1.1/Locations(1)
+...
+...
+2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - Retrieved 3 sets of observations.
+2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(1)
+2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(2)
+2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(3)
+...
 ```
 
 ### Manual Installation / Deployment
