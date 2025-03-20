@@ -103,7 +103,7 @@ def _transform(data: Dict[str, Any]) -> Generator[Tuple[Any, ...]]:
         "CO2": "co2",
         "Humidity": "humidity",
         "Noise": "noise",
-        "Pressure": "pressure",
+        "Pressure": "gauge_pressure",
         "AbsolutePressure": "absolute_pressure",
     }
     sensor_name = data["station_id"]
