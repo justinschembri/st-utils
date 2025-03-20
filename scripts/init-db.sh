@@ -12,7 +12,7 @@ until pg_isready -h database -U ${POSTGRES_USER} -d sensorthings; do
     sleep 10
 done
 # first auth attempt triggers FROST to create the Basic Auth tables:
-wget --header="Authorization: Basic $(echo -n 'username:password' | base64)" http://web:8080/FROST-Server/v1.1/Datastreams
+wget --header="Authorization: Basic $(echo -n 'username:password' | base64)" -O Datastreams.json http://web:8080/FROST-Server/v1.1/Datastreams
 # change admin, write and read passwords:
 psql -U ${POSTGRES_USER} -d sensorthings <<EOF
 
