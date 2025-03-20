@@ -62,8 +62,8 @@ locations:
 datastreams:
   temperature_indoor:
     name: temperature_indoor
-    description:  *fill <str>
-    observationType: *fill <str>
+    description:  This datastream is measuring the air temperature in a room.
+    observationType: instant
     unitOfMeasurement: &temperature
       name: degree Celsius
       symbol: °C
@@ -84,7 +84,7 @@ datastreams:
 
   temperature_outdoor:
     name: temperature_outdoor
-    description: This datastream is measuring the air temperature in a room.
+    description: This datastream is measuring the external air temperature.
     observationType: instant
     unitOfMeasurement: *temperature
     observedArea: *observedArea
@@ -141,7 +141,7 @@ datastreams:
     observedArea: *observedArea
     iot_links:
       observedProperties:
-        - internal_pressure
+        - gauge_puressure
       sensors:
         - *fill <str>
       things:
@@ -181,42 +181,42 @@ datastreams:
 observedProperties:
   indoor_temperature:
     name: indoor_temperature
-    definition: The indoor temperature where the indoor module is placed.
-    description: *fill <str>
+    definition: https://dbpedia.org/page/Temperature
+    description: The temperature where the indoor module is placed.
     properties: null
 
   outdoor_temperature:
     name: outdoor_temperature
-    definition: The outdoor temperature wherever the outdoor module is placed.
-    description: *fill <str>
+    definition: https://dbpedia.org/page/Temperature
+    description: The temperature wherever the outdoor module is placed, differs from where the indoor module is placed.
     properties: null
   
   absolute_pressure:
     name: absolute_pressure
-    definition: The absolute pressure where the indoor module is placed.
-    description: *fill <str>
+    definition: https://en.wikipedia.org/wiki/Pressure_measurement#Absolute
+    description: The absolute pressure where the indoor module is placed.
     properties: null
 
-  internal_pressure:
-    name: internal_pressure
-    definition: The internal pressure where the indoor module is placed.
-    description: *fill <str>
+  gauge_puressure:
+    name: gauge_puressure
+    definition: https://en.wikipedia.org/wiki/Pressure_measurement#Absolute
+    description: The gauge pressure where the indoor module is placed.
     properties: null
 
   internal_noise_levels:
     name: internal_noise_levels
-    definition: The internal noise levels where the indoor module is placed.
-    description: *fill <str>
+    definition: https://en.wikipedia.org/wiki/Ambient_noise_level
+    description: The internal ambient noise level where the sensor is placed.
     properties: null
 
   co2_levels:
     name: co2_levels
-    definition: The internal Co2 levels where the indoor module is placed.
-    description: *fill <str>
+    definition: https://en.wikipedia.org/wiki/Indoor_air_quality#Carbon_dioxide
+    description: The C02 levels wherever the indoor module is placed.
     properties: null
 
   internal_humidity:
     name: internal_humidity
-    definition: The internal Co2 levels where the indoor module is placed.
-    description: *fill <str>
+    definition: https://en.wikipedia.org/wiki/Humidity
+    description: The internal humidity levels wherever the indoor sensor is placed.
     properties: null
