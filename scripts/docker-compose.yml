@@ -51,7 +51,7 @@ services:
       - postgis_volume:/var/lib/postgresql/data
       - ./init-db.sh:/usr/local/bin/st-utils-init-db.sh
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d sta-manager -U sensorthings"]
+      test: ["CMD-SHELL", "pg_isready -d sensorthings -U sta-manager"]
       interval: 2s
       timeout: 2s
       retries: 10
