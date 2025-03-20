@@ -57,11 +57,15 @@ cd st-utils
 touch .env
 ```
 ### Step 2: Set Environment and Sensor Credentials
-The default username used in all services, is `sta-manager`. This will be the username throughout, for both the database and the FROST server. The `.env` must include a value for the key `FROST_PASSWORD`.
+The default username used in all services, is `sta-manager`. This will be the username throughout, for both the database and the FROST server. The `.env` must include a value for the key `FROST_PASSWORD`:
+
+```
+FROST_PASSWORD="changeMe"
+```
 
 Other than that, the `.env` must be populated with sensor API credentials. Credential requirements vary by sensor, see [supported](#supported-sensor-models) by `st-utils`. Example credentials might look like:
 
-```json
+```
 NETATMO_CLIENT_ID = "67d2becabca425905a081d84"
 NETATMO_CLIENT_SECRET = "4Itqudt6L8PcpSHT7oATXUcmogj12xYxbBGn46A676k"
 NETATMO_REFRESH_TOKEN = "676414d415a6db50d5091272|82ee861f6539bae8bcb953615075eb2f"
