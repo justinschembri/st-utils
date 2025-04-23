@@ -109,8 +109,8 @@ def _extract(
                 return {}
             else:
                 logging.info(
-                    "Netatmo time-out error, waiting and establishing new connection."
-                    + f"Attempt {attempt} of {MAX_CONNECTION_RETRIES}"
+                    "Netatmo time-out error, waiting and establishing new connection. "
+                    + f"Attempt {attempt + 1} of {MAX_CONNECTION_RETRIES}"
                 )
                 time.sleep(30)
 
