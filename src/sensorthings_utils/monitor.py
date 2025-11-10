@@ -12,9 +12,15 @@ from sensorthings_utils.config import ROOT_DIR
 
 logger = logging.getLogger("network_monitor")
 
+__all__ = ["network_monitor"]
 
-class NetworkMonitor:
-    """Monitor connections and uploads."""
+class _NetworkMonitor:
+    """
+    Network monitor Singleton: stores sensor related telemetry.
+
+    The network monitor should be used as a singleton shared across multiple 
+    modules.
+    """
 
     def __init__(self):
         self.start_time = datetime.now()
@@ -131,5 +137,5 @@ class NetworkMonitor:
         with open(health_file, "w", encoding="utf-8") as f:
             f.write("\n".join(health_report) + "\n")
 
-network_monitor = NetworkMonitor()
+network_monitor = _NetworkMonitor()
 
