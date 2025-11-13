@@ -43,7 +43,6 @@ class SensorConfig:
 
     def __init__(self, filepath: str | Path) -> None:
         self._filepath = Path(filepath)
-        # public:
         self.data: Dict[str, Any] = self._load()
         self.sensor_model = self["networkMetadata"]["sensor_model"]  # type: ignore (None types will be caught by the valididty flag)
 
@@ -52,17 +51,15 @@ class SensorConfig:
             data = yaml.safe_load(file)
         return data
 
+    #TODO: poor logic to be rewritten.
     def __getitem__(self, key) -> Any:
-        if self.is_valid == None:
-            logger.warning(
-                f"The SensorConfig {self._filepath.name} has not been"
-                + f"validated! Run the `validate` method."
-            )
-        if self.is_valid == False:
+        if self.is_valid is None:
+            self.is_valid()
+        if self.is_valid is False:
             logger.error(
                 f"The SensorConfig {self._filepath.name} is invalid."
-                + f" Passing to other functions may cuase unexpected "
-                + f" behaviour."
+                + " Passing to other functions may cuase unexpected "
+                + " behaviour."
             )
         return self.data.get(key)
 
@@ -340,6 +337,8 @@ class SensorArrangement:
         self.application_name: str = self._sensor_config["networkMetadata"][
             "application_name"
         ]
+        self.sensor_name: str = next(iter(self._sensor_config["sensors"]))
+        self.id: str = f"{self.application_name}:{self.sensor_name}"
         self.host: str = self._sensor_config["networkMetadata"]["host"]
 
     def __repr__(self) -> str:

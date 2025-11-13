@@ -31,6 +31,9 @@ from sensorthings_utils.monitor import network_monitor
 # Root Logger ------------------------------------------------------------------
 root_logger = logging.getLogger()
 root_logger.setLevel(logging.INFO)
+# Debug Logger -----------------------------------------------------------------
+debug_logger = logging.getLogger("debug")
+debug_logger.setLevel(logging.DEBUG)
 # Network Monitor Logger -------------------------------------------------------
 network_monitor_logger = logging.getLogger("network_monitor")
 network_monitor_logger.setLevel(logging.INFO)
@@ -53,6 +56,17 @@ file_formatter = logging.Formatter(
     datefmt="%Y-%m-%d %H:%M:%S",
 )
 file_handler.setFormatter(file_formatter)
+# File Handler (debug)----------------------------------------------------------
+debug_logfile_name = "debug.log"
+logfile = Path(ROOT_DIR / ("logs/" + debug_logfile_name))
+logfile.parent.mkdir(exist_ok=True)
+debug_handler = logging.FileHandler(filename=logfile)
+debug_handler.setLevel(logging.DEBUG)
+debug_formatter = logging.Formatter(
+    "%(asctime)s [%(name)s:%(lineno)d]: %(levelname)s - %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+debug_handler.setFormatter(debug_formatter)
 # Console Handlers -------------------------------------------------------------
 console_handler = logging.StreamHandler()
 console_handler.setLevel(logging.INFO)
@@ -63,6 +77,7 @@ console_formatter = logging.Formatter(
 console_handler.setFormatter(console_formatter)
 # Attach Handlers --------------------------------------------------------------
 root_logger.addHandler(file_handler)
+debug_logger.addHandler(debug_handler)
 network_monitor_logger.addHandler(console_handler)
 main_logger.addHandler(console_handler)
 
@@ -85,7 +100,7 @@ def push_available(
         frost_endpoint or os.getenv("FROST_ENDPOINT") or FROST_ENDPOINT_DEFAULT
     )
     os.environ["FROST_ENDPOINT"] = frost_endpoint
-    logging.info(f"Sensor stream starts in 30s, pushing too: {frost_endpoint}")
+    main_logger.info(f"Sensor stream starts in 30s, target: {frost_endpoint}")
     time.sleep(30)
     sensor_connections: set[
         CredentialedHTTPSensorConnection | CredentialedMQTTSensorConnection
@@ -104,8 +119,8 @@ def push_available(
             )
             continue
         sensor_arrangement = SensorArrangement(sensor_config)
+        network_monitor.expected_sensors.add(sensor_arrangement.id)
         application_name = sensor_arrangement.application_name
-        logging.debug(f"{application_name=}")
         host = sensor_arrangement.host
         frost.initial_setup(sensor_arrangement)
         match host:
@@ -118,7 +133,6 @@ def push_available(
                         mqtt_host=host,
                     )
                 )
-
     network_monitor.set_starting_threads(
         [_.application_name for _ in sensor_connections]
     )
