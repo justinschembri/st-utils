@@ -33,6 +33,7 @@ class _NetworkMonitor:
         self.rejected_payloads: dict[str, int] = defaultdict(int)
         self.sensor_config_fail: int = 0
         self.payloads_received: dict[str, int] = defaultdict(int)
+        self.first_report_issued: bool = False
         self._lock = threading.Lock()
 
     def set_starting_threads(self, starting_threads: list[str] | set[str]):
@@ -105,10 +106,9 @@ class _NetworkMonitor:
             f.write("\n".join(html_lines))
 
     def report(self, interval: int = 60):
-        first_report_issued = False
-        if not first_report_issued:
+        if not self.first_report_issued:
             time.sleep(360)
-            first_report_issued = True
+            self.first_report_issued = True
         else:
             time.sleep(60 * interval)
         
