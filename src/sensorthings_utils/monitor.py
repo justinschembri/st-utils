@@ -104,12 +104,17 @@ class _NetworkMonitor:
         with open(health_file_html, "w", encoding="utf-8") as f:
             f.write("\n".join(html_lines))
 
-    def report(self, interval: int = 5):
-        time.sleep(60 * interval)
+    def report(self, interval: int = 60):
+        first_report_issued = False
+        if not first_report_issued:
+            time.sleep(360)
+            first_report_issued = True
+        else:
+            time.sleep(60 * interval)
+        
         health_report: list[str] = [
                 "st-utils instance", 
                 ]
-
         with self._lock:
             # Report on active threads.
             dead_threads = self.starting_application_threads - self.live_threads
@@ -126,7 +131,7 @@ class _NetworkMonitor:
             health_report.append(thread_msg)
             # Report succesful pushes:
             uptime = str((datetime.now() - self.start_time)) 
-            uptime = uptime.split(".")[0] + "Hrs"
+            uptime = uptime.split(".")[0] + " hrs"
             msg = f"Uptime: {uptime}" 
             health_report.append(msg)
             logger.info(msg)
