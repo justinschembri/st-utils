@@ -1,0 +1,61 @@
+# BASE IMAGE - NOT FOR PRODUCTION #####################
+# Minimal and appless FROST+PG set up. 
+# Note that this compose includes:
+# - NO python application                             
+# - NO FROST authentication
+# - NO volume persistence                             
+# See README for more.
+# #####################################################
+services:
+  web:
+    image: fraunhoferiosb/frost-server:2.6
+    environment:
+      - serviceRootUrl=http://localhost:8080/FROST-Server
+      - plugins_multiDatastream.enable=false
+      - http_cors_enable=true
+      - http_cors_allowed_origins=*
+      - persistence_db_driver=org.postgresql.Driver
+      - persistence_db_url=jdbc:postgresql://database:5432/sensorthings
+      - persistence_db_username=sta-manager
+      - persistence_autoUpdateDatabase=true
+    ports:
+      - 8080:8080
+    volumes:
+      - ./init-frost.sh:/init-frost.sh
+    entrypoint: ["/init-frost.sh"]
+    secrets:
+      - POSTGRES_PASSWORD
+    depends_on:
+      database:
+        condition: service_healthy
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - 1883:1883
+    secrets:
+      - MQTT_USERS
+    volumes:
+      - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/init-mosquitto.sh:/mosquitto/init-mosquitto.sh:ro
+    entrypoint: ["/mosquitto/init-mosquitto.sh"]
+
+  database:
+    image: postgis/postgis:16-3.4-alpine
+    environment:
+      - POSTGRES_DB=sensorthings
+      - POSTGRES_USER=sta-manager
+      - POSTGRES_PASSWORD_FILE=/run/secrets/POSTGRES_PASSWORD
+    secrets:
+      - POSTGRES_PASSWORD
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d sensorthings -U sta-manager"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+
+secrets:
+  POSTGRES_PASSWORD:
+    file: ./secrets/POSTGRES_PASSWORD.txt
+  MQTT_USERS:
+    file: ./secrets/MQTT_USERS.txt

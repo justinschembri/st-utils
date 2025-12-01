@@ -1,0 +1,83 @@
+services:
+  python-app:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      - web
+      - database
+      - mosquitto
+    env_file:
+      - ../.env
+    environment:
+      - FROST_ENDPOINT=http://web:8080/FROST-Server/v1.1
+      - CONTAINER_ENVIRONMENT=true
+    volumes:
+      - python-app_credentials:/app/.credentials
+      - python-app_logs:/app/logs
+    command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
+    restart: unless-stopped
+
+  web:
+    image: fraunhoferiosb/frost-server:2.6
+    volumes:
+      - ../web:/usr/local/tomcat/webapps/st-utils
+      - python-app_logs:/usr/local/tomcat/webapps/st-utils/logs:ro
+    env_file:
+      - ../.env
+    environment:
+      - serviceRootUrl=http://localhost:8080/FROST-Server
+      - plugins_multiDatastream.enable=false
+      - http_cors_enable=true
+      - http_cors_allowed_origins=*
+      - persistence_db_driver=org.postgresql.Driver
+      - persistence_db_url=jdbc:postgresql://database:5432/sensorthings
+      - persistence_db_username=sta-manager
+      - persistence_autoUpdateDatabase=true
+      - auth_provider=de.fraunhofer.iosb.ilt.frostserver.auth.basic.BasicAuthProvider
+      - auth_db_driver=org.postgresql.Driver
+      - auth_db_url=jdbc:postgresql://database:5432/sensorthings
+      - auth_db_username=sta-manager
+      - auth_autoUpdateDatabase=true
+      - auth_allowAnonymousRead=true
+    ports:
+      - 8080:8080
+    depends_on:
+      database:
+        condition: service_healthy
+
+  mosquitto:
+    image: eclipse-mosquitto:2
+    env_file:
+      - ../.env
+    ports:
+      - 1883:1883
+    volumes:
+      - ../mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ../mosquotto/init-mosquitto.sh:/mosquitto/init-mosquitto.sh:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    entrypoint: ["/bin/sh", "-c", "chmod +x /mosquitto/init-mosquitto.sh && /mosquitto/init-mosquitto.sh"]
+
+  database:
+    image: postgis/postgis:16-3.4-alpine
+    env_file:
+      - ../.env
+    environment:
+      - POSTGRES_DB=sensorthings
+    volumes:
+      - postgis_volume:/var/lib/postgresql/data
+      - ./init-db.sh:/usr/local/bin/st-utils-init-db.sh
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d sensorthings -U sta-manager"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+    entrypoint: ["/bin/sh", "-c", "chmod +x /usr/local/bin/st-utils-init-db.sh && /usr/local/bin/st-utils-init-db.sh"]
+
+volumes:
+  postgis_volume:
+  python-app_credentials:
+  python-app_logs:
+  mosquitto_log:
+  mosquitto_data:

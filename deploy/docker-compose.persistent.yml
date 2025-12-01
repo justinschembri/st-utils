@@ -1,0 +1,19 @@
+# docker-compose.persistent.yml
+# NOT FOR PRODUCTION ##################################
+# Must be merged with the base compose.               #
+# + Adds persistence to FROST's postgres DB.          #
+# #####################################################
+services:
+  mosquitto:
+    volumes:
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+
+  database:
+    volumes:
+      - postgis_volume:/var/lib/postgresql/data
+
+volumes:
+  postgis_volume:
+  mosquitto_log:
+  mosquitto_data:

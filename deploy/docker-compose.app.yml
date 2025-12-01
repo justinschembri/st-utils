@@ -1,0 +1,30 @@
+# docker-compose.app.yml
+# NOT FOR PRODUCTION ##################################
+# Must be merged with the base compose.               #
+# - Adds the python application                       #
+# #####################################################
+name: st-utils
+
+services:
+  python-app:
+    secrets:
+      - FROST_PASSWORD
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    depends_on:
+      - web
+      - database
+      - mosquitto
+    environment:
+      - FROST_ENDPOINT=http://web:8080/FROST-Server/v1.1
+      - CONTAINER_ENVIRONMENT=true
+    volumes:
+      - python-app_credentials:/app/.credentials
+      - python-app_logs:/app/logs
+    command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
+    restart: unless-stopped
+
+volumes:
+  python-app_credentials:
+  python-app_logs:
