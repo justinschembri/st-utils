@@ -39,6 +39,7 @@ filterwarnings = [
     "ignore:The 'WelcomeData' class was renamed 'HomeData':DeprecationWarning"
 ]
 markers = [
-    "slow:",
-    "real: makes calls to real resources (APIs, servers, databases, etc.)"
+    "slow: tests which take long",
+    "real: makes calls to real resources (APIs, servers, databases, etc.)",
+    "online: tests which require the test broker to be online",
 ]

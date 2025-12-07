@@ -10,9 +10,6 @@ import pytest
 from sensorthings_utils.connections import (
         NetatmoConnection
         )
-from sensorthings_utils.config import (
-        TOKENS_DIR
-        )
 
 @pytest.fixture
 def bad_netatmo_tokens(tmp_path: Path) -> Path:
@@ -29,7 +26,7 @@ def bad_netatmo_tokens(tmp_path: Path) -> Path:
 def valid_netatmo_connection() -> NetatmoConnection:
     """A valid Netatmo connection with good tokens."""
     return NetatmoConnection(
-            "netatmo-test-application", TOKENS_DIR / "netatmo-testing.json"
+            "netatmo-test-application", "tokens" 
             )
 
 class TestNetatmoConnectionAuthentication:
@@ -51,7 +48,8 @@ class TestNetatmoConnectionAuthentication:
         netatmo_connection = NetatmoConnection(
                 "netatmo-test-application",
                 bad_netatmo_tokens)
-
+        # override this for test:
+        netatmo_connection._authentication_file = bad_netatmo_tokens
         assert isinstance(netatmo_connection._auth(), lnetatmo.ClientAuth)
 
     def test_no_tokens(self):

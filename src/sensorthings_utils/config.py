@@ -15,8 +15,8 @@ DEBUG = bool(os.getenv("DEBUG"))
 
 # PATH DEFINITIONS #############################################################
 ROOT_DIR = Path(__file__).parent.parent.parent
-CONFIG_PATHS = ROOT_DIR / "sensor_configs"
 ENV_FILE = ROOT_DIR / ".env"
+CONFIG_PATHS = ROOT_DIR / "deploy"/ "sensor_configs"
 CREDENTIALS_DIR = ROOT_DIR / "deploy" / "secrets" / "credentials"
 TOKENS_DIR = ROOT_DIR / "deploy" / "secrets" / "tokens"
 TEST_DATA_DIR = ROOT_DIR / "tests" / "sensorthings_utils" / "data"

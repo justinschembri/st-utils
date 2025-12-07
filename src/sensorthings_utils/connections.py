@@ -6,11 +6,9 @@ import logging
 import json
 from pathlib import Path
 from abc import ABC, abstractmethod
-from typing import Any, Callable
+from typing import Any, Literal
 import time
 import queue
-from functools import cached_property
-from urllib.error import URLError
 import threading
 
 # external
@@ -19,10 +17,8 @@ from paho.mqtt.client import Client as mqttClient
 from paho.mqtt.enums import CallbackAPIVersion
 
 # internal
-from .config import ROOT_DIR
-from .sensor_support import netatmo_nws03, milesight_am308L, milesight_am103L
 from .monitor import network_monitor
-
+from .config import CREDENTIALS_DIR, TOKENS_DIR
 # environment setup
 root_logger = logging.getLogger("rootLogger")
 main_logger = logging.getLogger("main")
@@ -38,18 +34,23 @@ class SensorApplicationConnection(ABC):
     def __init__(
         self,
         application_name: str,
-        authentication_file: Path,
+        authentication_type: Literal["tokens","credentials"],
         *,
         max_retries: int = 5,
     ):
         
         self.application_name = application_name
-        self.authentication_file = authentication_file
+        self.authentication_type = authentication_type
         self.max_retries = max_retries
         # private:
         self._thread = None
         self._stop_event = threading.Event()
-
+        self._authentication_file = (
+                (TOKENS_DIR / f"{self.application_name}.json") 
+                if self.authentication_type == "tokens" 
+                else 
+                (CREDENTIALS_DIR / "application_credentials.json")
+                )
     # dunder method over rides #################################################
     def __hash__(self) -> int:
         return hash(self.application_name)
@@ -124,7 +125,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
     def __init__(
         self,
         application_name: str,
-        authentication_file: Path,
+        authentication_type: Literal["tokens","credentials"],
         *,
         max_retries: int = 10,
         #TODO: interval should not be bound to the application. It is plausible
@@ -134,7 +135,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
     ):
         super().__init__(
                 application_name,
-                authentication_file,
+                authentication_type,
                 max_retries=max_retries,
                 )
 
@@ -191,7 +192,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
     def __init__(
         self,
         application_name: str,
-        authentication_file: Path,
+        authentication_type: Literal["tokens","credentials"],
         host: URL, 
         topic: str, 
         *,
@@ -201,7 +202,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
     ):
         super().__init__(
             application_name=application_name,
-            authentication_file=authentication_file,
+            authentication_type=authentication_type,
             max_retries=max_retries
         )
         self.host = host
@@ -221,7 +222,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         # auth is defined in the concrete implementations:
         self._auth()
 
-        def on_message(client, userdata, message):
+        def on_message(client, userdata, message): 
             self._payload_queue.put(json.loads(message.payload))
         
         self._mqtt_client.on_message = on_message
@@ -320,12 +321,12 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
             debug_logger.debug(f"{self.application_name} already authenticated.")
             return self._auth_obj  
 
-        if not self.authentication_file:
+        if not self._authentication_file:
             raise FileNotFoundError(
                     "Must pass a token file for a Netatmo Conneciton."
                     )
 
-        self._auth_obj = lnetatmo.ClientAuth(credentialFile=self.authentication_file)
+        self._auth_obj = lnetatmo.ClientAuth(credentialFile=self._authentication_file)
         self._authenticated = True
         return self._auth_obj 
 
@@ -342,21 +343,21 @@ class TTSConnection(MQTTSensorApplicationConnection):
     """
     MQTT connection to 'TheThingsStack' MQTT servers.
     """
-
+        
     def _auth(self) -> None:
         """Authenticate to TheThingsStack using application name and api key."""
 
-        if not self.authentication_file:
+        if not self._authentication_file:
             raise FileNotFoundError(
                     f"Did not find credential file for {self.application_name}"
                     )
 
-        with open(self.authentication_file, "r") as f:
+        with open(self._authentication_file, "r") as f:
             credentials = json.load(f)
             api_key = credentials.get(self.application_name).get("api_key")
             if not api_key:
                 raise KeyError(
-                        f"Did not find `api_key` in {self.authentication_file}."
+                        f"Did not find `api_key` in {self._authentication_file}."
                         )
         # TTS "usernames" are equivalent to the application names.
         self._mqtt_client.username_pw_set(self.application_name, api_key)

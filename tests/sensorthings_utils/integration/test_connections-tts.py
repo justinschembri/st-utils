@@ -12,9 +12,6 @@ import pytest
 from sensorthings_utils.connections import (
         TTSConnection
         )
-from sensorthings_utils.config import (
-        CREDENTIALS_DIR
-        )
 
 debug_logger = logging.getLogger(__name__)
 debug_logger.setLevel(logging.DEBUG)
@@ -32,7 +29,7 @@ def valid_tts_connection() -> TTSConnection:
     application_name="multicare-acerra@ttn" 
     return TTSConnection(
             "multicare-acerra@ttn", 
-            CREDENTIALS_DIR / "application_credentials.json",
+            "credentials",
             "eu1.cloud.thethings.network",
             f"v3/{application_name}/devices/+/up",
             )
@@ -86,11 +83,13 @@ class TestTTSConnectionAuthentication:
         
         invalid_connection = TTSConnection(
             "tts-mock-application",
-            bad_tts_credentials,
+            "credentials",
             topic=valid_tts_connection.topic,
             host=valid_tts_connection.host,
             port=valid_tts_connection.port
         )
+        # must manually patch this:
+        invalid_connection._authentication_file = bad_tts_credentials
         
         invalid_connection._auth()
         invalid_connection._mqtt_client.on_connect = on_connect
