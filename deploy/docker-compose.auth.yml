@@ -19,16 +19,13 @@ services:
       - auth_allowAnonymousRead=true
 
   database:
-    environment:
-      FROST_USER=sta-manager
     secrets:
-      - FROST_PASSWORD 
+      - frost_credentials 
     volumes:
-      - ./init-db.sh:/usr/local/bin/st-utils-init-db.sh
-    entrypoint: ["/usr/local/bin/st-utils-init-db.sh"] 
+      - ./init-auth-db.sh:/init-auth-db.sh
+    entrypoint: ["/init-auth-db.sh"] 
 
 secrets:
-  FROST_PASSWORD:
-    file: ./secrets/FROST_PASSWORD.txt
-
+  frost_credentials:
+    file: ./secrets/credentials/frost_credentials.json
 

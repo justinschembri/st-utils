@@ -3,7 +3,7 @@ name = "st-utils"
 version = "0.2.0"
 description = "Infrastructure and utilities for working with heterogeneous hazard-centric sensor data."
 readme = "README.md"
-requires-python = ">=3.13"
+requires-python = "==3.13.*"
 dependencies = [
     "lnetatmo>=4.2.0",
     "paho-mqtt>=2.1.0",

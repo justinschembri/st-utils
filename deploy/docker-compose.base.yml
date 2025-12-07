@@ -16,7 +16,6 @@ services:
       - http_cors_allowed_origins=*
       - persistence_db_driver=org.postgresql.Driver
       - persistence_db_url=jdbc:postgresql://database:5432/sensorthings
-      - persistence_db_username=sta-manager
       - persistence_autoUpdateDatabase=true
     ports:
       - 8080:8080
@@ -24,7 +23,7 @@ services:
       - ./init-frost.sh:/init-frost.sh
     entrypoint: ["/init-frost.sh"]
     secrets:
-      - POSTGRES_PASSWORD
+      - postgres_credentials
     depends_on:
       database:
         condition: service_healthy
@@ -34,7 +33,7 @@ services:
     ports:
       - 1883:1883
     secrets:
-      - MQTT_USERS
+      - mqtt_credentials
     volumes:
       - ./mosquitto/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
       - ./mosquitto/init-mosquitto.sh:/mosquitto/init-mosquitto.sh:ro
@@ -44,18 +43,21 @@ services:
     image: postgis/postgis:16-3.4-alpine
     environment:
       - POSTGRES_DB=sensorthings
-      - POSTGRES_USER=sta-manager
-      - POSTGRES_PASSWORD_FILE=/run/secrets/POSTGRES_PASSWORD
     secrets:
-      - POSTGRES_PASSWORD
+      - postgres_credentials
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -d sensorthings -U sta-manager"]
+      test: |
+          PGUSER=$$(awk -F'"' '/"postgres_user"/ {print $$4}' /run/secrets/postgres_credentials) 
+            pg_isready -d sensorthings -U "$$PGUSER"
       interval: 2s
       timeout: 2s
       retries: 10
+    volumes:
+      - ./init-db.sh:/init-db.sh
+    entrypoint: ["./init-db.sh"]
 
 secrets:
-  POSTGRES_PASSWORD:
-    file: ./secrets/POSTGRES_PASSWORD.txt
-  MQTT_USERS:
-    file: ./secrets/MQTT_USERS.txt
+  postgres_credentials:
+    file: ./secrets/credentials/postgres_credentials.json
+  mqtt_credentials:
+    file: ./secrets/credentials/mqtt_credentials.json

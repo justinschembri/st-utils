@@ -1,6 +1,5 @@
 .venv
+*/credentials/*
 docs
-scripts
-.netatmo.credentials
 .env
 logs/

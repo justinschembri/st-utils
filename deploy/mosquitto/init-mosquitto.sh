@@ -1,23 +1,36 @@
 #!/bin/sh
 set -e
 
-PASSWORD_FILE=/mosquitto/config/passwords.txt
-rm -f "$PASSWORD_FILE"
+apk add --no-cache jq
 
-# Check if the secret file exists
-SECRET_FILE=/run/secrets/MQTT_USERS
-if [ -f "$SECRET_FILE" ]; then
-    echo "Generating Mosquitto users from secret..."
-    while IFS='=' read -r username password; do
-        # Skip empty lines
-        [ -z "$username" ] && continue
-        mosquitto_passwd -b -c "$PASSWORD_FILE" "$username" "$password"
-    done < "$SECRET_FILE"
+password_file=/mosquitto/config/passwords.txt
+acl_file=/mosquitto/config/acl.txt
+rm -f "$password_file" "$acl_file"
+
+secret_file=/run/secrets/mqtt_credentials
+if [ -f "$secret_file" ]; then
+    echo "Generating Mosquitto users and ACLs from secret JSON..."
+
+    # Loop over each user object
+    jq -c '.[]' "$secret_file" | while read -r user; do
+        username=$(echo "$user" | jq -r '.username')
+        password=$(echo "$user" | jq -r '.password')
+
+        mosquitto_passwd -b -c "$password_file" "$username" "$password"
+
+        echo "user $username" >> "$acl_file"
+
+        echo "$user" | jq -c '.topics[]' | while read -r topic_obj; do
+            topic_name=$(echo "$topic_obj" | jq -r '.name')
+            perm=$(echo "$topic_obj" | jq -r '.perm')
+            echo "topic $perm $topic_name" >> "$acl_file"
+        done
+    done
 else
-    echo "No MQTT users secret found at $SECRET_FILE"
+    echo "No MQTT users secret found at $secret_file"
 fi
 
-chown mosquitto:mosquitto "$PASSWORD_FILE"
+chown mosquitto:mosquitto "$password_file" "$acl_file"
 
 echo "Starting Mosquitto..."
 exec mosquitto -c /mosquitto/config/mosquitto.conf

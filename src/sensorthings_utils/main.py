@@ -1,19 +1,14 @@
 # standard
 from typing import List, Optional
-import time
-from datetime import datetime
-import threading
 import logging
-from logging.handlers import TimedRotatingFileHandler
+import time
+import threading
 import os
-from pathlib import Path
-# external
-
 # internal
+from sensorthings_utils import config # noqa: F401 
 from sensorthings_utils.config import (
         SENSOR_CONFIG_FILES,
         FROST_ENDPOINT_DEFAULT,
-        ROOT_DIR
         )
 from sensorthings_utils.sensor_things.extensions import (
     SensorConfig,
@@ -28,59 +23,9 @@ from sensorthings_utils.connections import (
 )
 from sensorthings_utils.monitor import network_monitor
 
-# Root Logger ------------------------------------------------------------------
-root_logger = logging.getLogger()
-root_logger.setLevel(logging.INFO)
-# Debug Logger -----------------------------------------------------------------
+main_logger = logging.getLogger("main")
+root_logger = logging.getLogger("root")
 debug_logger = logging.getLogger("debug")
-debug_logger.setLevel(logging.DEBUG)
-# Network Monitor Logger -------------------------------------------------------
-network_monitor_logger = logging.getLogger("network_monitor")
-network_monitor_logger.setLevel(logging.INFO)
-# Main Logger ------------------------------------------------------------------
-main_logger = logging.getLogger(__name__)
-main_logger.setLevel(logging.INFO)
-# Warning Logger ---------------------------------------------------------------
-warning_logger = logging.getLogger("warnings")
-warning_logger.setLevel(logging.WARNING)
-# File Handler (general)--------------------------------------------------------
-general_logfile_name = "general.log"
-logfile = Path(ROOT_DIR / ("logs/" + general_logfile_name))
-logfile.parent.mkdir(exist_ok=True)
-file_handler = TimedRotatingFileHandler(
-    filename=logfile, when="midnight", interval=1, backupCount=30, encoding="utf-8"
-)
-file_handler.setLevel(logging.INFO)
-file_formatter = logging.Formatter(
-    "%(asctime)s [%(name)s:%(lineno)d]: %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-file_handler.setFormatter(file_formatter)
-# File Handler (debug)----------------------------------------------------------
-debug_logfile_name = "debug.log"
-logfile = Path(ROOT_DIR / ("logs/" + debug_logfile_name))
-logfile.parent.mkdir(exist_ok=True)
-debug_handler = logging.FileHandler(filename=logfile)
-debug_handler.setLevel(logging.DEBUG)
-debug_formatter = logging.Formatter(
-    "%(asctime)s [%(name)s:%(lineno)d]: %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-debug_handler.setFormatter(debug_formatter)
-# Console Handlers -------------------------------------------------------------
-console_handler = logging.StreamHandler()
-console_handler.setLevel(logging.INFO)
-console_formatter = logging.Formatter(
-    "%(asctime)s [%(name)s:%(lineno)d]: %(levelname)s - %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-console_handler.setFormatter(console_formatter)
-# Attach Handlers --------------------------------------------------------------
-root_logger.addHandler(file_handler)
-debug_logger.addHandler(debug_handler)
-network_monitor_logger.addHandler(console_handler)
-main_logger.addHandler(console_handler)
-
 
 def push_available(
     exclude: Optional[List[str]] = None, frost_endpoint: Optional[str] = None
@@ -100,13 +45,12 @@ def push_available(
         frost_endpoint or os.getenv("FROST_ENDPOINT") or FROST_ENDPOINT_DEFAULT
     )
     os.environ["FROST_ENDPOINT"] = frost_endpoint
+    #TODO: frost_endpoint run in containers is pointing to container reference
     main_logger.info(f"Sensor stream starts in 30s, target: {frost_endpoint}")
     time.sleep(30)
     sensor_connections: set[
         CredentialedHTTPSensorConnection | CredentialedMQTTSensorConnection
     ] = set()
-    if not SENSOR_CONFIG_FILES:
-        raise ValueError(f"No sensor configurations passed.")
     for f in SENSOR_CONFIG_FILES:
         if f.name in exclude:
             continue

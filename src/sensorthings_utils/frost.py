@@ -31,6 +31,7 @@ if TYPE_CHECKING:
 UrlStr = str
 
 logger = logging.getLogger(__name__)
+debug_logger = logging.getLogger("debug")
 
 ENTITY_ENDPOINTS: Dict[str, str] = {
     "Sensor": "/Sensors",
@@ -145,15 +146,12 @@ def filter_query(
         with request.urlopen(get_request) as response:
             response = json.loads(response.read())
             return response
-    except error.HTTPError as e:
-        logger.warning(f"{e} {e.read()}")
-        return {}
     except error.URLError as e:
         logger.critical(
-            f"FROST connection refused, pointing to "
+            "FROST connection refused, pointing to "
             + f" {frost_endpoint}. Is server up and listening?"
         )
-        return {}
+        raise error.URLError(e)
 
 
 def initial_setup(sensor_arrangement: "SensorArrangement") -> str:
@@ -167,22 +165,24 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> str:
     """
 
     _check_frost_connection()
+    debug_logger.debug(sensor_arrangement.get_entities("Thing"))
     for thing in sensor_arrangement.get_entities("Thing"):
         make_thing = make_frost_object(thing)
+        debug_logger.debug(make_thing)
         if not make_thing:
             break
         iot_url = make_thing["locations_url"]
         # lookup linked locations of the thing and make them:
         for loc in thing.iot_links["locations"]:
             # pass URL of newly generated Thing's Locations to the maker:
-            make_frost_object(loc, iot_url)
+            debug_logger.debug(make_frost_object(loc, iot_url))
     # Make Sensors, which are associated only with Datastreams, which are linked later
     for sen in sensor_arrangement.get_entities("Sensor"):
-        make_frost_object(sen)
+        debug_logger.debug(make_frost_object(sen))
         sensor_model = sen.name
     # Make ObservedProperties, also linked later with a Datastream
     for op in sensor_arrangement.get_entities("ObservedProperty"):
-        make_frost_object(op)
+        debug_logger.debug(make_frost_object(op))
     # Make Datastreams, linked with a one Sensor, one ObservedProperty and one Thing
     for ds in sensor_arrangement.get_entities("Datastream"):
         # Lookup the names's of the relevant Sensor, ObservedProperty and Thing:
@@ -190,6 +190,7 @@ def initial_setup(sensor_arrangement: "SensorArrangement") -> str:
         oprop_name = ds.iot_links["observedProperties"][0].name
         thing_name = ds.iot_links["things"][0].name
         # Query server and lookup ids:
+        debug_logger.info(locals())
         sen_id = filter_query(
             entity="/Sensors",
             filter_string=f"name eq '{sen_name}'",
@@ -280,9 +281,14 @@ def make_frost_object(
                         time.time(),
                     )
     except error.HTTPError as e:
-        logger.warning(f"{e} {e.read()}")
-        network_monitor.add_named_count("push_fail", application_name, 1)
-        return {}
+        if isinstance(entity, Observation):
+            # a failed observation is fine ...
+            debug_logger.warning(f"{e} {e.read()}")
+            network_monitor.add_named_count("push_fail", application_name, 1)
+            return {}
+        else:
+            # ... a failed non-observation object is not!
+            raise e
 
     if CONTAINER_ENVIRONMENT:
         new_object_url = new_object_url.replace("localhost", "web")
