@@ -30,7 +30,9 @@ def _filter(payload: Dict, exclude: List[str] | None = None) -> Dict[str, Any]:
         data["sensor_name"] = payload["end_device_ids"]["dev_eui"]
         if exclude and data["sensor_name"] in exclude:
             return {}
-        data["phenomenon_time"] = payload["uplink_message"]["rx_metadata"][0]["received_at"]
+        data["phenomenon_time"] = payload["uplink_message"]["rx_metadata"][0][
+            "received_at"
+        ]
         data["observations"] = payload["uplink_message"]["decoded_payload"]
     except KeyError as e:
         logger.debug(f"{payload=}")
@@ -87,7 +89,7 @@ def frost_upload(
 
     try:
         transformed_payload = _transform(_filter(raw_payload, exclude))
-    except KeyError as e:
+    except KeyError:
         logger.warning(
             f"Malformed or empty AM308L payload: {raw_payload=}. "
             + "Nothing was pushed to FROST."
@@ -108,7 +110,7 @@ def frost_upload(
         )
         if not push_link:
             logger.critical(
-                f"Unable to upload payload: no datastream URL found. "
+                "Unable to upload payload: no datastream URL found. "
                 + f"Details: {sensor_name=}, {datastream_name=}"
             )
         try:

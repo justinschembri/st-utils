@@ -378,13 +378,13 @@ def observation_to_sensor_trace(url: str, return_url: bool = False) -> str | Non
     """Return name or URL of sensor which generated an observation."""
     if not re.search(r"/Observations\(\d+\)$", url):
         logger.warning(
-            f"Did not find a datastream associated with this observation."
+            "Did not find a datastream associated with this observation."
             + f"Check the URL passed: {url}"
         )
         return None
     if CONTAINER_ENVIRONMENT:
         url = url.replace("localhost", "web")
-    
+
     try:
         with request.urlopen(url) as response:
             datastream_url = json.loads(response.read())[
@@ -392,7 +392,7 @@ def observation_to_sensor_trace(url: str, return_url: bool = False) -> str | Non
             ]
         if CONTAINER_ENVIRONMENT:
             datastream_url = datastream_url.replace("localhost", "web")
-        
+
         with request.urlopen(datastream_url) as response:
             sensor_url = json.loads(response.read())["Sensor@iot.navigationLink"]
             if CONTAINER_ENVIRONMENT:
@@ -404,6 +404,8 @@ def observation_to_sensor_trace(url: str, return_url: bool = False) -> str | Non
             return json.loads(response.read())["name"]
 
     except error.URLError as e:
-        logger.warning(f"Unable to map sensor to created observation. {url=} URL Error: {e}")
+        logger.warning(
+            f"Unable to map sensor to created observation. {url=} URL Error: {e}"
+        )
     except KeyError as e:
         logger.warning(f"Missing expected key: {e}")

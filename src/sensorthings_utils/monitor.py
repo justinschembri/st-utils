@@ -10,16 +10,18 @@ import sys
 
 from sensorthings_utils.config import ROOT_DIR
 
-logger = logging.getLogger("network_monitor")
-debug_logger = logging.getLogger("debug" + __name__)
+main_logger = logging.getLogger("network_monitor")
+event_logger = logging.getLogger("events")
+debug_logger = logging.getLogger("debug")
 
 __all__ = ["network_monitor"]
+
 
 class _NetworkMonitor:
     """
     Network monitor Singleton: stores sensor related telemetry.
 
-    The network monitor should be used as a singleton shared across multiple 
+    The network monitor should be used as a singleton shared across multiple
     modules.
     """
 
@@ -68,7 +70,6 @@ class _NetworkMonitor:
             self.__getattribute__(attr)[application] += count
 
     def _to_html(self, health_report: list[str]) -> None:
-        
         health_file_html = ROOT_DIR / "logs" / "health.html"
 
         html_lines = [
@@ -111,10 +112,10 @@ class _NetworkMonitor:
             self.first_report_issued = True
         else:
             time.sleep(60 * interval)
-        
+
         health_report: list[str] = [
-                "st-utils instance", 
-                ]
+            "st-utils instance",
+        ]
         with self._lock:
             # Report on active threads.
             dead_threads = self.starting_application_threads - self.live_threads
@@ -124,58 +125,54 @@ class _NetworkMonitor:
                 else f"Some threads have died: {dead_threads}. Killing app."
             )
             if not dead_threads:
-                logger.info(thread_msg)
+                event_logger.info(thread_msg)
             else:
-                logger.warning(thread_msg)
+                main_logger.warning(thread_msg)
+                # TODO: instead of killing the app - restart the dead threads -
+                # furthermore this should NOT be the responsibility of the
+                # network monitor.
                 sys.exit(1)
             health_report.append(thread_msg)
             # Report succesful pushes:
-            uptime = str((datetime.now() - self.start_time)) 
+            uptime = str((datetime.now() - self.start_time))
             uptime = uptime.split(".")[0] + " hrs"
-            msg = f"Uptime: {uptime}" 
+            msg = f"Uptime: {uptime}"
             health_report.append(msg)
-            logger.info(msg)
-            if self.sensor_config_fail > 0:
-                msg = (
-                        f"{self.sensor_config_fail} sensor configuration " + 
-                        "file/s are invalid!"
-                       )
-                health_report.append(msg)
-                logger.warning(msg)
+            main_logger.info(msg)
             for k, v in self.payloads_received.items():
                 msg = f"Payloads received from {k} : {v}"
                 health_report.append(msg)
-                logger.info(msg)
+                main_logger.info(msg)
             for k, v in self.rejected_payloads.items():
                 msg = f"Payloads rejected for {k} : {v}"
                 health_report.append(msg)
-                logger.warning(msg)
+                main_logger.warning(msg)
             for i, (k, v) in enumerate(self.push_success.items()):
                 time_since_last_push = (time.time() - self.last_push_time[k]) / 60
                 warning_msg = "WARNING: " if time_since_last_push > 60 else ""
                 msg = (
-                        f"{i+1} →  {k} → {v} observations pushed. " + 
-                        f"{warning_msg}→ Time since last push: " +
-                        f"{time_since_last_push:.2f}m." 
-                    )
+                    f"{i+1} →  {k} → {v} observations pushed. "
+                    f"{warning_msg}→ Time since last push: "
+                    f"{time_since_last_push:.2f}m."
+                )
                 health_report.append(msg)
-                logger.info(msg)
+                main_logger.info(msg)
             for k, v in self.push_fail.items():
                 msg = f"Rejected observations for {k} →  {v}"
                 health_report.append(msg)
-                logger.warning(msg)
+                main_logger.warning(msg)
 
-            non_responsive_applications = (
-                    self.expected_sensors - (self.push_success.keys())
-                    )
+            non_responsive_applications = self.expected_sensors - (
+                self.push_success.keys()
+            )
             for _ in non_responsive_applications:
                 msg = f"Data never received from {_}, sensor may be down."
                 health_report.append(msg)
-                logger.warning(msg)
-            logger.info("Check logs for full details.")
-        
+                main_logger.warning(msg)
+            main_logger.info("Check logs for full details.")
+
         self._to_html(health_report)
 
-#TODO: wrap in a function and implement lazy importing
-network_monitor = _NetworkMonitor()
 
+# TODO: wrap in a function and implement lazy importing
+network_monitor = _NetworkMonitor()

@@ -88,7 +88,7 @@ def frost_upload(
             )
             if not push_link:
                 logger.warning(
-                    f"Unable to upload payload: no datastream URL found. "
+                    "Unable to upload payload: no datastream URL found. "
                     + f"Details: {sensor_name=}, {datastream_name=}"
                 )
                 continue

@@ -51,7 +51,7 @@ class SensorConfig:
             data = yaml.safe_load(file)
         return data
 
-    #TODO: poor logic to be rewritten.
+    # TODO: poor logic to be rewritten.
     def __getitem__(self, key) -> Any:
         if self.is_valid is None:
             self.is_valid()
@@ -85,7 +85,7 @@ class SensorConfig:
         ):
             main_error = f"{self._filepath.name} is an invalid config."
             main_logger.error(main_error)
-            # errors returned from the validity functions are 
+            # errors returned from the validity functions are
             # tuples(bool, <error_msg> | None)
             errors = (
                 [main_error]
@@ -133,7 +133,7 @@ class SensorConfig:
             "locations",
             "datastreams",
             "observedProperties",
-            "networkMetadata"
+            "networkMetadata",
         ]
         expected_class_fields = {
             "sensors": {
@@ -175,8 +175,8 @@ class SensorConfig:
                 "description": str,
                 "properties": (str, type(None)),
             },
-            #TODO: networkMetadata validation
-            "networkMetadata" : dict() 
+            # TODO: networkMetadata validation
+            "networkMetadata": dict(),
         }
         # entity is going to be sensors, things, locations, etc.
         invalid = False
@@ -184,19 +184,15 @@ class SensorConfig:
         for key in expected_top_level_keys:
             # Check if all top level keys are there:
             if (actual_entity := unvalidated_data.get(key)) is None:
-                error = (
-                    f"{self._filepath.stem} is missing primary key: {key}. \
+                error = f"{self._filepath.stem} is missing primary key: {key}. \
                     Will not continue with validation."
-                )
                 main_logger.error(error)
                 error_list.append(error)
                 return (False, error_list)
             # Check if return of top level keys is correct:
             if not isinstance(actual_entity, dict):
-                error = (
-                    f"{self._filepath.stem} returned {type(actual_entity)} \
+                error = f"{self._filepath.stem} returned {type(actual_entity)} \
                     not dict. Will not continue with validation."
-                )
                 main_logger.error(error)
                 error_list.append(error)
                 return (False, error_list)
@@ -204,11 +200,9 @@ class SensorConfig:
             expected_field_keys = set(expected_class_fields[key].keys())
             for field_key in actual_entity:
                 if not isinstance(actual_entity[field_key], dict):
-                    error = (
-                        f"{self._filepath.stem}'s {field_key}'s children are of \
+                    error = f"{self._filepath.stem}'s {field_key}'s children are of \
                         type {type(actual_entity[field_key])} not dict. \
                         Will not continue with validation."
-                    )
                     main_logger.error(error)
                     error_list.append(error)
                     return (False, error_list)
@@ -311,7 +305,7 @@ class SensorConfig:
                     for link in link_list:
                         try:
                             unvalidated_data[declared_datastream][link]
-                        except KeyError as e:
+                        except KeyError:
                             error = (
                                 f"{self._filepath.name}.{entity_type}."
                                 + f"{entity} declares an iot_link not in config: "
