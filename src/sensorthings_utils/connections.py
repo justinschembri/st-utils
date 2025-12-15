@@ -16,9 +16,12 @@ import lnetatmo
 from paho.mqtt.client import Client as mqttClient
 from paho.mqtt.enums import CallbackAPIVersion
 
+from sensorthings_utils.transformers.types import FailedUnpack
+
 # internal
 from .monitor import network_monitor
 from .config import CREDENTIALS_DIR, TOKENS_DIR
+from .transformers.application_unpackers import APP_UNPACKERS, SupportedConnections
 
 # environment setup
 CONTAINER_ENVIRONMENT = True if os.getenv("CONTAINER_ENVIRONMENT") else False
@@ -173,14 +176,32 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
         restart_attempt = 0
         while not self._stop_event.is_set():
             try:
-                self._pull_data()
-                if not self._last_payload == self._pull_data():
-                    ...
+                app_payload = self._pull_data()
+                if not self._last_payload == app_payload:
+                    self._last_paylaod = app_payload
+                    unpacked_payloads = APP_UNPACKERS[type(self)].unpack(
+                            app_payload, self.application_name
+                            )
+                    # todo: the unpacked payload needs to retain memory of what 
+                    # sensor it came from. Recall that one payload could have 
+                    # multiple observations from multiple sneosrs.
+                    # This merits considering a SuccessfulUnpack dataclass. 
+                    # Alternatively, and perhaps more robustly, the sensor MAC
+                    # address can be sued to derive the sensor model.
+                    # for observations
+                    sensor_model = ...
+                    main_logger.info(
+                        f"Received payload from {self.application_name} "
+                        f"from a {sensor_model} sensor."
+                    )
+                    if isinstance(unpacked_payloads, FailedUnpack):
+                        pass
                     # unpacked_payload = application_unpacker(application_name, native_payload)
                     # for observation unpacked_payload:
                     # frost_transformer(sensor_model, observation)
-                restart_attempt = 0
-                time.sleep(self.request_interval)
+                    time.sleep(self.request_interval)
+                else:
+                    time.sleep(self.request_interval)
             except KeyboardInterrupt:
                 self.stop_pull_transform_push_thread()
                 break
@@ -220,7 +241,9 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         *,
         port: int = 8883,
         max_retries: int = 3,
-        timeout: int = 300,
+        #TODO: timeout, similar to interval in the HTTP method should be sensor
+        # dependent, which is problematic.
+        timeout: int = 1200,
     ):
         super().__init__(
             application_name=application_name,
@@ -277,15 +300,22 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
 
         while not self._stop_event.is_set():
             try:
-                application_payload = self._payload_queue.get(timeout=self.timeout)
+                app_payload = self._payload_queue.get(timeout=self.timeout)
                 consecutive_timeouts = 0
                 network_monitor.add_named_count(
                     "payloads_received", self.application_name, 1
                 )
-                debug_logger.debug(f"{application_payload=}")
+                debug_logger.debug(
+                        f"{self.application_name} payload: "
+                        f"{app_payload=}"
+                        )
+                unpacked_payload = APP_UNPACKERS[type(self)].unpack(
+                        app_payload, self.application_name
+                        )
+                if isinstance(unpacked_payload, FailedUnpack):
+                    pass
 
-                # sensor_model, native_payloads = application_unpacker(self.application_name, native_payload)
-                # for n in native_payloads:
+                # for sensor_id, observation in unpacked_payload.items():
                 #    frost_observation = (frost_transformer(sensor_model, n))
                 #    frost_upload(frost_observation)
 
@@ -299,13 +329,9 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
                 # No data received within timeout period
                 consecutive_timeouts += 1
                 main_logger.warning(
-                    f"No data received from {self.application_name} "
-                    f"in {self.timeout} seconds. Consecutive timeouts: "
+                    f"Queue for {self.application_name} has been empty for"
+                    f"{self.timeout} seconds. Consecutive timeouts: "
                     f"{consecutive_timeouts}/{self.max_retries}."
-                )
-
-                network_monitor.add_named_count(
-                    "timeout_events", self.application_name, 1
                 )
 
                 if consecutive_timeouts >= self.max_retries:
@@ -313,6 +339,8 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
                         f"Exceeded max retries ({self.max_retries}) for "
                         f"{self.application_name}. Stopping connection."
                     )
+                    #TODO: is this being doubled up elsewhere? failure handling
+                    # needs to be clearly defined.
                     self._stop_event.set()
                     break
 
@@ -336,7 +364,6 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
     """
     Netamo HTTP connection class. Endpoint for communicating with Netamo API.
     """
-
     _auth_obj: lnetatmo.ClientAuth
 
     def _auth(self) -> lnetatmo.ClientAuth:
@@ -359,6 +386,7 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
         """Retrieve the latest untransformed observation set (one or more) from the Netatmo API."""
         self._auth()
         netatmo_connection = lnetatmo.WeatherStationData(self._auth_obj)
+        debug_logger.debug(f"{netatmo_connection.rawData=}")
         return netatmo_connection.rawData
 
 

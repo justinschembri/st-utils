@@ -49,7 +49,8 @@ def parse_application_config(config_path: Path) -> set[SensorApplicationConnecti
         class_name = app_config["connection_class"]
 
         try:
-            # if you're wondering what this does: a `ModuleType` object
+            # if you're wondering what this does: the connections module 
+            # (of type `ModuleType`) object
             # includes its classes and functions as attrs.
             ConnectionClass = getattr(connections_module, class_name)
         except AttributeError:

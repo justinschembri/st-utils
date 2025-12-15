@@ -1,4 +1,24 @@
-"""FROST server support for Netatmo Sensor NWS03."""
+"""
+FROST server support for Netatmo Sensor NWS03.
+A sample of the unpacked data:
+{
+    "70:ee:50:7f:9d:32":
+    {
+        "time_utc": 1765374089,
+        "Temperature": 23.3,
+        "CO2": 871,
+        "Humidity": 46,
+        "Noise": 33,
+        "Pressure": 1014.8,
+        "temp_trend": "stable",
+        "pressure_trend": "up",
+    },
+{
+    "70:ee:50:7f:a4:76":
+    {...}
+}
+
+"""
 
 # standard
 import logging
@@ -13,21 +33,15 @@ from ..monitor import network_monitor
 logger = logging.getLogger(__name__)
 
 
-def _filter(
-    payload: List[Dict[str, Any]],
+def _validation_filter(
+    payload: Dict[str, Any]],
     exclude: List[str] | None = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
-    Return latest observations from all Netatmo weather stations.
+    Validate and filter a native dict object from a Netatmo NWS03 sensor.
 
-    Raw data is lightly modified (organized) and warngled into a
-    station-by-station format. Passing `station_ids` allows for filtering for
-    specific station data.
-
-    :param station_ids: Station IDs to filter by.
-    :type station_ids: List[str]
-    :return: Available netatmo sensors and their respective data.
-    :rtype: Dict[str, Dict[str, str | int | float]]
+    Args:
+        `payload` ([Dict[str, Any]])
     """
     data = {}
     if not payload[0]:
@@ -75,7 +89,7 @@ def frost_upload(
     application_name: str | None = None,
 ) -> None:
     """Extract, transform and load Netatmo devices linked to your account."""
-    for station in _filter(payload, exclude).values():
+    for station in _validation_filter(payload, exclude).values():
         observation_stream = _transform(station)
         for o in observation_stream:
             upload_success = False

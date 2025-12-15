@@ -12,7 +12,7 @@ import dotenv
 
 # ENVIRONMENT  #################################################################
 CONTAINER_ENVIRONMENT = bool(os.getenv("CONTAINER_ENVIRONMENT"))
-DEBUG = bool(os.getenv("DEBUG"))
+ST_UTILS_DEBUG = bool(os.getenv("ST_UTILS_DEBUG"))
 
 # PATH DEFINITIONS #############################################################
 ROOT_DIR = Path(__file__).parent.parent.parent
@@ -63,7 +63,7 @@ general_logfile.setLevel(logging.INFO)
 general_logfile.setFormatter(general_formatter)
 # --
 debug_logfile_handler = logging.FileHandler(
-    filename=ROOT_DIR / "logs" / "debug.log",
+    filename=ROOT_DIR / "logs" / "debug.log", mode = "w"
 )
 debug_logfile_handler.setLevel(logging.DEBUG)
 debug_logfile_handler.setFormatter(general_formatter)
@@ -77,8 +77,11 @@ if not events_logger.handlers:
     events_logger.addHandler(event_console)
     events_logger.addHandler(general_logfile)
 # --
-if DEBUG:
+if ST_UTILS_DEBUG:
     debug_logger.addHandler(debug_logfile_handler)
+    main_logger.warning(
+            f"Debug mode active, check {ROOT_DIR / 'logs' / 'debug.log'}"
+            )
 
 # environment set up
 # use of `or` to set defaults for env variables when not set in a docker-compose or .env
