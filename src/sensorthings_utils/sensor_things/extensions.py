@@ -6,7 +6,6 @@ Extensions and wrappers to facilitate OGC SensorThings compliant implementations
 from typing import Dict, List, Any, Type, Literal, Optional, Tuple, TYPE_CHECKING
 from pathlib import Path
 import logging
-from functools import cached_property
 
 # external
 import yaml
@@ -21,8 +20,9 @@ from .core import (
     SensorThingsObject,
     SENSOR_THINGS_OBJECTS,
 )
-from ..monitor import network_monitor
+from ..monitor import netmon
 
+debug_logger = logging.getLogger("debug")
 # typing and type-checking
 if TYPE_CHECKING:
     ...
@@ -44,18 +44,28 @@ class SensorConfig:
     def __init__(self, filepath: str | Path) -> None:
         self._filepath = Path(filepath)
         self.data: Dict[str, Any] = self._load()
-        self.sensor_model = self["networkMetadata"]["sensor_model"]  # type: ignore (None types will be caught by the valididty flag)
+        self.is_valid = self.check_validity()[0]
+        self._set_metadata()
+        # metadata set by fn above
+        self.model: str 
+        self.name: str
+
+    def _set_metadata(self) -> None:
+        """Set sensor metadata attrs."""
+        self.model = next(iter(self.data["sensors"]))
+        self.name = self.data["sensors"][self.model]["name"]
 
     def _load(self) -> Dict:
+        """Safely load configuration file."""
         with open(self._filepath, "r") as file:
             data = yaml.safe_load(file)
         return data
 
     # TODO: poor logic to be rewritten.
     def __getitem__(self, key) -> Any:
-        if self.is_valid is None:
-            self.is_valid()
-        if self.is_valid is False:
+        if self.check_validity is None:
+            self.check_validity()
+        if self.check_validity is False:
             main_logger.error(
                 f"The SensorConfig {self._filepath.name} is invalid."
                 + " Passing to other functions may cuase unexpected "
@@ -63,21 +73,17 @@ class SensorConfig:
             )
         return self.data.get(key)
 
-    @cached_property
-    def is_valid(self) -> Tuple[bool, list[str]]:
+    def check_validity(self) -> Tuple[bool, list[str]]:
         """
         Run a number of validation checks on a configuration file, return True
         if config is valid.
         """
-        unvalidated_data = self._load()
-        valid_sensor_name = self._validate_sensor_name(unvalidated_data)
-        valid_entity_contents = self._validate_entity_contents(unvalidated_data)
-        valid_entity_sizes = self._validate_entity_sizes(unvalidated_data)
-        valid_iot_link = self._validate_iot_links(unvalidated_data)
+        valid_entity_contents = self._validate_entity_contents(self.data)
+        valid_entity_sizes = self._validate_entity_sizes(self.data)
+        valid_iot_link = self._validate_iot_links(self.data)
 
         if not all(
             [
-                valid_sensor_name[0],
                 valid_entity_contents[0],
                 valid_entity_sizes[0],
                 valid_iot_link[0],
@@ -89,39 +95,17 @@ class SensorConfig:
             # tuples(bool, <error_msg> | None)
             errors = (
                 [main_error]
-                + valid_sensor_name[1]
                 + valid_entity_contents[1]
                 + valid_entity_sizes[1]
                 + valid_iot_link[1]
             )
 
-            network_monitor.add_count("sensor_config_fail", 1)
+            netmon.add_count("sensor_config_fail", 1)
             return (False, errors)
         else:
             success_msg = f"{self._filepath.name} is a valid config."
             main_logger.info(success_msg)
             return (True, [success_msg])
-
-    def _validate_sensor_name(self, unvalidated_data: Dict) -> Tuple[bool, List[str]]:
-        """Validate sensor key and sensor name (attribute) matches."""
-
-        sensor_config = unvalidated_data.get("sensors")
-        error_list = []
-        if sensor_config is None:
-            error = f"No 'sensors' key in SensorConfig {self._filepath.name}."
-            error_list.append(error)
-            main_logger.error(error)
-            return (False, error_list)
-
-        sensor_key = next(iter(sensor_config))
-        sensor_name = sensor_config.get(sensor_key).get("name")
-        if sensor_key != sensor_name:
-            error = f"SensorConfig {self._filepath.name}'s name ({sensor_name}) does not match its primary key {sensor_key}."
-            error_list.append(error)
-            main_logger.error(error)
-            return (False, error_list)
-
-        return (True, [])
 
     def _validate_entity_contents(
         self, unvalidated_data: Dict
@@ -133,7 +117,6 @@ class SensorConfig:
             "locations",
             "datastreams",
             "observedProperties",
-            "networkMetadata",
         ]
         expected_class_fields = {
             "sensors": {
@@ -175,8 +158,6 @@ class SensorConfig:
                 "description": str,
                 "properties": (str, type(None)),
             },
-            # TODO: networkMetadata validation
-            "networkMetadata": dict(),
         }
         # entity is going to be sensors, things, locations, etc.
         invalid = False
@@ -264,10 +245,12 @@ class SensorConfig:
         # and the entity instances in those group, checking that the iot_links
         # which are expected to be present in the config file are there.
         for entity_type, entity_instances in unvalidated_data.items():
-            # observedProperties and networkMetadata have no iot_links.
-            if entity_type in ["observedProperties", "networkMetadata"]:
+            debug_logger.debug(f"{entity_type=} {entity_instances=}")
+            # observedProperties have no iot_links.
+            if entity_type in ["observedProperties"]:
                 continue
             for entity, entity_fields in entity_instances.items():
+                debug_logger.debug(f"{entity=} {entity_fields=}")
                 passed_links = entity_fields["iot_links"]
                 exp_links = expected_iot_link_groups[entity_type]
                 extra_links = set(passed_links) - set(exp_links)
@@ -302,19 +285,8 @@ class SensorConfig:
                         main_logger.error(error)
                         invalid = True
                         continue
-                    for link in link_list:
-                        try:
-                            unvalidated_data[declared_datastream][link]
-                        except KeyError:
-                            error = (
-                                f"{self._filepath.name}.{entity_type}."
-                                + f"{entity} declares an iot_link not in config: "
-                                f"{link}."
-                            )
-                            error_list.append(error)
-                            main_logger.error(error)
-                            invalid = True
-
+                        # several lines removed here which can be reimplemented,
+                        # see 
         return (True, []) if not invalid else (False, error_list)
 
 
@@ -350,17 +322,9 @@ class SensorArrangement:
 
     def __init__(self, sensor_config: "SensorConfig"):
         self._sensor_config = sensor_config
-        if not self._sensor_config:
-            raise AttributeError("No sensor configuration passed.")
         self._unlinked_arrangement: List["SensorThingsObject"] = self._initial_setup()
         # public:
         self.linked_arrangement: Tuple[SensorThingsObject, ...] = self._link_iot()
-        self.application_name: str = self._sensor_config["networkMetadata"][
-            "application_name"
-        ]
-        self.sensor_name: str = next(iter(self._sensor_config["sensors"]))
-        self.id: str = f"{self.application_name}:{self.sensor_name}"
-        self.host: str = self._sensor_config["networkMetadata"]["host"]
 
     def __repr__(self) -> str:
         return (
@@ -416,7 +380,7 @@ class SensorArrangement:
                     return sensor_things_object.__dict__[field]
                 elif not field:
                     return sensor_things_object  # type: ignore
-
+        debug_logger.debug(f"{self._sensor_config.__dict__}")
         raise KeyError(f"Keys {entity=}, {field=} and {instance=} not found.")
 
     def get_entities(
