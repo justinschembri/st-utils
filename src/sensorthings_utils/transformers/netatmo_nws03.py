@@ -28,7 +28,7 @@ from typing import List, Dict, Any, Generator, Tuple
 from ..sensor_things.core import Observation
 from ..config import CONTAINER_ENVIRONMENT
 from sensorthings_utils.frost import make_frost_object, find_datastream_url
-from ..monitor import network_monitor
+from ..monitor import netmon
 
 logger = logging.getLogger(__name__)
 
@@ -119,5 +119,5 @@ def frost_upload(
                 )
             if not upload_success:
                 application_name = application_name or ""
-                network_monitor.add_named_count("push_fail", application_name, 1)
+                netmon.add_named_count("push_fail", application_name, 1)
     return None

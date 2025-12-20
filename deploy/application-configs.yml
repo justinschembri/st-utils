@@ -4,14 +4,14 @@ applications:
     authentication_type: tokens
     connection_class: NetatmoConnection
     interval: 300 # optional: override default
-    max_retries: 5 # optional: override default
+    max_retries: 1 # optional: override default
     expected_sensors: 2 # optional: monitoring feature
 
   multicare-acerra@ttn:
     protocol: mqtt # descriptive and not really needed since connection_class handles it implicitly
     authentication_type: credentials
     connection_class: TTSConnection
-    max_retries: 5 # optional: override default
+    max_retries: 1 # optional: override default
     host: eu1.cloud.thethings.network # mandatory
     port: 8883 # optional: override default
     topic: "v3/multicare-acerra@ttn/devices/+/up"
@@ -21,7 +21,7 @@ applications:
     protocol: mqtt # descriptive and not really needed since connection_class handles it implicitly
     authentication_type: credentials
     connection_class: TTSConnection
-    max_retries: 5 # optional: override default
+    max_retries: 1 # optional: override default
     host: eu1.cloud.thethings.network # mandatory
     port: 8883 # optional: override default
     topic: "v3/multicare-bucharest@ttn/devices/+/up"

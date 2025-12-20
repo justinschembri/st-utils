@@ -26,7 +26,7 @@ def _validate(args):
         ]
 
     for f in validation_files:
-        result, errors = SensorConfig(f).is_valid
+        result, errors = SensorConfig(f).check_validity()
         if errors:
             for e in errors:
                 print(e)

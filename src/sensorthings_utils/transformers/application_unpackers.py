@@ -3,21 +3,27 @@ Unpack a decoded payload from an aplication's native format into a sensors
 native format.
 """
 #standard
-#external
-#internal
 import logging
 from enum import Enum
-from typing import Any, Type, Union
+from typing import Any, Type
 from abc import ABC, abstractmethod
-
-from sensorthings_utils.connections import NetatmoConnection, SensorApplicationConnection, TTSConnection
-from .types import FailedUnpack, SuccessfulUnpack
+#external
+#internal
+from .types import SuccessfulUnpack
 #environment set-up
 #loggers
 main_logger = logging.getLogger("main")
 debug_logger = logging.getLogger("debug")
 event_logger = logging.getLogger("events")
+#exceptions
+class UnpackError(Exception):
+    """Parent exception for sensor uplink message unpack failures."""
 
+class MissingPayloadKeysError(UnpackError):
+    """Failed to unpack the uplink message due to missing keys."""
+
+class UnregisteredSensorError(Exception):
+    """Receieved a message from an unregistered sensor."""
 
 class SupportedConnections(str, Enum):
     NETATMO = "netatmo"
@@ -26,19 +32,10 @@ class SupportedConnections(str, Enum):
 class ApplicationUnpacker(ABC):
 
     @staticmethod
-    def _warn(app_payload: Any, app_name:str, e:Exception):
-        """Generic warning to raise during failed unpacks."""
-        main_logger.warning(
-                f"Unable to unpack payload {app_payload} for "
-                f"{app_name}: {type(e).__name__}: {e}"
-                )
-    
-    @staticmethod
     @abstractmethod
     def unpack(
                app_payload: Any, 
-               app_name: str | None
-               ) ->  SuccessfulUnpack | FailedUnpack:
+               ) ->  SuccessfulUnpack:
         """Public unpack interface."""
         ...
 
@@ -47,7 +44,7 @@ class NullUnpacker(ApplicationUnpacker):
     """Null class for applicationless systems."""
 
     @staticmethod
-    def unpack(app_payload: Any, app_name: str):
+    def unpack(app_payload: Any):
         return app_payload
 
 class NetatmoUnpacker(ApplicationUnpacker):
@@ -87,49 +84,41 @@ class NetatmoUnpacker(ApplicationUnpacker):
     """
 
     @staticmethod
-    def unpack(app_payload: list[dict[str, Any]], app_name: str):
+    def unpack(app_payload: list[dict[str, Any]]):
 
         unpacked_payload = {}
         try:
             for device in app_payload:
+                if not device["reachable"]:
+                    continue
                 unpacked_payload[device["_id"]] = device["dashboard_data"]
             return SuccessfulUnpack(unpacked_payload=unpacked_payload)
+        # logging handled upstream
+        except KeyError as e:
+            raise MissingPayloadKeysError(e)
         except Exception as e:
-            ApplicationUnpacker._warn(app_payload, app_name, e)
-            return FailedUnpack(application_payload=app_payload)
+            raise UnpackError(e)
+
 
 
 class TTSUnpacker(ApplicationUnpacker):
 
     @staticmethod
-    def unpack(app_payload):
-        unpacked_payload: dict[str, Any] | FailedUnpack = {}
-
-        uplink_message = self.application_payload["uplink_message"]
-        if "decoded_payload" not in uplink_message:
-            main_logger.info(
-                    "Skipped payload with no uplink message for "
-                    f"{self.application_name}."
-                    )
-            return FailedUnpack(application_payload=self.application_payload)
+    def unpack(app_payload: dict[str, Any]) -> SuccessfulUnpack:
+        unpacked_payload = {}
         try: 
-            unpacked_payload[self.application_payload["end_device_ids"]["dev_eui"]] ={
-                **self.application_payload["uplink_message"]["decoded_payload"],
-                "phenomenon_time": self.application_payload["uplink_message"]["rx_metadata"][0]["received_at"],
+            unpacked_payload[app_payload["end_device_ids"]["dev_eui"]] ={
+                **app_payload["uplink_message"]["decoded_payload"],
+                "phenomenon_time": app_payload["uplink_message"]["rx_metadata"][0]["received_at"],
             }
+        except KeyError as e:
+            raise MissingPayloadKeysError(e)
 
-        except Exception as e:
-            self._warn(e)
-            return FailedUnpack()
+        return SuccessfulUnpack(unpacked_payload=unpacked_payload)
 
-        return unpacked_payload
-
-APP_UNPACKERS: dict[
-        Union[Type[SensorApplicationConnection], None], 
-        Type[ApplicationUnpacker]
-        ] = {
+APP_UNPACKERS: dict[str | None, Type[ApplicationUnpacker]] = {
     None: NullUnpacker,
-    NetatmoConnection: NetatmoUnpacker,
-    TTSConnection: TTSUnpacker
+    "netatmo": NetatmoUnpacker,
+    "tts": TTSUnpacker
 }
 

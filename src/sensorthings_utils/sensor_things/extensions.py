@@ -46,7 +46,7 @@ class SensorConfig:
         self.data: Dict[str, Any] = self._load()
         self.is_valid = self.check_validity()[0]
         self._set_metadata()
-        # metadata set by fn above
+        # below metadata attrs set by fn above
         self.model: str 
         self.name: str
 
@@ -286,7 +286,7 @@ class SensorConfig:
                         invalid = True
                         continue
                         # several lines removed here which can be reimplemented,
-                        # see 
+                        # see 32392b2
         return (True, []) if not invalid else (False, error_list)
 
 

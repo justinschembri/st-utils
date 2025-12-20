@@ -2,24 +2,23 @@
 #standard
 #external
 from typing import Any
-from dataclasses import dataclass
 from pydantic import BaseModel
 #internal
 
-@dataclass(kw_only=True)
-class FailedUnpack:
-    """Sentinel class for failed unpacking."""
-    sensor_id: str | None = None
-    application_payload: Any = None
-
-    @property
-    def is_success(self) -> bool:
-        return False
+# type definitions
+SensorID = str
 
 class SuccessfulUnpack(BaseModel):
     """A successfully unpacked uplink message from an application."""
-    unpacked_payload: dict[str, dict[str, Any]]
+    unpacked_payload: dict[SensorID, dict[str, Any]]
     
+    def __bool__(self) -> bool:
+        """A successful unpack is truthy."""
+        return True
+
+    def items(self):
+        return self.unpacked_payload.items()
+
     @property
     def sensor_ids(self):
         return self.unpacked_payload.keys()

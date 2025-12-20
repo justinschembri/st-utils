@@ -22,7 +22,7 @@ from sensorthings_utils.sensor_things.core import (
     SensorThingsObject,
     Observation,
 )
-from sensorthings_utils.monitor import network_monitor
+from sensorthings_utils.monitor import netmon
 
 # typing
 if TYPE_CHECKING:
@@ -272,10 +272,10 @@ def make_frost_object(
             if entity.st_type == "Observation":
                 sensor_name = observation_to_sensor_trace(new_object_url)
                 if sensor_name:
-                    network_monitor.add_named_count(
+                    netmon.add_named_count(
                         "push_success", application_name + ":" + sensor_name, 1
                     )
-                    network_monitor.add_named_time(
+                    netmon.add_named_time(
                         "last_push_time",
                         application_name + ":" + sensor_name,
                         time.time(),
@@ -284,7 +284,7 @@ def make_frost_object(
         if isinstance(entity, Observation):
             # a failed observation is fine ...
             debug_logger.warning(f"{e} {e.read()}")
-            network_monitor.add_named_count("push_fail", application_name, 1)
+            netmon.add_named_count("push_fail", application_name, 1)
             return {}
         else:
             # ... a failed non-observation object is not!

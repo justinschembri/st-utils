@@ -21,8 +21,8 @@ from sensorthings_utils.sensor_things.extensions import (
 )
 import sensorthings_utils.frost as frost
 from sensorthings_utils.connections import SensorApplicationConnection
-from sensorthings_utils.monitor import network_monitor
-
+from sensorthings_utils.monitor import netmon
+from sensorthings_utils.transformers.types import SensorID
 # import from config.py:
 main_logger = logging.getLogger("main")
 event_logger = logging.getLogger("events")
@@ -70,42 +70,36 @@ def parse_application_config(config_path: Path) -> set[SensorApplicationConnecti
 
 
 def _setup_sensor_arrangements(
-    exclude: Optional[List[str]],
-    sensor_config_paths: List[Path] = SENSOR_CONFIG_FILES,
-):
+    sensor_config : SensorConfig
+) -> None:
     """
-    An initial set up of the sensor arrangement based on the configuration files.
+    Turns a SensorConfig file into database entities on the FROST server.
+
+    Args
+        sensor_config (SensorConfig)
+
+    Returns
+        None. POSTS entities to the FROST database instance.
     """
-    for f in sensor_config_paths:
-        if exclude and f.name in exclude:
-            continue
-        sensor_config = SensorConfig(f)
-        if not sensor_config.is_valid:
-            network_monitor.add_count("sensor_config_fail", 1)
-            main_logger.warning(f"{f} is an invalid sensor configuration file!")
-            main_logger.warning(
-                f"Skipping {f}, data from this sensor is not being processed."
-            )
-            continue
-        sensor_arrangement = SensorArrangement(sensor_config)
-        network_monitor.expected_sensors.add(sensor_arrangement.id)
-        frost.initial_setup(sensor_arrangement)
+    if not sensor_config.is_valid:
+        netmon.add_count("sensor_config_fail", 1)
+        main_logger.warning(
+                f"{sensor_config._filepath} is an invalid sensor configuration "
+                "file.")
+        return None
+
+    sensor_arrangement = SensorArrangement(sensor_config)
+    frost.initial_setup(sensor_arrangement)
 
 
 def push_available(
+    sensor_config_paths: List[Path] = SENSOR_CONFIG_FILES,
     exclude: Optional[List[str]] = None,
     frost_endpoint: Optional[str] = None,
-    start_delay: int = 30,
+    start_delay: int = 1,
 ) -> None:
     """
-    Push available sensor connections.
-
-    :param exclude: Sensor's (MAC addresses) to exclude form the stream,
-        defaults to None.
-    :type exclude: List[str] | None
-    :param frost_endpoint: Endpointt to push to, defaults to FROST_ENDPOINT
-        set up in src/config.py (usually localhost)
-    :type frost_endpoint: str | None
+    Start app threads and begin collecting data, pushing to FROST server.
     """
     frost_endpoint = (
         frost_endpoint or os.getenv("FROST_ENDPOINT") or FROST_ENDPOINT_DEFAULT
@@ -116,15 +110,26 @@ def push_available(
         f"Sensor stream starts in {start_delay}s, target: {frost_endpoint}."
     )
     time.sleep(start_delay)
+    # INITIAL SETUP ############################################################
+    sensor_registry: dict[SensorID, str] = {}
+    for f in sensor_config_paths:
+        if exclude and f.name in exclude:
+            continue
+        debug_logger.debug(f"{f.name}")
+        sensor_config = SensorConfig(f)
+        sensor_registry[sensor_config.name] = sensor_config.model
+        debug_logger.debug(f"{sensor_registry=}")
+        netmon.expected_sensors.add(sensor_config.name)
+        _setup_sensor_arrangements(sensor_config)
     # generate a list of connections
     sensor_connections = parse_application_config(APPLICATION_CONFIG_FILE)
 
-    network_monitor.set_starting_threads(
-        [_.application_name for _ in sensor_connections]
+    netmon.set_starting_threads(
+        [_.app_name for _ in sensor_connections]
     )
 
     for connection in sensor_connections:
-        connection.start_pull_transform_push_thread()
+        connection.start_pull_transform_push_thread(sensor_registry)
 
     event_logger.info(
         f"Started {threading.active_count()-1} application threads: "
@@ -135,13 +140,16 @@ def push_available(
         while True:
             # TODO: network_monitor should write to a metrics file for eventual
             # integration with monitoring tools.
-            network_monitor.report()
+            netmon.report(interval=1)
     except KeyboardInterrupt:
         for conn in sensor_connections:
-            event_logger.info(f"Stopping thread for {conn.application_name}")
-            conn.stop_pull_transform_push_thread()
+            if conn._thread and conn._thread.is_alive():
+                event_logger.info(f"Stopping thread for {conn.app_name}")
+                conn.stop_pull_transform_push_thread()
+                conn._thread.join(5)
 
     event_logger.info("Successfully shutdown connections.")
+    return None
 
 
 if __name__ == "__main__":

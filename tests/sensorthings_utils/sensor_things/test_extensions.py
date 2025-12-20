@@ -32,7 +32,7 @@ class TestSensorConfig:
     """Test the SensorConfig class."""
 
     def test_good_config_validates(self, good_config: SensorConfig):
-        assert good_config.is_valid == True
+        assert good_config.check_validity == True
 
     def test_bad_sensor_name(self, bad_sensor_name: SensorConfig):
         bad_config, logs = bad_sensor_name

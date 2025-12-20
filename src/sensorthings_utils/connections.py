@@ -1,28 +1,23 @@
 """Manage connections, authentication & protocols with sensor infrastructure"""
-
-# standard
 import os
 import logging
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Literal
+from typing import Any, Literal, ClassVar, Optional
 import time
 import queue
 import threading
+import traceback
 import inspect
-
 # external
 import lnetatmo
 from paho.mqtt.client import Client as mqttClient
 from paho.mqtt.enums import CallbackAPIVersion
-
-from sensorthings_utils.transformers.types import FailedUnpack
-
 # internal
-from .monitor import network_monitor
+from .monitor import netmon
 from .config import CREDENTIALS_DIR, TOKENS_DIR
-from .transformers.application_unpackers import APP_UNPACKERS, SupportedConnections
-
+from .transformers.application_unpackers import APP_UNPACKERS, UnpackError, UnregisteredSensorError
+from .transformers.types import SensorID
 # environment setup
 CONTAINER_ENVIRONMENT = True if os.getenv("CONTAINER_ENVIRONMENT") else False
 # type definitions
@@ -40,38 +35,43 @@ class SensorApplicationConnection(ABC):
 
     def __init__(
         self,
-        application_name: str,
+        app_name: str,
         authentication_type: Literal["tokens", "credentials"],
         *,
-        max_retries: int = 5,
+        max_retries: int = 1,
     ):
-        self.application_name = application_name
+        self.app_name = app_name
         self.authentication_type = authentication_type
         self.max_retries = max_retries
         # private:
         self._thread = None
         self._stop_event = threading.Event()
         self._authentication_file = (
-            (TOKENS_DIR / f"{self.application_name}.json")
+            (TOKENS_DIR / f"{self.app_name}.json")
             if self.authentication_type == "tokens"
             else (CREDENTIALS_DIR / "application_credentials.json")
         )
-
+        self.sensor_registry: dict[SensorID, str]
+    
+    # class attributes #########################################################
+    application: ClassVar[Optional[str]] = None
     # dunder method over rides #################################################
     def __hash__(self) -> int:
-        return hash(self.application_name)
+        return hash(self.app_name)
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, SensorApplicationConnection):
             return False
-        if other.application_name == self.application_name:
+        if other.app_name == self.app_name:
             return True
         else:
             return False
 
     # class methods ############################################################
     @classmethod
-    def from_config(cls, application_name: str, config: dict[str, Any]):
+    def from_config(
+            cls, app_name: str, config: dict[str, Any]
+            ) -> "SensorApplicationConnection":
         """
         Create connection from config dict.
 
@@ -80,7 +80,7 @@ class SensorApplicationConnection(ABC):
         """
         sig = inspect.signature(cls)
 
-        kwargs: dict[str, Any] = {"application_name": application_name}
+        kwargs: dict[str, Any] = {"app_name": app_name}
 
         for param_name in sig.parameters:
             if param_name in config:
@@ -110,27 +110,77 @@ class SensorApplicationConnection(ABC):
         """
         Loop through data pulling, checking for dead connections.
 
-        Implemnted for HTTP and MQTT seperately.
+        Implemented for HTTP and MQTT seperately.
         """
         pass
+    # common methods ###########################################################
+    def _process_payload(self, app_payload:Any) -> None:
+        """Orcestrator function: processes a payload and pushes to FROST."""
+        application = getattr(self, "application", None)
+        unpacked_payloads = APP_UNPACKERS[application].unpack(app_payload)
+        for sensor_id, observations in unpacked_payloads.items():
+            sensor_model = self.sensor_registry.get(sensor_id, None)
+            if not sensor_model:
+                raise UnregisteredSensorError
+
+            event_logger.info(
+                f"Received payload from {self.app_name} "
+                f"from a {sensor_model} sensor."
+            )
+            
+            # observations = frost_transformer(sensor_model, observations)
+            # push_to_frost(observations)
+
+    def _exception_handler(self, e:Exception | None, **kwargs) -> Literal[0, 1]:
+        """Exception handling, return 0 if transient error, 1 if system failure."""
+        
+        def _log(msg:str, debug_context:dict[str, str]):
+            main_logger.error(msg)
+            debug_logger.debug(debug_context)
+
+        debug_context = {
+                "application":f"{self.app_name}",
+                "exception_type":f"{type(e)}",
+                "exception_message":f"{e}",
+                **kwargs
+                }
+        name = e.__repr__()
+        if isinstance(e, UnpackError):
+            msg = f"{name}: failed to unpack an application payload."
+            _log((f"{self.app_name}" + msg), debug_context)
+            return 0
+        elif isinstance(e, queue.Empty):
+            msg = f"{name}: failed to unpack an application payload."
+            _log((f"{self.app_name}" + msg), debug_context)
+            return 0
+        elif isinstance(e, UnregisteredSensorError):
+            msg = f"{name}: sensor is not registered." 
+            _log((f"{self.app_name} -" + msg), debug_context)
+            return 0
+        else:
+            msg = f"{e}"
+            msg += traceback.format_exc()
+            return 1
+
 
     # threading methods  #######################################################
-    def start_pull_transform_push_thread(self):
+    def start_pull_transform_push_thread(
+            self, sensor_registry:dict[SensorID, str]
+            ):
         """
         Spin up a thread and run the _loop method.
         """
+        self.sensor_registry = sensor_registry
         if self._thread is None or not self._thread.is_alive():
             self._thread = threading.Thread(
                 target=self._pull_transform_push_loop,
                 daemon=True,
-                name=self.application_name,
+                name=self.app_name,
             )
             self._thread.start()
 
     def stop_pull_transform_push_thread(self):
         self._stop_event.set()
-        if self._thread:
-            self._thread.join(5)
 
 
 class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
@@ -150,7 +200,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
 
     def __init__(
         self,
-        application_name: str,
+        app_name: str,
         authentication_type: Literal["tokens", "credentials"],
         *,
         max_retries: int = 10,
@@ -160,7 +210,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
         request_interval: int = 300,
     ):
         super().__init__(
-            application_name,
+            app_name,
             authentication_type,
             max_retries=max_retries,
         )
@@ -173,49 +223,27 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
         """
         Loop requests until failure.
         """
-        restart_attempt = 0
+        failures = 0
+        app_payload = None
         while not self._stop_event.is_set():
             try:
                 app_payload = self._pull_data()
-                if not self._last_payload == app_payload:
-                    self._last_paylaod = app_payload
-                    unpacked_payloads = APP_UNPACKERS[type(self)].unpack(
-                            app_payload, self.application_name
-                            )
-                    # todo: the unpacked payload needs to retain memory of what 
-                    # sensor it came from. Recall that one payload could have 
-                    # multiple observations from multiple sneosrs.
-                    # This merits considering a SuccessfulUnpack dataclass. 
-                    # Alternatively, and perhaps more robustly, the sensor MAC
-                    # address can be sued to derive the sensor model.
-                    # for observations
-                    sensor_model = ...
-                    main_logger.info(
-                        f"Received payload from {self.application_name} "
-                        f"from a {sensor_model} sensor."
-                    )
-                    if isinstance(unpacked_payloads, FailedUnpack):
-                        pass
-                    # unpacked_payload = application_unpacker(application_name, native_payload)
-                    # for observation unpacked_payload:
-                    # frost_transformer(sensor_model, observation)
+                if self._last_payload == app_payload:
                     time.sleep(self.request_interval)
-                else:
-                    time.sleep(self.request_interval)
-            except KeyboardInterrupt:
-                self.stop_pull_transform_push_thread()
-                break
+                    continue
+                self._last_payload = app_payload
+                self._process_payload(app_payload)
+                netmon.add_named_count("payloads_received", self.app_name, 1)
+                failures = 0
             except Exception as e:
-                restart_attempt += 1
-                main_logger.warning(
-                    f"Thread {self.application_name} encountered an exception "
-                    f"{e}. Sleeping and trying again."
-                )
-                time.sleep(300)
-                if restart_attempt == self.max_retries:
-                    self.stop_pull_transform_push_thread()
-                    main_logger.critical(f"Thread {self.application_name} died: {e}.")
-
+                #TODO: consider carefully which exception types should be 'failures'
+                failures += self._exception_handler(e, app_payload=app_payload)
+                if failures == self.max_retries:
+                    main_logger.critical(
+                        f"Exceeded max retries ({self.max_retries}) for "
+                        f"{self.app_name}. Stopping connection."
+                    )
+                    self._stop_event.set()
 
 class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
     """
@@ -234,7 +262,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
 
     def __init__(
         self,
-        application_name: str,
+        app_name: str,
         authentication_type: Literal["tokens", "credentials"],
         host: URL,
         topic: str,
@@ -246,13 +274,12 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         timeout: int = 1200,
     ):
         super().__init__(
-            application_name=application_name,
-            authentication_type=authentication_type,
+            app_name,
+            authentication_type,
             max_retries=max_retries,
         )
         self.host = host
         self.port = port
-        self.timeout = timeout
         self.topic = topic
         # private
         self._payload_queue = queue.Queue()
@@ -271,16 +298,12 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
             self._payload_queue.put(json.loads(message.payload))
 
         self._mqtt_client.on_message = on_message
-        # TODO: consider if this is the right place for handling failed connections.
         self._mqtt_client.connect(self.host, self.port)
         if self._mqtt_client.is_connected():
-            event_logger.info(f"Connected to {self.host}/{self.application_name}")
-
+            event_logger.info(f"Connected to {self.host}/{self.app_name}")
         self._mqtt_client.subscribe(self.topic)
         self._subscribed = True
         self._mqtt_client.loop_start()
-
-        return None
 
     def _pull_transform_push_loop(self) -> None:
         """
@@ -294,70 +317,32 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         Stops when _stop_event is set or after max_retries consecutive timeouts.
         """
         if not self._subscribed:
+            # will fill queue with app payloads:
             self._pull_data()
 
-        consecutive_timeouts = 0
-
+        failures = 0
+        app_payload = None
         while not self._stop_event.is_set():
             try:
-                app_payload = self._payload_queue.get(timeout=self.timeout)
-                consecutive_timeouts = 0
-                network_monitor.add_named_count(
-                    "payloads_received", self.application_name, 1
-                )
-                debug_logger.debug(
-                        f"{self.application_name} payload: "
-                        f"{app_payload=}"
-                        )
-                unpacked_payload = APP_UNPACKERS[type(self)].unpack(
-                        app_payload, self.application_name
-                        )
-                if isinstance(unpacked_payload, FailedUnpack):
-                    pass
-
-                # for sensor_id, observation in unpacked_payload.items():
-                #    frost_observation = (frost_transformer(sensor_model, n))
-                #    frost_upload(frost_observation)
-
-                sensor_model = ...
-                main_logger.info(
-                    f"Received payload from {self.application_name} "
-                    f"from a {sensor_model} sensor."
-                )
-
-            except queue.Empty:
-                # No data received within timeout period
-                consecutive_timeouts += 1
-                main_logger.warning(
-                    f"Queue for {self.application_name} has been empty for"
-                    f"{self.timeout} seconds. Consecutive timeouts: "
-                    f"{consecutive_timeouts}/{self.max_retries}."
-                )
-
-                if consecutive_timeouts >= self.max_retries:
-                    main_logger.error(
-                        f"Exceeded max retries ({self.max_retries}) for "
-                        f"{self.application_name}. Stopping connection."
-                    )
-                    #TODO: is this being doubled up elsewhere? failure handling
-                    # needs to be clearly defined.
-                    self._stop_event.set()
-                    break
-
+                app_payload = self._payload_queue.get(timeout=300)
+                self._process_payload(app_payload)
+                failures = 0
             except Exception as e:
-                main_logger.error(
-                    "Error processing payload from " f"{self.application_name}: {e}."
-                )
-                network_monitor.add_named_count(
-                    "rejected_payloads", self.application_name, 1
-                )
+                failures += self._exception_handler(e, app_payload=app_payload)
+                if failures >= self.max_retries:
+                    main_logger.critical(
+                        f"Exceeded max retries ({self.max_retries}) for "
+                        f"{self.app_name}. Stopping connection."
+                    )
+                    self._stop_event.set()
 
-        main_logger.info(
-            "Gracefully stopping MQTT connection for" f"{self.application_name}"
+        event_logger.info(
+            "Gracefully stopping MQTT connection for" f"{self.app_name}"
         )
         self._mqtt_client.loop_stop()
         self._mqtt_client.disconnect()
         self._subscribed = False
+
 
 
 class NetatmoConnection(HTTPSensorApplicationConnection):
@@ -365,12 +350,13 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
     Netamo HTTP connection class. Endpoint for communicating with Netamo API.
     """
     _auth_obj: lnetatmo.ClientAuth
+    application = "netatmo"
 
     def _auth(self) -> lnetatmo.ClientAuth:
         """Return a netatmo authentication token."""
 
         if self._authenticated:
-            debug_logger.debug(f"{self.application_name} already authenticated.")
+            debug_logger.debug(f"{self.app_name} already authenticated.")
             return self._auth_obj
 
         if not self._authentication_file:
@@ -384,7 +370,8 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
         self,
     ) -> list[dict[str, Any]] | None:
         """Retrieve the latest untransformed observation set (one or more) from the Netatmo API."""
-        self._auth()
+        if not self._authenticated:
+            self._auth()
         netatmo_connection = lnetatmo.WeatherStationData(self._auth_obj)
         debug_logger.debug(f"{netatmo_connection.rawData=}")
         return netatmo_connection.rawData
@@ -394,23 +381,24 @@ class TTSConnection(MQTTSensorApplicationConnection):
     """
     MQTT connection to 'TheThingsStack' MQTT servers.
     """
-
+    application = "tts"
     def _auth(self) -> None:
         """Authenticate to TheThingsStack using application name and api key."""
 
         if not self._authentication_file:
             raise FileNotFoundError(
-                f"Did not find credential file for {self.application_name}"
+                f"Did not find credential file for {self.app_name}"
             )
 
         with open(self._authentication_file, "r") as f:
             credentials = json.load(f)
-            api_key = credentials.get(self.application_name).get("api_key")
+            api_key = credentials.get(self.app_name).get("api_key")
             if not api_key:
                 raise KeyError(
                     f"Did not find `api_key` in {self._authentication_file}."
                 )
         # TTS "usernames" are equivalent to the application names.
-        self._mqtt_client.username_pw_set(self.application_name, api_key)
+        self._mqtt_client.username_pw_set(self.app_name, api_key)
         self._mqtt_client.tls_set()
         return None
+

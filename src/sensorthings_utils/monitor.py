@@ -14,7 +14,7 @@ main_logger = logging.getLogger("network_monitor")
 event_logger = logging.getLogger("events")
 debug_logger = logging.getLogger("debug")
 
-__all__ = ["network_monitor"]
+__all__ = ["netmon"]
 
 
 class _NetworkMonitor:
@@ -175,4 +175,4 @@ class _NetworkMonitor:
 
 
 # TODO: wrap in a function and implement lazy importing
-network_monitor = _NetworkMonitor()
+netmon = _NetworkMonitor()
