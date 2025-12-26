@@ -60,6 +60,8 @@ class NativePayloadTransformer(BaseModel):
         transformed_results = self._transform()
         observations = []
         for datastream, value in transformed_results.items():
+            if datastream == ObservedProperties.PHENOMENON_TIME:
+                continue
             observation = Observation(
                 result=value,
                 phenomenonTime=(
@@ -67,6 +69,6 @@ class NativePayloadTransformer(BaseModel):
                     or self.app_phenomenon_time
                     ),
             )
-            observations.append((observation, datastream))
+            observations.append((observation, datastream.value))
         return observations
 

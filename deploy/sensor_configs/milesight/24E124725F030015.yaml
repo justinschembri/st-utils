@@ -6,7 +6,7 @@
 sensors:
   milesight.am103l:
     name: 24E124725F030015
-    description: Milesight AM308L-LoRaWAN Indoor Air Quality Sensor (3 in 1)
+    description: Milesight AM103L-LoRaWAN Indoor Air Quality Sensor (3 in 1)
     metadata: https://resource.milesight.com/milesight/iot/document/am30x-datasheet-en.pdf
     encodingType: application/pdf
     properties:

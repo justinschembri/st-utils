@@ -14,7 +14,7 @@ class MilesightAm103lPayload(NativePayloadTransformer):
     battery: int
     co2: float
     humidity: float
-    temperature: int
+    temperature: float
 
     NAME_TRANSFORM: dict[str, ObservedProperties]= {
         "battery": ObservedProperties.BATTERY_LEVEL,

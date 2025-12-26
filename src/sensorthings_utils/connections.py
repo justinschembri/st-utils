@@ -14,7 +14,8 @@ import lnetatmo
 from paho.mqtt.client import Client as mqttClient
 from paho.mqtt.enums import CallbackAPIVersion
 
-from sensorthings_utils.exceptions import UnregisteredSensorError
+from sensorthings_utils.exceptions import FrostUploadFailure, UnregisteredSensorError
+from sensorthings_utils.frost import frost_observation_upload
 # internal
 from .monitor import netmon
 from .config import CREDENTIALS_DIR, TOKENS_DIR
@@ -125,24 +126,22 @@ class SensorApplicationConnection(ABC):
             sensor_model = self.sensor_registry.get(sensor_id, None)
             if not sensor_model:
                 raise UnregisteredSensorError
-
-            event_logger.info(
-                f"Received payload from {self.app_name} "
-                f"from a {sensor_model} sensor."
-            )
             transformer = TRANSFORMER_MAP[sensor_model]
-            # TODO: bug here - a successful unpack contains multiple payloads
-            # if it is going to be past to 'from_unpack' then `from_unpack`
-            # must handle the iteration. Alternatively use 'observations'
             payload = transformer.from_unpack(
                     observations, 
                     successful_unpack.application_timestamp
                     )
-            # error is unpacking: check while silent failures occuring!
             st_observations = payload.to_stObservations()
-            for observation, datastream in st_observations:
-                ...
-                # push_to_frost(observations)
+            for st_obs in st_observations:
+                try:
+                    frost_observation_upload(sensor_id, st_obs, self.app_name)
+                    event_logger.info(
+                        f"Received and processed a payload from {self.app_name} "
+                        f"from a {sensor_model.value} sensor."
+                    )
+                    netmon.add_named_count("push_success", self.app_name, 1)
+                except FrostUploadFailure as e:
+                    self._exception_handler(e)
 
     def _exception_handler(self, e:Exception | None, **kwargs) -> Literal[0, 1]:
         """Exception handling, return 0 if transient error, 1 if system failure."""
@@ -163,13 +162,17 @@ class SensorApplicationConnection(ABC):
             _log((f"{self.app_name}" + msg), debug_context)
             return 0
         elif isinstance(e, queue.Empty):
-            msg = f"{name}: failed to unpack an application payload."
+            msg = f"{name}: MQTT queue is empty."
             _log((f"{self.app_name}" + msg), debug_context)
             return 0
         elif isinstance(e, UnregisteredSensorError):
             msg = f"{name}: sensor is not registered." 
             _log((f"{self.app_name} -" + msg), debug_context)
             return 0
+        elif isinstance(e, FrostUploadFailure):
+            msg = f"{name}: failure to upload to FROST."
+            _log((f"{self.app_name} -" + msg), debug_context)
+            return 1
         else:
             msg = f"{e}"
             msg += traceback.format_exc()

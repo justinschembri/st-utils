@@ -9,3 +9,6 @@ class UnregisteredSensorError(Exception):
 
 class FailedSensorConfigValidation(Exception):
     """Failure to validate a sensor conifiguration."""
+
+class FrostUploadFailure(Exception):
+    """Failure to push to FROST server."""

@@ -17,12 +17,14 @@ from sensorthings_utils.config import (
     FROST_ENDPOINT_DEFAULT,
     FROST_CREDENTIALS,
 )
+from sensorthings_utils.exceptions import FrostUploadFailure
 from sensorthings_utils.sensor_things.core import (
     Datastream,
     SensorThingsObject,
     Observation,
 )
 from sensorthings_utils.monitor import netmon
+from sensorthings_utils.transformers.types import ObservedProperties, SensorID
 
 # typing
 if TYPE_CHECKING:
@@ -149,7 +151,8 @@ def filter_query(
     except error.URLError as e:
         logger.critical(
             "FROST connection refused, pointing to "
-            + f" {frost_endpoint}. Is server up and listening?"
+            f"{frost_endpoint}. Is server up and listening? "
+            f"{get_request.full_url=}"
         )
         raise error.URLError(e)
 
@@ -338,7 +341,7 @@ def make_frost_datastream(
 
 def find_datastream_url(
     sensor_name: str,
-    datastream_name: str,
+    datastream_name: ObservedProperties,
     container_environment: bool,
 ) -> UrlStr:
     """Query the FROST server, find the push URL associated with the passed sensor_name and datastream name."""
@@ -409,3 +412,31 @@ def observation_to_sensor_trace(url: str, return_url: bool = False) -> str | Non
         )
     except KeyError as e:
         logger.warning(f"Missing expected key: {e}")
+
+def frost_observation_upload(
+    sensor_name: SensorID,
+    observation_set: Tuple[Observation, ObservedProperties],
+    app_name: str | None = None,
+) -> None:
+    """Upload an observation set to the FROST server."""
+    observation, datastream_name = observation_set
+    upload_success = False
+    push_link = find_datastream_url(
+        sensor_name, datastream_name, CONTAINER_ENVIRONMENT
+    )
+    if not push_link:
+        raise FrostUploadFailure(
+                "Unable to upload payload: no datastream URL found: "
+                f"{sensor_name=} {datastream_name=}"
+            )
+    try:
+        make_frost_object(observation, push_link, app_name)
+        upload_success = True
+    except Exception as e:
+        raise FrostUploadFailure(
+                f"Unable to upload payload: {e}"
+            )
+    if not upload_success:
+        app_name = app_name or ""
+        netmon.add_named_count("push_fail", app_name, 1)
+    return None
