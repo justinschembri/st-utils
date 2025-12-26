@@ -5,7 +5,7 @@
 # 3 - Filename, sensor key / sensor name attribute should be device MAC address,
 # 4 - iot_links shall use entity NAMES to refer to other entities,
 sensors:
-  24E124707E427315:
+  milesight.am308l:
     name: 24E124707E427315
     description: Milesight AM308L-LoRaWAN Indoor Air Quality Sensor (7 in 1)
     metadata: https://resource.milesight.com/milesight/iot/document/am30x-datasheet-en.pdf
@@ -362,15 +362,9 @@ observedProperties:
     description: ...
     properties: null
 
-
   light_level:
     name: light_level # here names must match too (why?)
     definition: The amount of light in a room, in lux. 
     description: ...
     properties: null
 
-networkMetadata:
-  sensor_model: milesight_am308L # duplication
-  application_name: multicare-bucharest@ttn # typo in this caused a problem! did not match the creds.
-  host: eu1.cloud.thethings.network # the https:// led to an error.
- 

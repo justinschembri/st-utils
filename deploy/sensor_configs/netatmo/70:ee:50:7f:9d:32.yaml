@@ -5,7 +5,7 @@
 # 3 - Filename, sensor key / sensor name attribute should be device MAC address,
 # 4 - iot_links shall use entity NAMES to refer to other entities,
 sensors:
-  70:ee:50:7f:9d:32:
+  netatmo.nws03:
     name: 70:ee:50:7f:9d:32
     description: Netatmo NWS03
     metadata: none
@@ -211,9 +211,4 @@ observedProperties:
     definition: https://en.wikipedia.org/wiki/Humidity
     description: The internal humidity levels wherever the indoor sensor is placed.
     properties: null
-
-networkMetadata:
-  sensor_model: netatmo_nsw03
-  application_name: tudelft-dt
-  host: netatmo
 

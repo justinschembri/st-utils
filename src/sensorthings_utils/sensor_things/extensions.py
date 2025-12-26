@@ -1,7 +1,6 @@
 """
 Extensions and wrappers to facilitate OGC SensorThings compliant implementations.
 """
-
 # standard
 from typing import Dict, List, Any, Type, Literal, Optional, Tuple, TYPE_CHECKING
 from pathlib import Path
@@ -9,6 +8,8 @@ import logging
 
 # external
 import yaml
+
+from sensorthings_utils.exceptions import FailedSensorConfigValidation
 
 # internal
 from .core import (
@@ -245,46 +246,50 @@ class SensorConfig:
         # and the entity instances in those group, checking that the iot_links
         # which are expected to be present in the config file are there.
         for entity_type, entity_instances in unvalidated_data.items():
-            debug_logger.debug(f"{entity_type=} {entity_instances=}")
-            # observedProperties have no iot_links.
-            if entity_type in ["observedProperties"]:
-                continue
-            for entity, entity_fields in entity_instances.items():
-                debug_logger.debug(f"{entity=} {entity_fields=}")
-                passed_links = entity_fields["iot_links"]
-                exp_links = expected_iot_link_groups[entity_type]
-                extra_links = set(passed_links) - set(exp_links)
-                missing_links = set(exp_links) - set(passed_links)
-                if extra_links:
-                    error = (
-                        f"{self._filepath.name}.{entity_type}."
-                        + f"{entity} has extra iot_links: "
-                        + f"{extra_links}."
-                    )
-                    error_list.append(error)
-                    main_logger.error(error)
-                    invalid = True
-                if missing_links:
-                    error = (
-                        f"{self._filepath.name}.{entity_type}."
-                        + f"{entity} is missing iot_link: "
-                        f"{missing_links}."
-                    )
-                    error_list.append(error)
-                    main_logger.error(error)
-                    invalid = True
-                # The next loop confirms that the iot_link specified exist
-                # in the config file.
-                for declared_datastream, link_list in passed_links.items():
-                    if not link_list:
+            try:
+                # observedProperties have no iot_links.
+                if entity_type in ["observedProperties"]:
+                    continue
+                for entity, entity_fields in entity_instances.items():
+                    passed_links = entity_fields["iot_links"]
+                    exp_links = expected_iot_link_groups[entity_type]
+                    extra_links = set(passed_links) - set(exp_links)
+                    missing_links = set(exp_links) - set(passed_links)
+                    if extra_links:
                         error = (
                             f"{self._filepath.name}.{entity_type}."
-                            + f"{entity} has an empty iot_link."
+                            + f"{entity} has extra iot_links: "
+                            + f"{extra_links}."
                         )
                         error_list.append(error)
                         main_logger.error(error)
                         invalid = True
-                        continue
+                    if missing_links:
+                        error = (
+                            f"{self._filepath.name}.{entity_type}."
+                            + f"{entity} is missing iot_link: "
+                            f"{missing_links}."
+                        )
+                        error_list.append(error)
+                        main_logger.error(error)
+                        invalid = True
+                    # The next loop confirms that the iot_link specified exist
+                    # in the config file.
+                    for declared_datastream, link_list in passed_links.items():
+                        if not link_list:
+                            error = (
+                                f"{self._filepath.name}.{entity_type}."
+                                + f"{entity} has an empty iot_link."
+                            )
+                            error_list.append(error)
+                            main_logger.error(error)
+                            invalid = True
+                            continue
+            except Exception as e:
+                raise FailedSensorConfigValidation(
+                        f"Unhandled exception in {self._filepath}: "
+                        f"{type(e)}:{e}."
+                        )
                         # several lines removed here which can be reimplemented,
                         # see 32392b2
         return (True, []) if not invalid else (False, error_list)
@@ -380,7 +385,6 @@ class SensorArrangement:
                     return sensor_things_object.__dict__[field]
                 elif not field:
                     return sensor_things_object  # type: ignore
-        debug_logger.debug(f"{self._sensor_config.__dict__}")
         raise KeyError(f"Keys {entity=}, {field=} and {instance=} not found.")
 
     def get_entities(

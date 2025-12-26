@@ -3,7 +3,7 @@ import os
 import logging
 import json
 from abc import ABC, abstractmethod
-from typing import Any, Literal, ClassVar, Optional
+from typing import Any, Literal, ClassVar
 import time
 import queue
 import threading
@@ -13,11 +13,14 @@ import inspect
 import lnetatmo
 from paho.mqtt.client import Client as mqttClient
 from paho.mqtt.enums import CallbackAPIVersion
+
+from sensorthings_utils.exceptions import UnregisteredSensorError
 # internal
 from .monitor import netmon
 from .config import CREDENTIALS_DIR, TOKENS_DIR
-from .transformers.application_unpackers import APP_UNPACKERS, UnpackError, UnregisteredSensorError
-from .transformers.types import SensorID
+from .transformers.application_unpackers import ApplicationUnpacker, NetatmoUnpacker, TTSUnpacker, UnpackError
+from .transformers.types import SensorID, SupportedSensors
+from .transformers.registry import TRANSFORMER_MAP
 # environment setup
 CONTAINER_ENVIRONMENT = True if os.getenv("CONTAINER_ENVIRONMENT") else False
 # type definitions
@@ -51,10 +54,10 @@ class SensorApplicationConnection(ABC):
             if self.authentication_type == "tokens"
             else (CREDENTIALS_DIR / "application_credentials.json")
         )
-        self.sensor_registry: dict[SensorID, str]
+        self.sensor_registry: dict[SensorID, SupportedSensors]
     
     # class attributes #########################################################
-    application: ClassVar[Optional[str]] = None
+    application_unpacker: ClassVar[ApplicationUnpacker]
     # dunder method over rides #################################################
     def __hash__(self) -> int:
         return hash(self.app_name)
@@ -114,11 +117,11 @@ class SensorApplicationConnection(ABC):
         """
         pass
     # common methods ###########################################################
-    def _process_payload(self, app_payload:Any) -> None:
+    def _process_payload(self, app_payload:dict[str, Any]) -> None:
         """Orcestrator function: processes a payload and pushes to FROST."""
-        application = getattr(self, "application", None)
-        unpacked_payloads = APP_UNPACKERS[application].unpack(app_payload)
-        for sensor_id, observations in unpacked_payloads.items():
+        #TODO: successful unpack is a bit of a contrived obj.
+        successful_unpack = self.application_unpacker.unpack(app_payload)
+        for sensor_id, observations in successful_unpack.data.items():
             sensor_model = self.sensor_registry.get(sensor_id, None)
             if not sensor_model:
                 raise UnregisteredSensorError
@@ -127,9 +130,19 @@ class SensorApplicationConnection(ABC):
                 f"Received payload from {self.app_name} "
                 f"from a {sensor_model} sensor."
             )
-            
-            # observations = frost_transformer(sensor_model, observations)
-            # push_to_frost(observations)
+            transformer = TRANSFORMER_MAP[sensor_model]
+            # TODO: bug here - a successful unpack contains multiple payloads
+            # if it is going to be past to 'from_unpack' then `from_unpack`
+            # must handle the iteration. Alternatively use 'observations'
+            payload = transformer.from_unpack(
+                    observations, 
+                    successful_unpack.application_timestamp
+                    )
+            # error is unpacking: check while silent failures occuring!
+            st_observations = payload.to_stObservations()
+            for observation, datastream in st_observations:
+                ...
+                # push_to_frost(observations)
 
     def _exception_handler(self, e:Exception | None, **kwargs) -> Literal[0, 1]:
         """Exception handling, return 0 if transient error, 1 if system failure."""
@@ -160,12 +173,13 @@ class SensorApplicationConnection(ABC):
         else:
             msg = f"{e}"
             msg += traceback.format_exc()
+            _log((f"{self.app_name} -" + msg), debug_context)
             return 1
 
 
     # threading methods  #######################################################
     def start_pull_transform_push_thread(
-            self, sensor_registry:dict[SensorID, str]
+            self, sensor_registry:dict[SensorID, SupportedSensors]
             ):
         """
         Spin up a thread and run the _loop method.
@@ -269,9 +283,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         *,
         port: int = 8883,
         max_retries: int = 3,
-        #TODO: timeout, similar to interval in the HTTP method should be sensor
-        # dependent, which is problematic.
-        timeout: int = 1200,
+        timeout: int = 1200
     ):
         super().__init__(
             app_name,
@@ -281,6 +293,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         self.host = host
         self.port = port
         self.topic = topic
+        self.timeout = timeout
         # private
         self._payload_queue = queue.Queue()
         self._subscribed: bool = False
@@ -324,7 +337,7 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         app_payload = None
         while not self._stop_event.is_set():
             try:
-                app_payload = self._payload_queue.get(timeout=300)
+                app_payload = self._payload_queue.get(timeout=self.timeout)
                 self._process_payload(app_payload)
                 failures = 0
             except Exception as e:
@@ -350,7 +363,7 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
     Netamo HTTP connection class. Endpoint for communicating with Netamo API.
     """
     _auth_obj: lnetatmo.ClientAuth
-    application = "netatmo"
+    application_unpacker = NetatmoUnpacker()
 
     def _auth(self) -> lnetatmo.ClientAuth:
         """Return a netatmo authentication token."""
@@ -373,7 +386,6 @@ class NetatmoConnection(HTTPSensorApplicationConnection):
         if not self._authenticated:
             self._auth()
         netatmo_connection = lnetatmo.WeatherStationData(self._auth_obj)
-        debug_logger.debug(f"{netatmo_connection.rawData=}")
         return netatmo_connection.rawData
 
 
@@ -381,7 +393,8 @@ class TTSConnection(MQTTSensorApplicationConnection):
     """
     MQTT connection to 'TheThingsStack' MQTT servers.
     """
-    application = "tts"
+    application_unpacker = TTSUnpacker() 
+
     def _auth(self) -> None:
         """Authenticate to TheThingsStack using application name and api key."""
 

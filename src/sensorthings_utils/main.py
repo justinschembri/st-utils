@@ -22,7 +22,7 @@ from sensorthings_utils.sensor_things.extensions import (
 import sensorthings_utils.frost as frost
 from sensorthings_utils.connections import SensorApplicationConnection
 from sensorthings_utils.monitor import netmon
-from sensorthings_utils.transformers.types import SensorID
+from sensorthings_utils.transformers.types import SensorID, SupportedSensors
 # import from config.py:
 main_logger = logging.getLogger("main")
 event_logger = logging.getLogger("events")
@@ -65,7 +65,6 @@ def parse_application_config(config_path: Path) -> set[SensorApplicationConnecti
             )
         connections.add(ConnectionClass.from_config(app_name, app_config))
 
-    debug_logger.debug(f"{connections=}")
     return connections
 
 
@@ -111,14 +110,12 @@ def push_available(
     )
     time.sleep(start_delay)
     # INITIAL SETUP ############################################################
-    sensor_registry: dict[SensorID, str] = {}
+    sensor_registry: dict[SensorID, SupportedSensors] = {}
     for f in sensor_config_paths:
         if exclude and f.name in exclude:
             continue
-        debug_logger.debug(f"{f.name}")
         sensor_config = SensorConfig(f)
-        sensor_registry[sensor_config.name] = sensor_config.model
-        debug_logger.debug(f"{sensor_registry=}")
+        sensor_registry[sensor_config.name] = SupportedSensors(sensor_config.model)
         netmon.expected_sensors.add(sensor_config.name)
         _setup_sensor_arrangements(sensor_config)
     # generate a list of connections
