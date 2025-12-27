@@ -398,6 +398,7 @@ def observation_to_sensor_trace(url: str, return_url: bool = False) -> str | Non
     except KeyError as e:
         logger.warning(f"Missing expected key: {e}")
 
+
 def frost_observation_upload(
     sensor_name: SensorID,
     observation_set: Tuple[Observation, ObservedProperties],
@@ -405,16 +406,12 @@ def frost_observation_upload(
 ) -> None:
     """Upload an observation set to the FROST server."""
     observation, datastream_name = observation_set
-    push_link = find_datastream_url(
-        sensor_name, datastream_name, CONTAINER_ENVIRONMENT
-    )
+    push_link = find_datastream_url(sensor_name, datastream_name, CONTAINER_ENVIRONMENT)
     try:
         make_frost_object(observation, push_link, app_name)
         netmon.add_named_count("push_success", sensor_name, 1)
         netmon.add_named_time("last_push_time", sensor_name, time.time())
     except Exception as e:
         netmon.add_named_count("push_fail", sensor_name, 1)
-        raise FrostUploadFailure(
-                f"Unable to upload payload: {e}"
-            )
+        raise FrostUploadFailure(f"Unable to upload payload: {e}")
     return None

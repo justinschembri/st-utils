@@ -1,5 +1,6 @@
 """
 FROST server support for Netatmo Sensor NWS03.
+
 A sample of the unpacked data:
 {
     "70:ee:50:7f:9d:32":
@@ -23,13 +24,13 @@ A sample of the unpacked data:
 # standard
 from datetime import datetime, timezone
 from typing import Callable
+
 # internal
 from .core import NativePayloadTransformer
 from .types import ObservedProperties
 
 
 class NetatmoNWS03(NativePayloadTransformer):
-
     time_utc: int
     temperature: float
     co2: int
@@ -38,8 +39,8 @@ class NetatmoNWS03(NativePayloadTransformer):
     pressure: float
 
     TRANSFORM: dict[str, Callable] = {
-            "time_utc": lambda x: datetime.fromtimestamp(x, tz=timezone.utc) 
-            }
+        "time_utc": lambda x: datetime.fromtimestamp(x, tz=timezone.utc)
+    }
 
     NAME_TRANSFORM: dict[str, ObservedProperties] = {
         "time_utc": ObservedProperties.PHENOMENON_TIME,
@@ -49,4 +50,3 @@ class NetatmoNWS03(NativePayloadTransformer):
         "noise": ObservedProperties.NOISE_IN,
         "pressure": ObservedProperties.G_PRESSURE_IN,
     }
-

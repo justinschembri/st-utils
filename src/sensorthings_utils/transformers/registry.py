@@ -1,15 +1,16 @@
 """All the transformer maps live here."""
-#standard
+
+# standard
 from typing import Type
-#internal
+
+# internal
 from .types import SupportedSensors
 from .core import NativePayloadTransformer
 from . import milesight
 from . import netatmo
 
-TRANSFORMER_MAP: dict[SupportedSensors, Type[NativePayloadTransformer]]= {
-        SupportedSensors.MILESIGHT_AM103L: milesight.MilesightAm103lPayload,
-        SupportedSensors.MILESIGHT_AM308L: milesight.MilesightAm308lPayload,
-        SupportedSensors.NETATMO_NWS03: netatmo.NetatmoNWS03,
-        }
-
+TRANSFORMER_MAP: dict[SupportedSensors, Type[NativePayloadTransformer]] = {
+    SupportedSensors.MILESIGHT_AM103L: milesight.MilesightAm103lPayload,
+    SupportedSensors.MILESIGHT_AM308L: milesight.MilesightAm308lPayload,
+    SupportedSensors.NETATMO_NWS03: netatmo.NetatmoNWS03,
+}

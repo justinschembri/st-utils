@@ -1,6 +1,7 @@
 """
 Extensions and wrappers to facilitate OGC SensorThings compliant implementations.
 """
+
 # standard
 from typing import Dict, List, Any, Type, Literal, Optional, Tuple, TYPE_CHECKING
 from pathlib import Path
@@ -36,7 +37,7 @@ main_logger = logging.getLogger("main")
 
 class SensorConfig:
     """
-    Dict-like sensor-configuration structure. 
+    Dict-like sensor-configuration structure.
 
     Class is responsible for parsing, validating and serving sensor configuration.
 
@@ -53,7 +54,7 @@ class SensorConfig:
         self.is_valid = self.check_validity()[0]
         self._set_metadata()
         # below metadata attrs set by fn above
-        self.model: SupportedSensors 
+        self.model: SupportedSensors
         self.name: SensorID
 
     def _set_metadata(self) -> None:
@@ -293,11 +294,10 @@ class SensorConfig:
                             continue
             except Exception as e:
                 raise FailedSensorConfigValidation(
-                        f"Unhandled exception in {self._filepath}: "
-                        f"{type(e)}:{e}."
-                        )
-                        # several lines removed here which can be reimplemented,
-                        # see 32392b2
+                    f"Unhandled exception in {self._filepath}: " f"{type(e)}:{e}."
+                )
+                # several lines removed here which can be reimplemented,
+                # see 32392b2
         return (True, []) if not invalid else (False, error_list)
 
 

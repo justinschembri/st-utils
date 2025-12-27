@@ -63,7 +63,7 @@ general_logfile.setLevel(logging.INFO)
 general_logfile.setFormatter(general_formatter)
 # --
 debug_logfile_handler = logging.FileHandler(
-    filename=ROOT_DIR / "logs" / "debug.log", mode = "w"
+    filename=ROOT_DIR / "logs" / "debug.log", mode="w"
 )
 debug_logfile_handler.setLevel(logging.DEBUG)
 debug_logfile_handler.setFormatter(general_formatter)
@@ -79,9 +79,7 @@ if not events_logger.handlers:
 # --
 if ST_UTILS_DEBUG:
     debug_logger.addHandler(debug_logfile_handler)
-    main_logger.warning(
-            f"Debug mode active, check {ROOT_DIR / 'logs' / 'debug.log'}"
-            )
+    main_logger.warning(f"Debug mode active, check {ROOT_DIR / 'logs' / 'debug.log'}")
 
 # environment set up
 # use of `or` to set defaults for env variables when not set in a docker-compose or .env
