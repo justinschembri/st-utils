@@ -9,6 +9,7 @@ services:
   python-app:
     secrets:
       - application_credentials
+      - frost_credentials # from auth.yml
     build:
       context: ..
       dockerfile: Dockerfile
@@ -32,4 +33,3 @@ volumes:
 secrets:
   application_credentials:
     file: ./secrets/credentials/application_credentials.json
-

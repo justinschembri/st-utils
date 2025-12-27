@@ -2,6 +2,7 @@
 
 # standard
 import logging
+import json
 from logging.handlers import TimedRotatingFileHandler
 from pathlib import Path
 from typing import List
@@ -87,19 +88,16 @@ if not os.getenv("CONTAINER_ENVIRONMENT"):
     dotenv.load_dotenv(ENV_FILE)  # docker-compose makes .env redundant
 
 
-def get_frost_password() -> str | None:
+def get_frost_credentials() -> tuple[str, str]:
     """Read FROST password from Docker secret or environment variable."""
-    if not CONTAINER_ENVIRONMENT:
-        return os.getenv("FROST_PASSWORD")
-    secret_file = Path("/run/secrets/FROST_PASSWORD")
-
-    return secret_file.read_text().strip()
+    secret_file = Path("/run/secrets/frost_credentials")
+    with open(secret_file, "r") as f:
+        credentials = json.load(f)
+        return (credentials["frost_username"], credentials["frost_password"])
 
 
 # Use it:
-FROST_USER = os.getenv("FROST_USER") or "sta-manager"
-FROST_PASSWORD = get_frost_password()
-
+FROST_USER, FROST_PASSWORD = get_frost_credentials()
 FROST_CREDENTIALS = base64.b64encode(f"{FROST_USER}:{FROST_PASSWORD}".encode()).decode(
     "utf-8"
 )
