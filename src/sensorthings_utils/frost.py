@@ -276,11 +276,11 @@ def make_frost_object(
                 sensor_name = observation_to_sensor_trace(new_object_url)
                 if sensor_name:
                     netmon.add_named_count(
-                        "push_success", application_name + ":" + sensor_name, 1
+                        "push_success", sensor_name, 1
                     )
                     netmon.add_named_time(
                         "last_push_time",
-                        application_name + ":" + sensor_name,
+                        application_name + sensor_name,
                         time.time(),
                     )
     except error.HTTPError as e:

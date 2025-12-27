@@ -31,7 +31,7 @@ debug_logger = logging.getLogger("debug")
 
 def parse_application_config(config_path: Path) -> set[SensorApplicationConnection]:
     """
-    Parse YAML config and return set of connection objects.
+    Parse application YAML config and return set of connection objects.
 
     Args:
         config_path: Path to the YAML application configuration file
@@ -93,12 +93,20 @@ def _setup_sensor_arrangements(
 
 def push_available(
     sensor_config_paths: List[Path] = SENSOR_CONFIG_FILES,
-    exclude: Optional[List[str]] = None,
+    exclude: Optional[List[SensorID]] = None,
     frost_endpoint: Optional[str] = None,
     start_delay: int = 1,
 ) -> None:
     """
     Start app threads and begin collecting data, pushing to FROST server.
+    
+    Args
+        sensor_config_path: a list sensor configuration files.
+        exclude: sensors to exclude.
+        frost_endpoint: HTTP FROST endpoint to push too.
+        start_delay: a delay before starting the loop.
+    Raises
+        None. The application
     """
     frost_endpoint = (
         frost_endpoint or os.getenv("FROST_ENDPOINT") or FROST_ENDPOINT_DEFAULT

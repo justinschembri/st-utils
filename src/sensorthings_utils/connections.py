@@ -139,9 +139,10 @@ class SensorApplicationConnection(ABC):
                         f"Received and processed a payload from {self.app_name} "
                         f"from a {sensor_model.value} sensor."
                     )
-                    netmon.add_named_count("push_success", self.app_name, 1)
+                    netmon.add_named_count(
+                            "push_success", f"{sensor_id}", 1)
                 except FrostUploadFailure as e:
-                    self._exception_handler(e)
+                    self._exception_handler(e, sensor_id=sensor_id)
 
     def _exception_handler(self, e:Exception | None, **kwargs) -> Literal[0, 1]:
         """Exception handling, return 0 if transient error, 1 if system failure."""
@@ -159,24 +160,24 @@ class SensorApplicationConnection(ABC):
         name = e.__repr__()
         if isinstance(e, UnpackError):
             msg = f"{name}: failed to unpack an application payload."
-            _log((f"{self.app_name}" + msg), debug_context)
+            _log((f"{self.app_name} " + msg), debug_context)
             return 0
         elif isinstance(e, queue.Empty):
             msg = f"{name}: MQTT queue is empty."
-            _log((f"{self.app_name}" + msg), debug_context)
+            _log((f"{self.app_name} " + msg), debug_context)
             return 0
         elif isinstance(e, UnregisteredSensorError):
             msg = f"{name}: sensor is not registered." 
-            _log((f"{self.app_name} -" + msg), debug_context)
+            _log((f"{self.app_name} " + msg), debug_context)
             return 0
         elif isinstance(e, FrostUploadFailure):
             msg = f"{name}: failure to upload to FROST."
-            _log((f"{self.app_name} -" + msg), debug_context)
+            _log((f"{self.app_name} " + msg), debug_context)
             return 1
         else:
             msg = f"{e}"
             msg += traceback.format_exc()
-            _log((f"{self.app_name} -" + msg), debug_context)
+            _log((f"{self.app_name} " + msg), debug_context)
             return 1
 
 
@@ -246,7 +247,8 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
             try:
                 app_payload = self._pull_data()
                 if self._last_payload == app_payload:
-                    time.sleep(self.request_interval)
+                    # a bit of a 'magic number' here:
+                    time.sleep(self.request_interval/4)
                     continue
                 self._last_payload = app_payload
                 self._process_payload(app_payload)
