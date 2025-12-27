@@ -9,6 +9,7 @@ from collections import defaultdict
 import sys
 
 from sensorthings_utils.config import ROOT_DIR
+from sensorthings_utils.transformers.types import SensorID
 
 main_logger = logging.getLogger("network_monitor")
 event_logger = logging.getLogger("events")
@@ -27,12 +28,12 @@ class _NetworkMonitor:
 
     def __init__(self):
         self.start_time = datetime.now()
-        self.expected_sensors: set[str] = set()
+        self.expected_sensors: set[SensorID] = set()
         self.starting_application_threads: set[str] = set()
-        self.push_success: dict[str, int] = defaultdict(int)
-        self.push_fail: dict[str, int] = defaultdict(int)
-        self.last_push_time: dict[str, float] = defaultdict(float)
-        self.rejected_payloads: dict[str, int] = defaultdict(int)
+        self.push_success: dict[SensorID, int] = defaultdict(int)
+        self.push_fail: dict[SensorID, int] = defaultdict(int)
+        self.last_push_time: dict[SensorID, float] = defaultdict(float)
+        self.rejected_payloads: dict[SensorID, int] = defaultdict(int)
         self.sensor_config_fail: int = 0
         self.payloads_received: dict[str, int] = defaultdict(int)
         self.first_report_issued: bool = False

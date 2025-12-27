@@ -272,25 +272,10 @@ def make_frost_object(
                 "Location"
             )  # "Location" does not refer to a SensorThings Location
             logger.info(f"New {entity.st_type} created at {new_object_url}")
-            if entity.st_type == "Observation":
-                sensor_name = observation_to_sensor_trace(new_object_url)
-                if sensor_name:
-                    netmon.add_named_count(
-                        "push_success", sensor_name, 1
-                    )
-                    netmon.add_named_time(
-                        "last_push_time",
-                        application_name + sensor_name,
-                        time.time(),
-                    )
     except error.HTTPError as e:
         if isinstance(entity, Observation):
-            # a failed observation is fine ...
-            debug_logger.warning(f"{e} {e.read()}")
-            netmon.add_named_count("push_fail", application_name, 1)
-            return {}
+            pass
         else:
-            # ... a failed non-observation object is not!
             raise e
 
     if CONTAINER_ENVIRONMENT:
@@ -420,23 +405,16 @@ def frost_observation_upload(
 ) -> None:
     """Upload an observation set to the FROST server."""
     observation, datastream_name = observation_set
-    upload_success = False
     push_link = find_datastream_url(
         sensor_name, datastream_name, CONTAINER_ENVIRONMENT
     )
-    if not push_link:
-        raise FrostUploadFailure(
-                "Unable to upload payload: no datastream URL found: "
-                f"{sensor_name=} {datastream_name=}"
-            )
     try:
         make_frost_object(observation, push_link, app_name)
-        upload_success = True
+        netmon.add_named_count("push_success", sensor_name, 1)
+        netmon.add_named_time("last_push_time", sensor_name, time.time())
     except Exception as e:
+        netmon.add_named_count("push_fail", sensor_name, 1)
         raise FrostUploadFailure(
                 f"Unable to upload payload: {e}"
             )
-    if not upload_success:
-        app_name = app_name or ""
-        netmon.add_named_count("push_fail", app_name, 1)
     return None

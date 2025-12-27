@@ -21,7 +21,7 @@ A sample of the unpacked data:
 """
 
 # standard
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Callable
 # internal
 from .core import NativePayloadTransformer
@@ -38,7 +38,7 @@ class NetatmoNWS03(NativePayloadTransformer):
     pressure: float
 
     TRANSFORM: dict[str, Callable] = {
-            "time_utc": lambda x: datetime.fromtimestamp(x) 
+            "time_utc": lambda x: datetime.fromtimestamp(x, tz=timezone.utc) 
             }
 
     NAME_TRANSFORM: dict[str, ObservedProperties] = {

@@ -134,6 +134,7 @@ class SensorApplicationConnection(ABC):
             st_observations = payload.to_stObservations()
             for st_obs in st_observations:
                 try:
+                    debug_logger.debug(f"{st_obs=} {sensor_id=}")
                     frost_observation_upload(sensor_id, st_obs, self.app_name)
                     event_logger.info(
                         f"Received and processed a payload from {self.app_name} "
@@ -254,6 +255,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
                 self._process_payload(app_payload)
                 netmon.add_named_count("payloads_received", self.app_name, 1)
                 failures = 0
+                time.sleep(self.request_interval)
             except Exception as e:
                 #TODO: consider carefully which exception types should be 'failures'
                 failures += self._exception_handler(e, app_payload=app_payload)

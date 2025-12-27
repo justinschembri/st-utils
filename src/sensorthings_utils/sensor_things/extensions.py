@@ -10,6 +10,7 @@ import logging
 import yaml
 
 from sensorthings_utils.exceptions import FailedSensorConfigValidation
+from sensorthings_utils.transformers.types import SensorID, SupportedSensors
 
 # internal
 from .core import (
@@ -35,11 +36,15 @@ main_logger = logging.getLogger("main")
 
 class SensorConfig:
     """
-    Dict-like sensor-configuration structure. Use square bracket indexing to
-    return values.
+    Dict-like sensor-configuration structure. 
 
-    Class is responsible for parsing, validating and serving sensor
-    configuration.
+    Class is responsible for parsing, validating and serving sensor configuration.
+
+    Args
+        - data (Dict[str, Any]) - contents of the sensor config.
+        - is_valid (bool)
+        - model (str) - sensor model
+        - name (str) - sensor name
     """
 
     def __init__(self, filepath: str | Path) -> None:
@@ -48,13 +53,14 @@ class SensorConfig:
         self.is_valid = self.check_validity()[0]
         self._set_metadata()
         # below metadata attrs set by fn above
-        self.model: str 
-        self.name: str
+        self.model: SupportedSensors 
+        self.name: SensorID
 
     def _set_metadata(self) -> None:
         """Set sensor metadata attrs."""
-        self.model = next(iter(self.data["sensors"]))
-        self.name = self.data["sensors"][self.model]["name"]
+        model = next(iter(self.data["sensors"]))
+        self.model = SupportedSensors(model)
+        self.name = self.data["sensors"][self.model.value]["name"]
 
     def _load(self) -> Dict:
         """Safely load configuration file."""
