@@ -90,7 +90,10 @@ if not os.getenv("CONTAINER_ENVIRONMENT"):
 
 def get_frost_credentials() -> tuple[str, str]:
     """Read FROST password from Docker secret or environment variable."""
-    secret_file = Path("/run/secrets/frost_credentials")
+    if CONTAINER_ENVIRONMENT:
+        secret_file = Path("/run/secrets/frost_credentials") 
+    else:
+        secret_file = CREDENTIALS_DIR / "frost_credentials.json"
     with open(secret_file, "r") as f:
         credentials = json.load(f)
         return (credentials["frost_username"], credentials["frost_password"])

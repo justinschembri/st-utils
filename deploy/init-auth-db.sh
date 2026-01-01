@@ -6,8 +6,6 @@ export POSTGRES_USER=$(awk -F'"' '/"postgres_user"/ {print $4}' /run/secrets/pos
 export POSTGRES_PASSWORD=$(awk -F'"' '/"postgres_password"/ {print $4}' /run/secrets/postgres_credentials)
 export FROST_USERNAME=$(awk -F'"' '/"frost_username"/ {print $4}' /run/secrets/frost_credentials)
 export FROST_PASSWORD=$(awk -F'"' '/"frost_password"/ {print $4}' /run/secrets/frost_credentials)
-echo $FROST_USERNAME
-echo $FROST_PASSWORD
 
 set -e
 # this is the default entry point for the image

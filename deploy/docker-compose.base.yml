@@ -21,12 +21,12 @@ services:
       - 8080:8080
     volumes:
       - ./init-frost.sh:/init-frost.sh
-    entrypoint: ["/init-frost.sh"]
     secrets:
       - postgres_credentials
     depends_on:
       database:
         condition: service_healthy
+    entrypoint: ["/init-frost.sh"]
 
   mosquitto:
     image: eclipse-mosquitto:2

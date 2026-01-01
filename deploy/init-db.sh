@@ -1,6 +1,5 @@
 #!/bin/sh
 set -e
-
 # Load credentials from JSON
 export POSTGRES_USER=$(awk -F'"' '/"postgres_user"/ {print $4}' /run/secrets/postgres_credentials)
 export POSTGRES_PASSWORD=$(awk -F'"' '/"postgres_password"/ {print $4}' /run/secrets/postgres_credentials)

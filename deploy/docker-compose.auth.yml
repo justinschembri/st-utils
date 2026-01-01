@@ -9,14 +9,16 @@ services:
   web:
     volumes:
       - ../web:/usr/local/tomcat/webapps/st-utils
+      - ./init-frost.sh:/init-auth-frost.sh
+    secrets:
+      - frost_credentials
     environment:
       - auth_provider=de.fraunhofer.iosb.ilt.frostserver.auth.basic.BasicAuthProvider
       - auth_db_driver=org.postgresql.Driver
-      #TODO: Seperate database for authentication.
       - auth_db_url=jdbc:postgresql://database:5432/sensorthings
-      - auth_db_username=sta-manager
       - auth_autoUpdateDatabase=true
       - auth_allowAnonymousRead=true
+    entrypoint: ["/init-auth-frost.sh"]
 
   database:
     secrets:
