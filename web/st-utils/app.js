@@ -476,10 +476,11 @@ async function loadChartData(datastreamId) {
     }
 }
 
-// Process observations and detect gaps
+// Process observations and detect gaps (original style with gap fillers)
 function processObservations(observations) {
-    const data = [];
     const gapThreshold = 15 * 60 * 1000; // 15 minutes
+    const fillerInterval = 5 * 60 * 1000; // 5 minutes
+    let formattedData = [];
     let previousTime = null;
     
     // Sort by time (oldest first)
@@ -491,36 +492,37 @@ function processObservations(observations) {
         const timestamp = new Date(entry.phenomenonTime);
         const value = entry.result;
         
-        // Check for gaps
         if (previousTime) {
-            const timeDiff = timestamp - previousTime;
+            const gap = timestamp - previousTime;
             
-            if (timeDiff > gapThreshold) {
-                // Mark gap
-                data.push({
-                    x: new Date(previousTime.getTime() + gapThreshold),
-                    y: null,
-                    isGap: true,
-                    gapDuration: timeDiff
-                });
+            // If gap is larger than threshold, insert gap fillers
+            if (gap > gapThreshold) {
+                let fillerTime = new Date(previousTime.getTime() + fillerInterval);
+                while (fillerTime < timestamp) {
+                    formattedData.push({ 
+                        x: fillerTime, 
+                        y: 0, 
+                        gapFiller: true 
+                    });
+                    fillerTime = new Date(fillerTime.getTime() + fillerInterval);
+                }
             }
         }
         
-        data.push({
-            x: timestamp,
-            y: value,
-            isGap: false
+        formattedData.push({ 
+            x: timestamp, 
+            y: value, 
+            gapFiller: false 
         });
-        
         previousTime = timestamp;
     });
     
-    return data;
+    return formattedData;
 }
 
 // Calculate statistics
 function calculateStats(data, unitSymbol) {
-    const validData = data.filter(d => !d.isGap && d.y !== null);
+    const validData = data.filter(d => !d.gapFiller && d.y !== null);
     
     if (validData.length === 0) {
         return {
@@ -538,8 +540,8 @@ function calculateStats(data, unitSymbol) {
     const max = Math.max(...values);
     const avg = values.reduce((a, b) => a + b, 0) / values.length;
     
-    // Count gaps
-    const gaps = data.filter(d => d.isGap).length;
+    // Count gap fillers
+    const gaps = data.filter(d => d.gapFiller).length;
     
     return {
         current: current.toFixed(2),
@@ -603,37 +605,23 @@ function renderChart(data, unitSymbol, datastreamName, stats) {
     
     chartPanelContent.innerHTML = chartHTML;
     
-    // Prepare chart data
+    // Prepare chart data (original style)
     const chartData = {
         datasets: [
             {
-                label: 'Observations',
-                data: data.filter(d => !d.isGap),
-                borderColor: 'rgb(59, 130, 246)',
-                backgroundColor: 'rgba(59, 130, 246, 0.1)',
-                tension: 0.4,
-                pointRadius: 2,
-                pointHoverRadius: 4,
-                spanGaps: false
-            },
-            {
-                label: 'Data Gaps',
-                data: data.filter(d => d.isGap),
-                borderColor: 'rgb(239, 68, 68)',
-                backgroundColor: 'rgba(239, 68, 68, 0.3)',
-                pointRadius: 6,
-                pointHoverRadius: 8,
-                pointStyle: 'rectRot',
-                showLine: false,
-                pointBackgroundColor: 'rgba(239, 68, 68, 0.8)',
-                pointBorderColor: 'rgb(239, 68, 68)',
-                pointBorderWidth: 2
+                label: 'Observed Value',
+                data: data,
+                borderColor: 'rgb(75, 192, 192)',
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+                tension: 0.5,
+                cubicInterpolationMode: 'monotone', // smooth curve
+                spanGaps: (ctx) => ctx.raw && ctx.raw.gapFiller !== true
             }
         ]
     };
     
-    // Calculate dynamic y-axis range
-    const validValues = data.filter(d => !d.isGap && d.y !== null).map(d => d.y);
+    // Check for valid data
+    const validValues = data.filter(d => !d.gapFiller && d.y !== null).map(d => d.y);
     
     if (validValues.length === 0) {
         chartPanelContent.innerHTML = `
@@ -644,12 +632,6 @@ function renderChart(data, unitSymbol, datastreamName, stats) {
         `;
         return;
     }
-    
-    const minValue = Math.min(...validValues);
-    const maxValue = Math.max(...validValues);
-    const range = maxValue - minValue;
-    // Use 10% padding, but at least 1% of the value range to handle very small ranges
-    const padding = Math.max(range * 0.1, Math.abs(maxValue) * 0.01 || 1);
     
     // Create chart
     const ctx = document.getElementById('timeSeriesChart').getContext('2d');
@@ -671,10 +653,8 @@ function renderChart(data, unitSymbol, datastreamName, stats) {
                 tooltip: {
                     callbacks: {
                         label: (context) => {
-                            if (context.raw.isGap) {
-                                const duration = context.raw.gapDuration;
-                                const minutes = Math.floor(duration / 60000);
-                                return `Data Gap: ${minutes} minutes`;
+                            if (context.raw.gapFiller) {
+                                return 'Data Gap';
                             }
                             return `${context.dataset.label}: ${context.raw.y?.toFixed(2) || 'N/A'} ${unitSymbol}`;
                         }
@@ -686,7 +666,7 @@ function renderChart(data, unitSymbol, datastreamName, stats) {
                     type: 'time',
                     time: {
                         unit: 'minute',
-                        tooltipFormat: 'yyyy-MM-dd HH:mm:ss',
+                        tooltipFormat: 'yyyy-MM-dd HH:mm',
                         displayFormats: {
                             minute: 'HH:mm',
                             hour: 'HH:mm',
@@ -704,20 +684,6 @@ function renderChart(data, unitSymbol, datastreamName, stats) {
                 },
                 y: {
                     beginAtZero: false,
-                    min: minValue - padding,
-                    max: maxValue + padding,
-                    ticks: {
-                        callback: (value) => {
-                            // Format numbers appropriately
-                            if (Math.abs(value) >= 1000) {
-                                return (value / 1000).toFixed(2) + 'k ' + unitSymbol;
-                            } else if (Math.abs(value) < 0.01) {
-                                return value.toExponential(2) + ' ' + unitSymbol;
-                            } else {
-                                return value.toFixed(2) + ' ' + unitSymbol;
-                            }
-                        }
-                    },
                     grid: {
                         color: 'rgba(0, 0, 0, 0.1)'
                     }
