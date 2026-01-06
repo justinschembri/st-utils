@@ -1,3 +1,37 @@
+// Mapping of observed property names to display names
+const OBSERVED_PROPERTY_DISPLAY_NAMES = {
+    'phenomenon_time': 'Phenomenon Time',
+    'battery_level': 'Battery Level',
+    'humidity': 'Humidity',
+    'co2': 'CO₂',
+    'temperature_indoor': 'Temperature Indoor',
+    'light_level': 'Light Level',
+    'passive_infrared': 'Passive Infrared',
+    'particulate_matter_10': 'PM₁₀',
+    'particulate_matter_2_5': 'PM₂.₅',
+    'gauge_pressure': 'Gauge Pressure',
+    'absolute_pressure': 'Absolute Pressure',
+    'noise': 'Noise',
+    'total_volatile_organic_compounds': 'TVOC'
+};
+
+// Format datastream name for display
+function formatDatastreamName(name) {
+    if (!name) return 'Unknown';
+    
+    // Check if we have a direct mapping
+    const lowerName = name.toLowerCase().trim();
+    if (OBSERVED_PROPERTY_DISPLAY_NAMES[lowerName]) {
+        return OBSERVED_PROPERTY_DISPLAY_NAMES[lowerName];
+    }
+    
+    // Fallback: convert snake_case to Title Case
+    return name
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+        .join(' ');
+}
+
 // Global state
 const state = {
     things: {},
@@ -160,18 +194,10 @@ function initializeEventListeners() {
         });
     }
 
-    // Chart navigation buttons
-    const chartNavPrev = document.getElementById('chartNavPrev');
-    const chartNavNext = document.getElementById('chartNavNext');
-    if (chartNavPrev) {
-        chartNavPrev.addEventListener('click', (e) => {
-            e.stopPropagation();
-            e.preventDefault();
-            navigateToDatastream(-1);
-        });
-    }
-    if (chartNavNext) {
-        chartNavNext.addEventListener('click', (e) => {
+    // Chart next datastream button
+    const chartNextDatastreamBtn = document.getElementById('chartNextDatastreamBtn');
+    if (chartNextDatastreamBtn) {
+        chartNextDatastreamBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             e.preventDefault();
             navigateToDatastream(1);
@@ -590,13 +616,15 @@ async function updatePopupWithDatastreams(thingId, datastreams) {
     // Build content
     let newContent = `<div style="margin-top: 0.5rem;">`;
     results.forEach(({ ds, latestValue, unitSymbol, error }) => {
+        const displayName = formatDatastreamName(ds.name);
         const escapedName = ds.name.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+        const escapedDisplayName = displayName.replace(/'/g, "\\'").replace(/"/g, '&quot;');
         newContent += `
             <div style="padding: 0.5rem; margin: 0.25rem 0; background: #f3f4f6; border-radius: 0.375rem; cursor: pointer; transition: background 0.2s;"
-                 onclick="selectDatastream(${ds['@iot.id']}, '${escapedName}')"
+                 onclick="selectDatastream(${ds['@iot.id']}, '${escapedDisplayName}')"
                  onmouseover="this.style.background='#93c5fd'"
                  onmouseout="this.style.background='#f3f4f6'">
-                <div style="font-weight: 500; margin-bottom: 0.25rem;">${ds.name}</div>
+                <div style="font-weight: 500; margin-bottom: 0.25rem;">${displayName}</div>
                 <div style="font-size: 0.75rem; color: ${error ? '#ef4444' : '#6b7280'};">
                     Latest: <strong>${latestValue} ${unitSymbol}</strong>
                 </div>
@@ -726,7 +754,7 @@ async function loadChartData(datastreamId) {
         
         const dsData = await dsResponse.json();
         const unitSymbol = dsData.unitOfMeasurement?.symbol || '';
-        const datastreamName = dsData.name || 'Unknown';
+        const datastreamName = formatDatastreamName(dsData.name || 'Unknown');
         const datastreamDescription = dsData.description || '';
         
         // Fetch observations
@@ -1060,21 +1088,8 @@ function showThingMetadata(thingId) {
         mainContent.classList.add('has-metadata-sidebar');
     }
     
-    // Get health status
-    const healthStatus = thing.healthStatus || 'active';
-    const healthLabel = thing.healthLabel || '<60mins';
-    const timeSince = thing.timeSinceLastObservation;
-    
-    // Build metadata content
-    const timeText = timeSince !== null ? `<div class="metadata-value" style="font-size: 0.875rem; color: var(--gray-600); margin-top: 0.5rem;">Last observation: ${formatTimeSince(timeSince)}</div>` : '';
+    // Build metadata content (status will be added by updateMetadataSidebarStatus)
     let metadataHTML = `
-        <div class="metadata-section">
-            <h3>Status</h3>
-            <div class="metadata-item">
-                <div class="status-tag status-tag-${healthStatus}">${healthLabel}</div>
-                ${timeText}
-            </div>
-        </div>
         <div class="metadata-section">
             <h3>Location</h3>
             <div class="metadata-item">
@@ -1107,6 +1122,12 @@ function showThingMetadata(thingId) {
     
     content.innerHTML = metadataHTML;
     sidebar.classList.add('open');
+    
+    // Update status section after sidebar is open
+    const healthStatus = thing.healthStatus || 'active';
+    const healthLabel = thing.healthLabel || '<60mins';
+    const timeSince = thing.timeSinceLastObservation;
+    updateMetadataSidebarStatus(healthStatus, healthLabel, timeSince);
 }
 
 // Hide thing metadata sidebar
@@ -1145,65 +1166,68 @@ function updateThingMetadataDatastreams(thingId, datastreams) {
             const obsData = await obsResponse.json();
             const latestValue = obsData.value?.[0]?.result || '-';
             
+            const displayName = formatDatastreamName(ds.name);
             const dsItem = document.createElement('div');
             dsItem.className = 'metadata-datastream-item';
             dsItem.innerHTML = `
-                <div class="metadata-datastream-name">${ds.name}</div>
+                <div class="metadata-datastream-name">${displayName}</div>
                 <div class="metadata-datastream-meta">
                     <span>${unitSymbol}</span>
                     <span style="font-weight: 600;">${latestValue}</span>
                 </div>
             `;
             dsItem.addEventListener('click', () => {
-                selectDatastream(ds['@iot.id'], ds.name);
+                selectDatastream(ds['@iot.id'], displayName);
             });
             datastreamsDiv.appendChild(dsItem);
         } catch (error) {
+            const displayName = formatDatastreamName(ds.name);
             const dsItem = document.createElement('div');
             dsItem.className = 'metadata-datastream-item';
             dsItem.innerHTML = `
-                <div class="metadata-datastream-name">${ds.name}</div>
+                <div class="metadata-datastream-name">${displayName}</div>
                 <div class="metadata-datastream-meta" style="color: #ef4444;">Error loading</div>
             `;
             dsItem.addEventListener('click', () => {
-                selectDatastream(ds['@iot.id'], ds.name);
+                selectDatastream(ds['@iot.id'], displayName);
             });
             datastreamsDiv.appendChild(dsItem);
         }
     });
 }
 
-// Update datastream navigation arrows visibility
+// Update datastream navigation button visibility
 function updateDatastreamNavigation() {
-    const prevBtn = document.getElementById('chartNavPrev');
-    const nextBtn = document.getElementById('chartNavNext');
+    const nextBtn = document.getElementById('chartNextDatastreamBtn');
     
-    if (!prevBtn || !nextBtn) return;
+    if (!nextBtn) return;
     
     const hasMultiple = state.currentThingDatastreams.length > 1;
-    const canGoPrev = state.currentDatastreamIndex > 0;
-    const canGoNext = state.currentDatastreamIndex < state.currentThingDatastreams.length - 1;
     
     if (hasMultiple) {
-        prevBtn.style.display = 'flex';
         nextBtn.style.display = 'flex';
-        prevBtn.disabled = !canGoPrev;
-        nextBtn.disabled = !canGoNext;
+        // Button is always enabled - it cycles through all datastreams
+        nextBtn.disabled = false;
     } else {
-        prevBtn.style.display = 'none';
         nextBtn.style.display = 'none';
     }
 }
 
-// Navigate to previous/next datastream
+// Navigate to next datastream (cycles through all)
 function navigateToDatastream(direction) {
     if (state.currentThingDatastreams.length === 0) return;
     
-    const newIndex = state.currentDatastreamIndex + direction;
-    if (newIndex < 0 || newIndex >= state.currentThingDatastreams.length) return;
+    let newIndex = state.currentDatastreamIndex + direction;
+    // Wrap around: if at end, go to beginning; if at beginning going back, go to end
+    if (newIndex < 0) {
+        newIndex = state.currentThingDatastreams.length - 1;
+    } else if (newIndex >= state.currentThingDatastreams.length) {
+        newIndex = 0;
+    }
     
     const datastream = state.currentThingDatastreams[newIndex];
-    selectDatastream(datastream['@iot.id'], datastream.name);
+    const displayName = formatDatastreamName(datastream.name);
+    selectDatastream(datastream['@iot.id'], displayName);
 }
 
 // Make selectDatastream available globally for onclick handlers
