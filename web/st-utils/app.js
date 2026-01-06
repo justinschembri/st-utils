@@ -133,6 +133,14 @@ function initializeEventListeners() {
     if (zoomExtentsBtn) {
         zoomExtentsBtn.addEventListener('click', zoomToExtents);
     }
+
+    // Thing metadata sidebar close button
+    const thingMetadataClose = document.getElementById('thingMetadataClose');
+    if (thingMetadataClose) {
+        thingMetadataClose.addEventListener('click', () => {
+            hideThingMetadata();
+        });
+    }
 }
 
 // Update status message
@@ -242,6 +250,7 @@ async function processThing(thing) {
     // Handle marker click
     marker.on('click', async () => {
         highlightThingInList(thing.name);
+        showThingMetadata(thingId);
         await loadDatastreamsForThing(thingId);
     });
 }
@@ -277,11 +286,11 @@ async function loadDatastreamsForThing(thingId) {
         
         const datastreamData = await response.json();
         
-        // Update popup
+        // Update popup (for map markers)
         await updatePopupWithDatastreams(thingId, datastreamData.value);
         
-        // Update sidebar if thing is visible
-        updateThingDatastreamsInSidebar(thingId, datastreamData.value);
+        // Update metadata sidebar if open
+        updateThingMetadataDatastreams(thingId, datastreamData.value);
         
     } catch (error) {
         console.error(`Error fetching datastreams for thing ${thingId}:`, error);
@@ -370,61 +379,6 @@ async function updatePopupWithDatastreams(thingId, datastreams) {
     }
 }
 
-// Update thing datastreams in sidebar
-function updateThingDatastreamsInSidebar(thingId, datastreams) {
-    const thingItem = document.querySelector(`[data-thing-id="${thingId}"]`);
-    if (!thingItem) return;
-    
-    let datastreamsDiv = thingItem.querySelector('.thing-datastreams');
-    if (!datastreamsDiv) {
-        datastreamsDiv = document.createElement('div');
-        datastreamsDiv.className = 'thing-datastreams';
-        thingItem.appendChild(datastreamsDiv);
-    }
-    
-    datastreamsDiv.innerHTML = '';
-    
-    datastreams.forEach(async (ds) => {
-        const unitSymbol = ds.unitOfMeasurement?.symbol || '';
-        
-        // Fetch latest observation
-        try {
-            const currentProtocol = window.location.protocol;
-            const obsUrl = ds['Observations@iot.navigationLink'] + '?$top=1&$orderby=phenomenonTime%20desc';
-            const secureObsUrl = obsUrl.replace(/^http:/, currentProtocol);
-            const obsResponse = await fetch(secureObsUrl);
-            const obsData = await obsResponse.json();
-            const latestValue = obsData.value?.[0]?.result || '-';
-            
-            const dsItem = document.createElement('div');
-            dsItem.className = 'datastream-item';
-            dsItem.dataset.datastreamId = ds['@iot.id'];
-            dsItem.innerHTML = `
-                <div class="datastream-name">${ds.name}</div>
-                <div class="datastream-meta">
-                    <span>${unitSymbol}</span>
-                    <span class="datastream-latest">${latestValue}</span>
-                </div>
-            `;
-            dsItem.addEventListener('click', () => {
-                selectDatastream(ds['@iot.id'], ds.name);
-            });
-            datastreamsDiv.appendChild(dsItem);
-        } catch (error) {
-            const dsItem = document.createElement('div');
-            dsItem.className = 'datastream-item';
-            dsItem.dataset.datastreamId = ds['@iot.id'];
-            dsItem.innerHTML = `
-                <div class="datastream-name">${ds.name}</div>
-                <div class="datastream-meta" style="color: #ef4444;">Error loading</div>
-            `;
-            dsItem.addEventListener('click', () => {
-                selectDatastream(ds['@iot.id'], ds.name);
-            });
-            datastreamsDiv.appendChild(dsItem);
-        }
-    });
-}
 
 // Populate things list in sidebar
 function populateThingsList(things) {
@@ -442,7 +396,6 @@ function populateThingsList(things) {
         
         li.innerHTML = `
             <div class="thing-name">${thing.name}</div>
-            ${thingData.locationDescription ? `<div class="thing-description">${thingData.locationDescription}</div>` : ''}
         `;
         
         li.addEventListener('click', () => {
@@ -451,11 +404,8 @@ function populateThingsList(things) {
                 duration: 0.8, // 0.8 second smooth animation
                 easeLinearity: 0.25
             });
-            // Open popup after zoom animation completes
-            setTimeout(() => {
-                thingData.marker.openPopup();
-            }, 800);
             highlightThingInList(thing.name);
+            showThingMetadata(thing['@iot.id']);
             loadDatastreamsForThing(thing['@iot.id']);
         });
         
@@ -850,5 +800,119 @@ function zoomToExtents() {
     }
 }
 
-// Make selectDatastream available globally for onclick handlers
-window.selectDatastream = selectDatastream;
+// Show thing metadata sidebar
+function showThingMetadata(thingId) {
+    const thing = state.things[thingId];
+    if (!thing) return;
+    
+    const sidebar = document.getElementById('thingMetadataSidebar');
+    const title = document.getElementById('thingMetadataTitle');
+    const content = document.getElementById('thingMetadataContent');
+    const mainContent = document.querySelector('.main-content');
+    
+    title.textContent = thing.name;
+    
+    // Add class to main content to adjust chart panel
+    if (mainContent) {
+        mainContent.classList.add('has-metadata-sidebar');
+    }
+    
+    // Build metadata content
+    let metadataHTML = `
+        <div class="metadata-section">
+            <h3>Location</h3>
+            <div class="metadata-item">
+                <div class="metadata-label">Coordinates</div>
+                <div class="metadata-value">${thing.coordinates[0].toFixed(6)}, ${thing.coordinates[1].toFixed(6)}</div>
+            </div>
+            ${thing.locationDescription ? `
+            <div class="metadata-item">
+                <div class="metadata-label">Description</div>
+                <div class="metadata-value">${thing.locationDescription}</div>
+            </div>
+            ` : ''}
+        </div>
+        ${thing.description ? `
+        <div class="metadata-section">
+            <h3>Thing Details</h3>
+            <div class="metadata-item">
+                <div class="metadata-label">Description</div>
+                <div class="metadata-value">${thing.description}</div>
+            </div>
+        </div>
+        ` : ''}
+        <div class="metadata-section">
+            <h3>Datastreams</h3>
+            <div class="metadata-datastreams" id="thingMetadataDatastreams">
+                <div style="color: var(--gray-500); font-size: 0.875rem;">Loading datastreams...</div>
+            </div>
+        </div>
+    `;
+    
+    content.innerHTML = metadataHTML;
+    sidebar.classList.add('open');
+}
+
+// Hide thing metadata sidebar
+function hideThingMetadata() {
+    const sidebar = document.getElementById('thingMetadataSidebar');
+    const mainContent = document.querySelector('.main-content');
+    
+    sidebar.classList.remove('open');
+    
+    // Remove class from main content to restore chart panel
+    if (mainContent) {
+        mainContent.classList.remove('has-metadata-sidebar');
+    }
+}
+
+// Update datastreams in metadata sidebar
+function updateThingMetadataDatastreams(thingId, datastreams) {
+    const datastreamsDiv = document.getElementById('thingMetadataDatastreams');
+    if (!datastreamsDiv) return;
+    
+    if (datastreams.length === 0) {
+        datastreamsDiv.innerHTML = '<div style="color: var(--gray-500); font-size: 0.875rem;">No datastreams available</div>';
+        return;
+    }
+    
+    datastreamsDiv.innerHTML = '';
+    
+    datastreams.forEach(async (ds) => {
+        const unitSymbol = ds.unitOfMeasurement?.symbol || '';
+        
+        try {
+            const currentProtocol = window.location.protocol;
+            const obsUrl = ds['Observations@iot.navigationLink'] + '?$top=1&$orderby=phenomenonTime%20desc';
+            const secureObsUrl = obsUrl.replace(/^http:/, currentProtocol);
+            const obsResponse = await fetch(secureObsUrl);
+            const obsData = await obsResponse.json();
+            const latestValue = obsData.value?.[0]?.result || '-';
+            
+            const dsItem = document.createElement('div');
+            dsItem.className = 'metadata-datastream-item';
+            dsItem.innerHTML = `
+                <div class="metadata-datastream-name">${ds.name}</div>
+                <div class="metadata-datastream-meta">
+                    <span>${unitSymbol}</span>
+                    <span style="font-weight: 600;">${latestValue}</span>
+                </div>
+            `;
+            dsItem.addEventListener('click', () => {
+                selectDatastream(ds['@iot.id'], ds.name);
+            });
+            datastreamsDiv.appendChild(dsItem);
+        } catch (error) {
+            const dsItem = document.createElement('div');
+            dsItem.className = 'metadata-datastream-item';
+            dsItem.innerHTML = `
+                <div class="metadata-datastream-name">${ds.name}</div>
+                <div class="metadata-datastream-meta" style="color: #ef4444;">Error loading</div>
+            `;
+            dsItem.addEventListener('click', () => {
+                selectDatastream(ds['@iot.id'], ds.name);
+            });
+            datastreamsDiv.appendChild(dsItem);
+        }
+    });
+}
