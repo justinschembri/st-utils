@@ -8,7 +8,9 @@ const state = {
     currentLimit: 1000,
     map: null,
     markerCluster: null,
-    maxClusterSize: 1 // Track maximum cluster size for color normalization
+    maxClusterSize: 1, // Track maximum cluster size for color normalization
+    currentThingDatastreams: [], // Track datastreams for current thing
+    currentDatastreamIndex: -1 // Track current datastream index for cycling
 };
 
 // Initialize application
@@ -114,16 +116,32 @@ function initializeEventListeners() {
         filterThings(e.target.value);
     });
 
-    // Chart panel toggle
-    const chartPanelHeader = document.getElementById('chartPanelHeader');
-    chartPanelHeader.addEventListener('click', () => {
-        toggleChartPanel();
-    });
+    // Chart panel toggle - only on header title area, not buttons
+    const chartPanelTitle = document.querySelector('.chart-panel-title > div:not(.chart-panel-nav)');
+    if (chartPanelTitle) {
+        chartPanelTitle.addEventListener('click', (e) => {
+            // Only toggle if clicking on the title text area, not on buttons
+            if (!e.target.closest('button') && !e.target.closest('.chart-panel-nav')) {
+                toggleChartPanel();
+            }
+        });
+    }
+
+    // Chart panel toggle button (separate handler)
+    const chartPanelToggle = document.getElementById('chartPanelToggle');
+    if (chartPanelToggle) {
+        chartPanelToggle.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleChartPanel();
+        });
+    }
 
     // Chart limit buttons
     document.querySelectorAll('.chart-panel-btn[data-limit]').forEach(btn => {
         btn.addEventListener('click', (e) => {
-            const limit = parseInt(e.target.dataset.limit);
+            e.stopPropagation();
+            e.preventDefault();
+            const limit = parseInt(e.target.dataset.limit || e.target.closest('button').dataset.limit);
             setChartLimit(limit);
         });
     });
@@ -141,6 +159,24 @@ function initializeEventListeners() {
             hideThingMetadata();
         });
     }
+
+    // Chart navigation buttons
+    const chartNavPrev = document.getElementById('chartNavPrev');
+    const chartNavNext = document.getElementById('chartNavNext');
+    if (chartNavPrev) {
+        chartNavPrev.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            navigateToDatastream(-1);
+        });
+    }
+    if (chartNavNext) {
+        chartNavNext.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            navigateToDatastream(1);
+        });
+    }
 }
 
 // Update status message
@@ -148,6 +184,194 @@ function updateStatus(message, type = '') {
     const statusEl = document.getElementById('statusMessage');
     statusEl.textContent = message;
     statusEl.className = `status-message ${type}`;
+}
+
+// Calculate thing health status asynchronously
+async function calculateThingHealthStatusAsync(thingId, datastreams) {
+    const thing = state.things[thingId];
+    if (!thing || !datastreams || datastreams.length === 0) {
+        thing.healthStatus = 'active';
+        thing.timeSinceLastObservation = null;
+        updateThingStatusTags();
+        return;
+    }
+    
+    // Fetch last observations for all datastreams in parallel
+    const currentProtocol = window.location.protocol;
+    const observationPromises = datastreams.map(async (ds) => {
+        try {
+            const obsUrl = ds['Observations@iot.navigationLink'] + '?$top=1&$orderby=phenomenonTime%20desc';
+            const secureObsUrl = obsUrl.replace(/^http:/, currentProtocol);
+            const obsResponse = await fetch(secureObsUrl);
+            const obsData = await obsResponse.json();
+            
+            if (obsData.value && obsData.value.length > 0) {
+                return new Date(obsData.value[0].phenomenonTime);
+            }
+            return null;
+        } catch (error) {
+            console.warn(`Error fetching last observation for datastream ${ds['@iot.id']}:`, error);
+            return null;
+        }
+    });
+    
+    const observationTimes = await Promise.all(observationPromises);
+    
+    // Find the most recent observation
+    const validTimes = observationTimes.filter(t => t !== null);
+    let mostRecentTime = null;
+    
+    if (validTimes.length > 0) {
+        mostRecentTime = new Date(Math.max(...validTimes.map(t => t.getTime())));
+    }
+    
+    // Calculate time since last observation
+    if (mostRecentTime) {
+        const now = new Date();
+        const timeDiffMinutes = (now - mostRecentTime) / (1000 * 60);
+        thing.timeSinceLastObservation = timeDiffMinutes;
+        const healthInfo = calculateThingHealthStatus(timeDiffMinutes);
+        thing.healthStatus = healthInfo.status;
+        thing.healthLabel = healthInfo.label;
+    } else {
+        // No observations found
+        thing.timeSinceLastObservation = null;
+        thing.healthStatus = 'down';
+        thing.healthLabel = 'No data';
+    }
+    
+    // Update status tags
+    updateThingStatusTags();
+}
+
+// Calculate thing health status based on time since last observation
+function calculateThingHealthStatus(timeSinceLastObservationMinutes) {
+    if (timeSinceLastObservationMinutes === null || timeSinceLastObservationMinutes === undefined) {
+        return { status: 'down', label: 'No data' }; // No observations
+    }
+    
+    if (timeSinceLastObservationMinutes < 60) {
+        return { status: 'active', label: '<60mins' };
+    } else if (timeSinceLastObservationMinutes < 120) {
+        return { status: 'warning', label: '<120mins' };
+    } else {
+        return { status: 'down', label: '>120mins' };
+    }
+}
+
+// Format time since last observation
+function formatTimeSince(minutes) {
+    if (minutes === null || minutes === undefined) {
+        return 'Never';
+    }
+    
+    if (minutes < 60) {
+        return `${Math.round(minutes)}m ago`;
+    } else if (minutes < 1440) {
+        const hours = Math.floor(minutes / 60);
+        const mins = Math.round(minutes % 60);
+        return `${hours}h ${mins}m ago`;
+    } else {
+        const days = Math.floor(minutes / 1440);
+        const hours = Math.floor((minutes % 1440) / 60);
+        return `${days}d ${hours}h ago`;
+    }
+}
+
+// Update status tags on things
+function updateThingStatusTags() {
+    // Update sidebar list
+    document.querySelectorAll('.thing-item').forEach(item => {
+        const thingId = item.dataset.thingId;
+        const thing = state.things[thingId];
+        if (!thing) return;
+        
+        // Get status from thing's last observation time
+        const status = thing.healthStatus || 'active';
+        const label = thing.healthLabel || '<60mins';
+        const timeSince = thing.timeSinceLastObservation;
+        updateThingItemStatus(item, status, label, timeSince);
+    });
+    
+    // Update metadata sidebar if open
+    const metadataSidebar = document.getElementById('thingMetadataSidebar');
+    if (metadataSidebar && metadataSidebar.classList.contains('open')) {
+        const thingId = Object.keys(state.things).find(id => {
+            const thing = state.things[id];
+            return thing && document.getElementById('thingMetadataTitle')?.textContent === thing.name;
+        });
+        if (thingId) {
+            const thing = state.things[thingId];
+            const status = thing.healthStatus || 'active';
+            const label = thing.healthLabel || '<60mins';
+            const timeSince = thing.timeSinceLastObservation;
+            updateMetadataSidebarStatus(status, label, timeSince);
+        }
+    }
+}
+
+// Update thing item with status tag
+function updateThingItemStatus(item, status, label, timeSince = null) {
+    // Remove existing status tag
+    const existingTag = item.querySelector('.thing-status-tag');
+    if (existingTag) {
+        existingTag.remove();
+    }
+    
+    const thingName = item.querySelector('.thing-name');
+    if (!thingName) return;
+    
+    // Wrap the text content if it's not already wrapped
+    let nameText = thingName.querySelector('.thing-name-text');
+    if (!nameText) {
+        // Get the current text content
+        const currentText = thingName.textContent;
+        // Clear the thing-name element
+        thingName.textContent = '';
+        // Create a text wrapper
+        nameText = document.createElement('span');
+        nameText.className = 'thing-name-text';
+        nameText.textContent = currentText;
+        thingName.appendChild(nameText);
+    }
+    
+    // Add new status tag
+    const statusTag = document.createElement('div');
+    statusTag.className = `thing-status-tag thing-status-${status}`;
+    statusTag.textContent = label;
+    if (timeSince !== null) {
+        statusTag.title = `Last observation: ${formatTimeSince(timeSince)}`;
+    }
+    
+    thingName.appendChild(statusTag);
+}
+
+// Update metadata sidebar with status
+function updateMetadataSidebarStatus(status, label, timeSince = null) {
+    const content = document.getElementById('thingMetadataContent');
+    if (!content) return;
+    
+    // Remove existing status section
+    const existingStatus = content.querySelector('.metadata-status-section');
+    if (existingStatus) {
+        existingStatus.remove();
+    }
+    
+    // Add status section at the top
+    const statusSection = document.createElement('div');
+    statusSection.className = 'metadata-status-section';
+    const timeText = timeSince !== null ? `<div class="metadata-value" style="font-size: 0.875rem; color: var(--gray-600); margin-top: 0.5rem;">Last observation: ${formatTimeSince(timeSince)}</div>` : '';
+    statusSection.innerHTML = `
+        <div class="metadata-section">
+            <h3>Status</h3>
+            <div class="metadata-item">
+                <div class="status-tag status-tag-${status}">${label}</div>
+                ${timeText}
+            </div>
+        </div>
+    `;
+    
+    content.insertBefore(statusSection, content.firstChild);
 }
 
 // Fetch things from FROST API
@@ -190,6 +414,10 @@ async function fetchThings() {
             
             updateStatus(`Loaded ${Object.keys(state.things).length} things`, 'success');
             populateThingsList(thingData.value);
+            
+            // Load datastreams for all things to calculate health status (in parallel)
+            const datastreamPromises = thingData.value.map(thing => loadDatastreamsForThing(thing['@iot.id']));
+            await Promise.all(datastreamPromises);
         } else {
             throw new Error('No things found in API response');
         }
@@ -285,6 +513,12 @@ async function loadDatastreamsForThing(thingId) {
         }
         
         const datastreamData = await response.json();
+        
+        // Store datastreams for navigation
+        state.currentThingDatastreams = datastreamData.value;
+        
+        // Calculate time since last observation for this thing (async, don't block)
+        calculateThingHealthStatusAsync(thingId, datastreamData.value);
         
         // Update popup (for map markers)
         await updatePopupWithDatastreams(thingId, datastreamData.value);
@@ -384,7 +618,7 @@ async function updatePopupWithDatastreams(thingId, datastreams) {
 function populateThingsList(things) {
     const thingsList = document.getElementById('thingsList');
     thingsList.innerHTML = '';
-    
+
     things.forEach(thing => {
         const thingData = state.things[thing['@iot.id']];
         if (!thingData) return;
@@ -395,18 +629,18 @@ function populateThingsList(things) {
         li.dataset.thingName = thing.name;
         
         li.innerHTML = `
-            <div class="thing-name">${thing.name}</div>
+            <div class="thing-name"><span class="thing-name-text">${thing.name}</span></div>
         `;
         
-        li.addEventListener('click', () => {
+        li.addEventListener('click', async () => {
             state.map.setView(thingData.coordinates, 15, {
                 animate: true,
                 duration: 0.8, // 0.8 second smooth animation
                 easeLinearity: 0.25
             });
-            highlightThingInList(thing.name);
+                highlightThingInList(thing.name);
             showThingMetadata(thing['@iot.id']);
-            loadDatastreamsForThing(thing['@iot.id']);
+            await loadDatastreamsForThing(thing['@iot.id']);
         });
         
         thingsList.appendChild(li);
@@ -445,6 +679,9 @@ function filterThings(query) {
 async function selectDatastream(datastreamId, datastreamName) {
     state.currentDatastream = datastreamId;
     
+    // Find current datastream index
+    state.currentDatastreamIndex = state.currentThingDatastreams.findIndex(ds => ds['@iot.id'] === datastreamId);
+    
     // Update UI
     document.querySelectorAll('.datastream-item').forEach(item => {
         item.classList.remove('active');
@@ -464,6 +701,12 @@ async function selectDatastream(datastreamId, datastreamName) {
     if (!chartPanel.classList.contains('expanded')) {
         chartPanel.classList.add('expanded');
     }
+    
+    // Close metadata sidebar
+    hideThingMetadata();
+    
+    // Update navigation arrows visibility
+    updateDatastreamNavigation();
     
     // Load chart data
     await loadChartData(datastreamId);
@@ -518,7 +761,7 @@ async function loadChartData(datastreamId) {
         
         updateStatus(`Loaded ${processedData.length} observations`, 'success');
         
-    } catch (error) {
+                } catch (error) {
         console.error('Error loading chart data:', error);
         chartPanelContent.innerHTML = `
             <div class="no-data-message">
@@ -817,8 +1060,21 @@ function showThingMetadata(thingId) {
         mainContent.classList.add('has-metadata-sidebar');
     }
     
+    // Get health status
+    const healthStatus = thing.healthStatus || 'active';
+    const healthLabel = thing.healthLabel || '<60mins';
+    const timeSince = thing.timeSinceLastObservation;
+    
     // Build metadata content
+    const timeText = timeSince !== null ? `<div class="metadata-value" style="font-size: 0.875rem; color: var(--gray-600); margin-top: 0.5rem;">Last observation: ${formatTimeSince(timeSince)}</div>` : '';
     let metadataHTML = `
+        <div class="metadata-section">
+            <h3>Status</h3>
+            <div class="metadata-item">
+                <div class="status-tag status-tag-${healthStatus}">${healthLabel}</div>
+                ${timeText}
+            </div>
+        </div>
         <div class="metadata-section">
             <h3>Location</h3>
             <div class="metadata-item">
@@ -916,3 +1172,39 @@ function updateThingMetadataDatastreams(thingId, datastreams) {
         }
     });
 }
+
+// Update datastream navigation arrows visibility
+function updateDatastreamNavigation() {
+    const prevBtn = document.getElementById('chartNavPrev');
+    const nextBtn = document.getElementById('chartNavNext');
+    
+    if (!prevBtn || !nextBtn) return;
+    
+    const hasMultiple = state.currentThingDatastreams.length > 1;
+    const canGoPrev = state.currentDatastreamIndex > 0;
+    const canGoNext = state.currentDatastreamIndex < state.currentThingDatastreams.length - 1;
+    
+    if (hasMultiple) {
+        prevBtn.style.display = 'flex';
+        nextBtn.style.display = 'flex';
+        prevBtn.disabled = !canGoPrev;
+        nextBtn.disabled = !canGoNext;
+    } else {
+        prevBtn.style.display = 'none';
+        nextBtn.style.display = 'none';
+    }
+}
+
+// Navigate to previous/next datastream
+function navigateToDatastream(direction) {
+    if (state.currentThingDatastreams.length === 0) return;
+    
+    const newIndex = state.currentDatastreamIndex + direction;
+    if (newIndex < 0 || newIndex >= state.currentThingDatastreams.length) return;
+    
+    const datastream = state.currentThingDatastreams[newIndex];
+    selectDatastream(datastream['@iot.id'], datastream.name);
+}
+
+// Make selectDatastream available globally for onclick handlers
+window.selectDatastream = selectDatastream;

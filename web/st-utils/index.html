@@ -136,6 +136,39 @@
             font-weight: 600;
             color: var(--gray-900);
             margin-bottom: 0.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+
+        .thing-name-text {
+            flex: 1;
+            min-width: 0; /* Allow text to shrink */
+        }
+
+        .thing-status-tag {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.25rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .thing-status-active {
+            background: var(--success);
+            color: white;
+        }
+
+        .thing-status-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .thing-status-down {
+            background: var(--danger);
+            color: white;
         }
 
         .thing-description {
@@ -196,6 +229,18 @@
 
         .chart-panel-title {
             flex: 1;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .chart-panel-title > div:not(.chart-panel-nav) {
+            flex: 1;
+            cursor: pointer;
+        }
+
+        .chart-panel-title > div:not(.chart-panel-nav):hover {
+            opacity: 0.9;
         }
 
         .chart-panel-title h2 {
@@ -207,6 +252,33 @@
         .chart-panel-title p {
             font-size: 0.875rem;
             opacity: 0.9;
+        }
+
+        .chart-panel-nav {
+            display: flex;
+            align-items: center;
+        }
+
+        .chart-nav-btn {
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            border-radius: 0.375rem;
+            color: white;
+            cursor: pointer;
+            padding: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .chart-nav-btn:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .chart-nav-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
         .chart-panel-controls {
@@ -621,6 +693,31 @@
             display: flex;
             justify-content: space-between;
         }
+
+        .status-tag {
+            display: inline-block;
+            font-size: 0.875rem;
+            padding: 0.5rem 1rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-tag-active {
+            background: var(--success);
+            color: white;
+        }
+
+        .status-tag-warning {
+            background: var(--warning);
+            color: white;
+        }
+
+        .status-tag-down {
+            background: var(--danger);
+            color: white;
+        }
     </style>
 </head>
 <body>
@@ -669,8 +766,24 @@
             <div class="chart-panel" id="chartPanel">
                 <div class="chart-panel-header" id="chartPanelHeader">
                     <div class="chart-panel-title">
-                        <h2 id="chartTitle">Select a datastream to view chart</h2>
-                        <p id="chartSubtitle">Click on a datastream in the sidebar or map popup</p>
+                        <div class="chart-panel-nav">
+                            <button class="chart-nav-btn" id="chartNavPrev" title="Previous datastream" style="display: none;">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"/>
+                                </svg>
+                            </button>
+                        </div>
+                        <div>
+                            <h2 id="chartTitle">Select a datastream to view chart</h2>
+                            <p id="chartSubtitle">Click on a datastream in the sidebar or map popup</p>
+                        </div>
+                        <div class="chart-panel-nav">
+                            <button class="chart-nav-btn" id="chartNavNext" title="Next datastream" style="display: none;">
+                                <svg width="20" height="20" viewBox="0 0 20 20" fill="currentColor">
+                                    <path d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"/>
+                                </svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="chart-panel-controls">
                         <button class="chart-panel-btn" data-limit="100">100</button>
