@@ -6,7 +6,9 @@ const state = {
     currentDatastream: null,
     currentChart: null,
     currentLimit: 1000,
-    map: null
+    map: null,
+    markerCluster: null,
+    maxClusterSize: 1 // Track maximum cluster size for color normalization
 };
 
 // Initialize application
@@ -18,11 +20,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize Leaflet map
 function initializeMap() {
-    state.map = L.map('map').setView([52.00482, 4.37034], 13);
+    state.map = L.map('map', {
+        zoomAnimation: true,
+        zoomAnimationThreshold: 4, // Animate zoom if difference is less than 4 levels
+        fadeAnimation: true,
+        markerZoomAnimation: true,
+        zoomControl: true,
+        doubleClickZoom: true,
+        scrollWheelZoom: true
+    }).setView([52.00482, 4.37034], 13);
     
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors'
+        attribution: '&copy; OpenStreetMap contributors',
+        fadeAnimation: true,
+        updateWhenZooming: true
     }).addTo(state.map);
+    
+    // Initialize marker cluster group
+    state.markerCluster = L.markerClusterGroup({
+        chunkedLoading: true,
+        maxClusterRadius: 80, // Cluster markers within 80 pixels
+        disableClusteringAtZoom: 15, // Only show individual markers at zoom 15+
+        spiderfyOnMaxZoom: false, // Don't spiderfy, just zoom
+        showCoverageOnHover: true, // Show circle indicating cluster area on hover
+        zoomToBoundsOnClick: true, // Zoom to bounds when clicking cluster
+        animate: true, // Animate marker clustering/unclustering
+        animateAddingMarkers: true, // Animate when adding markers
+        iconCreateFunction: function(cluster) {
+            const count = cluster.getChildCount();
+            
+            // Update max cluster size if this cluster is larger
+            if (count > state.maxClusterSize) {
+                state.maxClusterSize = count;
+            }
+            
+            // Calculate color based on count (red for few, green for many)
+            // Use logarithmic scale for better color distribution
+            // Normalize count to 0-1 range using log scale
+            const maxCount = Math.max(state.maxClusterSize, 10);
+            const normalized = Math.min(Math.log(count + 1) / Math.log(maxCount + 1), 1);
+            
+            // Interpolate between red (few) and green (many)
+            // Red: rgb(239, 68, 68), Green: rgb(34, 197, 94)
+            const red = Math.round(239 - (239 - 34) * normalized);
+            const green = Math.round(68 + (197 - 68) * normalized);
+            const blue = Math.round(68 + (94 - 68) * normalized);
+            
+            const color = `rgb(${red}, ${green}, ${blue})`;
+            
+            // Determine size based on count
+            let size = 'small';
+            let iconSize = 40;
+            if (count > 100) {
+                size = 'large';
+                iconSize = 60;
+            } else if (count > 10) {
+                size = 'medium';
+                iconSize = 50;
+            }
+            
+            return L.divIcon({
+                html: `<div style="background-color: ${color};"><span>${count}</span></div>`,
+                className: 'marker-cluster marker-cluster-' + size,
+                iconSize: L.point(iconSize, iconSize)
+            });
+        }
+    });
+    
+    state.map.addLayer(state.markerCluster);
+    
+    // Handle cluster click to zoom to cluster extents
+    state.markerCluster.on('clusterclick', function(a) {
+        const cluster = a.layer;
+        const bounds = cluster.getBounds();
+        
+        // Zoom to cluster bounds with animation
+        state.map.fitBounds(bounds, {
+            animate: true,
+            duration: 0.8,
+            padding: [30, 30],
+            maxZoom: 18
+        });
+    });
     
     updateStatus('Map initialized', 'success');
 }
@@ -48,6 +127,12 @@ function initializeEventListeners() {
             setChartLimit(limit);
         });
     });
+
+    // Zoom extents button
+    const zoomExtentsBtn = document.getElementById('zoomExtentsBtn');
+    if (zoomExtentsBtn) {
+        zoomExtentsBtn.addEventListener('click', zoomToExtents);
+    }
 }
 
 // Update status message
@@ -79,11 +164,20 @@ async function fetchThings() {
                 }
             }
             
-            // Adjust map view to show all markers
-            if (Object.keys(state.markers).length > 0) {
-                const markers = Object.values(state.markers);
-                const group = L.featureGroup(markers);
-                state.map.fitBounds(group.getBounds().pad(0.1));
+            // Adjust map view to show all markers using cluster group bounds
+            if (Object.keys(state.markers).length > 0 && state.markerCluster.getLayers().length > 0) {
+                // Recalculate max cluster size by checking all clusters
+                state.maxClusterSize = 1;
+                state.markerCluster.eachLayer(function(marker) {
+                    // This will trigger iconCreateFunction which updates maxClusterSize
+                });
+                // Refresh clusters to update colors with accurate max count
+                state.markerCluster.refreshClusters();
+                state.map.fitBounds(state.markerCluster.getBounds().pad(0.1), {
+                    animate: true,
+                    duration: 1.0, // 1 second smooth animation
+                    padding: [20, 20] // Padding in pixels
+                });
             }
             
             updateStatus(`Loaded ${Object.keys(state.things).length} things`, 'success');
@@ -116,7 +210,10 @@ async function processThing(thing) {
     const locationDescription = locationData.value[0].description || '';
     
     // Create marker (coordinates are [lat, lon] from FROST API)
-    const marker = L.marker([coordinates[0], coordinates[1]]).addTo(state.map);
+    const marker = L.marker([coordinates[0], coordinates[1]]);
+    
+    // Add marker to cluster group instead of directly to map
+    state.markerCluster.addLayer(marker);
     
     // Store thing data
     state.things[thingId] = {
@@ -349,8 +446,15 @@ function populateThingsList(things) {
         `;
         
         li.addEventListener('click', () => {
-            state.map.setView(thingData.coordinates, 15);
-            thingData.marker.openPopup();
+            state.map.setView(thingData.coordinates, 15, {
+                animate: true,
+                duration: 0.8, // 0.8 second smooth animation
+                easeLinearity: 0.25
+            });
+            // Open popup after zoom animation completes
+            setTimeout(() => {
+                thingData.marker.openPopup();
+            }, 800);
             highlightThingInList(thing.name);
             loadDatastreamsForThing(thing['@iot.id']);
         });
@@ -728,6 +832,21 @@ function toggleChartPanel() {
         toggleIcon.style.transform = 'rotate(180deg)';
     } else {
         toggleIcon.style.transform = 'rotate(0deg)';
+    }
+}
+
+// Zoom to extents (fit all markers)
+function zoomToExtents() {
+    if (state.markerCluster && state.markerCluster.getLayers().length > 0) {
+        state.map.fitBounds(state.markerCluster.getBounds().pad(0.1), {
+            animate: true,
+            duration: 1.2, // 1.2 second smooth animation
+            padding: [30, 30], // Padding in pixels
+            maxZoom: 18 // Don't zoom in too far
+        });
+        updateStatus('Zoomed to show all sensors', 'success');
+    } else {
+        updateStatus('No sensors to zoom to', 'warning');
     }
 }
 
