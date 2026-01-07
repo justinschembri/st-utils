@@ -1155,6 +1155,11 @@ function showThingMetadata(thingId) {
     const healthLabel = thing.healthLabel || '<60mins';
     const timeSince = thing.timeSinceLastObservation;
     updateMetadataSidebarStatus(healthStatus, healthLabel, timeSince);
+    
+    // Add download button after status is added
+    setTimeout(() => {
+        addDownloadButton(thingId);
+    }, 0);
 }
 
 // Hide thing metadata sidebar
@@ -1261,6 +1266,342 @@ function navigateToDatastream(direction) {
     const datastream = state.currentThingDatastreams[newIndex];
     const displayName = formatDatastreamName(datastream.name);
     selectDatastream(datastream['@iot.id'], displayName);
+}
+
+// Fetch all observations for a datastream (with pagination and date filtering)
+async function fetchAllObservations(observationsUrl, maxRetries = 5, delay = 50, startDate = null, endDate = null) {
+    const observations = [];
+    let nextUrl = observationsUrl;
+    let retries = 0;
+    const currentProtocol = window.location.protocol;
+    
+    // Build filter for date range
+    let dateFilter = '';
+    if (startDate || endDate) {
+        const filters = [];
+        if (startDate) {
+            const startISO = startDate.toISOString();
+            filters.push(`phenomenonTime ge ${startISO}`);
+        }
+        if (endDate) {
+            const endISO = endDate.toISOString();
+            filters.push(`phenomenonTime le ${endISO}`);
+        }
+        if (filters.length > 0) {
+            dateFilter = filters.join(' and ');
+        }
+    }
+    
+    while (nextUrl) {
+        const secureUrl = nextUrl.replace(/^http:/, currentProtocol);
+        const params = new URLSearchParams({ '$select': 'phenomenonTime,resultTime,result' });
+        
+        // Add date filter if provided
+        if (dateFilter) {
+            params.append('$filter', dateFilter);
+        }
+        
+        const urlWithParams = secureUrl.includes('?') 
+            ? `${secureUrl}&${params.toString()}` 
+            : `${secureUrl}?${params.toString()}`;
+        
+        try {
+            await new Promise(resolve => setTimeout(resolve, delay));
+            const response = await fetch(urlWithParams);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            
+            if (!data.value) {
+                throw new Error('No content found.');
+            }
+            
+            // Add observations
+            for (const obs of data.value) {
+                observations.push({
+                    phenomenonTime: obs.phenomenonTime,
+                    resultTime: obs.resultTime || obs.phenomenonTime,
+                    result: obs.result
+                });
+            }
+            
+            // Check for next page
+            if (data['@iot.nextLink']) {
+                nextUrl = data['@iot.nextLink'];
+                // Add filter to nextLink if it doesn't already have one
+                if (dateFilter && !nextUrl.includes('$filter')) {
+                    nextUrl += (nextUrl.includes('?') ? '&' : '?') + `$filter=${encodeURIComponent(dateFilter)}`;
+                }
+            } else {
+                nextUrl = null;
+            }
+            
+        } catch (error) {
+            if (retries >= maxRetries) {
+                throw error;
+            }
+            retries++;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
+    
+    return observations;
+}
+
+// Download all data for a Thing
+async function downloadThingData(thingId, startDate = null, endDate = null) {
+    const thing = state.things[thingId];
+    if (!thing) {
+        updateStatus('Thing not found', 'error');
+        return;
+    }
+    
+    // Validate dates
+    if (startDate && endDate && startDate > endDate) {
+        updateStatus('Start date must be before end date', 'error');
+        return;
+    }
+    
+    updateStatus('Preparing download...', '');
+    
+    try {
+        // Fetch all datastreams for the thing
+        const response = await fetch(`../FROST-Server/v1.1/Things(${thingId})/Datastreams`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        
+        const datastreamData = await response.json();
+        const datastreams = datastreamData.value || [];
+        
+        if (datastreams.length === 0) {
+            updateStatus('No datastreams found for this thing', 'warning');
+            return;
+        }
+        
+        const dateRangeText = startDate && endDate 
+            ? ` (${startDate.toISOString().split('T')[0]} to ${endDate.toISOString().split('T')[0]})`
+            : '';
+        updateStatus(`Downloading data from ${datastreams.length} datastream(s)${dateRangeText}...`, '');
+        
+        // Fetch all observations for each datastream
+        const allData = [];
+        let totalObservations = 0;
+        
+        for (const ds of datastreams) {
+            const dsName = formatDatastreamName(ds.name);
+            const unitSymbol = ds.unitOfMeasurement?.symbol || '';
+            const currentProtocol = window.location.protocol;
+            const obsUrl = ds['Observations@iot.navigationLink'];
+            const secureObsUrl = obsUrl.replace(/^http:/, currentProtocol);
+            
+            try {
+                updateStatus(`Fetching ${dsName}...`, '');
+                const observations = await fetchAllObservations(secureObsUrl, 5, 50, startDate, endDate);
+                totalObservations += observations.length;
+                
+                // Add metadata to each observation
+                for (const obs of observations) {
+                    allData.push({
+                        thingName: thing.name,
+                        thingId: thingId,
+                        datastreamName: ds.name,
+                        datastreamDisplayName: dsName,
+                        unitOfMeasurement: unitSymbol,
+                        phenomenonTime: obs.phenomenonTime,
+                        resultTime: obs.resultTime,
+                        result: obs.result
+                    });
+                }
+                
+            } catch (error) {
+                console.error(`Error fetching observations for ${dsName}:`, error);
+                updateStatus(`Error fetching ${dsName}: ${error.message}`, 'error');
+            }
+        }
+        
+        if (allData.length === 0) {
+            const rangeText = startDate && endDate 
+                ? ' for selected date range'
+                : '';
+            updateStatus(`No observations found to download${rangeText}`, 'warning');
+            return;
+        }
+        
+        // Convert to CSV
+        updateStatus('Converting to CSV...', '');
+        const csv = convertToCSV(allData);
+        
+        // Trigger download
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        const dateSuffix = startDate && endDate 
+            ? `_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`
+            : '';
+        link.setAttribute('href', url);
+        link.setAttribute('download', `${thing.name.replace(/[^a-z0-9]/gi, '_')}_data${dateSuffix}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        updateStatus(`Downloaded ${totalObservations.toLocaleString()} observations`, 'success');
+        
+    } catch (error) {
+        console.error('Error downloading thing data:', error);
+        updateStatus(`Download error: ${error.message}`, 'error');
+    }
+}
+
+// Convert data array to CSV format
+function convertToCSV(data) {
+    if (data.length === 0) return '';
+    
+    // Get headers
+    const headers = Object.keys(data[0]);
+    
+    // Create CSV rows
+    const rows = [headers.join(',')];
+    
+    for (const row of data) {
+        const values = headers.map(header => {
+            const value = row[header];
+            // Escape commas and quotes, wrap in quotes if needed
+            if (value === null || value === undefined) return '';
+            const stringValue = String(value);
+            if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n')) {
+                return `"${stringValue.replace(/"/g, '""')}"`;
+            }
+            return stringValue;
+        });
+        rows.push(values.join(','));
+    }
+    
+    return rows.join('\n');
+}
+
+// Add download button and date picker to metadata sidebar
+function addDownloadButton(thingId) {
+    const content = document.getElementById('thingMetadataContent');
+    if (!content) return;
+    
+    // Remove existing download section if any
+    const existingSection = content.querySelector('.download-section');
+    if (existingSection) {
+        existingSection.remove();
+    }
+    
+    // Set default dates (last 30 days)
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - 30);
+    
+    const dateFormat = (date) => {
+        return date.toISOString().split('T')[0];
+    };
+    
+    // Create download section
+    const downloadSection = document.createElement('div');
+    downloadSection.className = 'download-section';
+    downloadSection.innerHTML = `
+        <div class="metadata-section">
+            <h3>Download Data</h3>
+            <div class="download-option-group">
+                <label class="download-option-label">
+                    <input type="radio" name="downloadOption" value="range" checked class="download-option-radio">
+                    <span>Date Range</span>
+                </label>
+                <label class="download-option-label">
+                    <input type="radio" name="downloadOption" value="all" class="download-option-radio">
+                    <span>All Data</span>
+                </label>
+            </div>
+            <div class="download-date-range" id="downloadDateRange">
+                <div class="date-input-group">
+                    <label for="downloadStartDate">Start Date</label>
+                    <input type="date" id="downloadStartDate" value="${dateFormat(startDate)}" class="date-input">
+                </div>
+                <div class="date-input-group">
+                    <label for="downloadEndDate">End Date</label>
+                    <input type="date" id="downloadEndDate" value="${dateFormat(endDate)}" class="date-input">
+                </div>
+            </div>
+            <button class="download-thing-btn" id="downloadThingBtn">
+                <svg width="16" height="16" viewBox="0 0 20 20" fill="currentColor" style="margin-right: 0.5rem;">
+                    <path d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/>
+                </svg>
+                Download Data
+            </button>
+        </div>
+    `;
+    
+    // Insert after status section or at the beginning
+    const statusSection = content.querySelector('.metadata-status-section');
+    if (statusSection && statusSection.nextSibling) {
+        content.insertBefore(downloadSection, statusSection.nextSibling);
+    } else {
+        content.insertBefore(downloadSection, content.firstChild);
+    }
+    
+    // Add event listeners
+    const downloadBtn = document.getElementById('downloadThingBtn');
+    const startDateInput = document.getElementById('downloadStartDate');
+    const endDateInput = document.getElementById('downloadEndDate');
+    const dateRangeDiv = document.getElementById('downloadDateRange');
+    const optionRadios = document.querySelectorAll('.download-option-radio');
+    
+    // Toggle date range visibility based on option
+    const toggleDateRange = () => {
+        const selectedOption = document.querySelector('.download-option-radio:checked').value;
+        dateRangeDiv.style.display = selectedOption === 'range' ? 'grid' : 'none';
+    };
+    
+    optionRadios.forEach(radio => {
+        radio.addEventListener('change', toggleDateRange);
+    });
+    
+    // Validate dates on change (only if date range is selected)
+    const validateDates = () => {
+        const selectedOption = document.querySelector('.download-option-radio:checked').value;
+        if (selectedOption === 'all') {
+            downloadBtn.disabled = false;
+            return;
+        }
+        
+        const startDate = new Date(startDateInput.value);
+        const endDate = new Date(endDateInput.value);
+        
+        if (startDate > endDate) {
+            downloadBtn.disabled = true;
+            return;
+        }
+        
+        downloadBtn.disabled = false;
+    };
+    
+    startDateInput.addEventListener('change', validateDates);
+    endDateInput.addEventListener('change', validateDates);
+    
+    downloadBtn.addEventListener('click', async () => {
+        const selectedOption = document.querySelector('.download-option-radio:checked').value;
+        
+        if (selectedOption === 'all') {
+            await downloadThingData(thingId, null, null);
+        } else {
+            const startDate = new Date(startDateInput.value);
+            const endDate = new Date(endDateInput.value);
+            endDate.setHours(23, 59, 59, 999); // Include full end date
+            await downloadThingData(thingId, startDate, endDate);
+        }
+    });
+    
+    // Initial setup
+    toggleDateRange();
+    validateDates();
 }
 
 // Make selectDatastream available globally for onclick handlers

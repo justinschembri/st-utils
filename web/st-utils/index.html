@@ -815,11 +815,96 @@
         color: white;
       }
 
-      .status-tag-down {
-        background: var(--danger);
-        color: white;
-      }
-    </style>
+       .status-tag-down {
+         background: var(--danger);
+         color: white;
+       }
+
+       .download-thing-btn {
+         width: 100%;
+         padding: 0.75rem 1rem;
+         background: var(--primary);
+         color: white;
+         border: none;
+         border-radius: 0.5rem;
+         font-size: 0.875rem;
+         font-weight: 600;
+         cursor: pointer;
+         display: flex;
+         align-items: center;
+         justify-content: center;
+         transition: all 0.2s;
+         margin-bottom: 1.5rem;
+       }
+
+       .download-thing-btn:hover {
+         background: var(--primary-dark);
+         transform: translateY(-1px);
+         box-shadow: 0 4px 8px rgba(59, 130, 246, 0.3);
+       }
+
+       .download-thing-btn:active {
+         transform: translateY(0);
+       }
+
+       .download-thing-btn:disabled {
+         opacity: 0.5;
+         cursor: not-allowed;
+         transform: none;
+       }
+
+       .download-date-range {
+         display: grid;
+         grid-template-columns: 1fr 1fr;
+         gap: 1rem;
+         margin-bottom: 1rem;
+       }
+
+       .date-input-group {
+         display: flex;
+         flex-direction: column;
+         gap: 0.25rem;
+       }
+
+       .date-input-group label {
+         font-size: 0.875rem;
+         color: var(--gray-600);
+         font-weight: 500;
+       }
+
+       .date-input {
+         padding: 0.5rem;
+         border: 1px solid var(--gray-300);
+         border-radius: 0.375rem;
+         font-size: 0.875rem;
+         transition: border-color 0.2s;
+       }
+
+       .date-input:focus {
+         outline: none;
+         border-color: var(--primary);
+         box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+       }
+
+       .download-option-group {
+         display: flex;
+         gap: 1rem;
+         margin-bottom: 1rem;
+       }
+
+       .download-option-label {
+         display: flex;
+         align-items: center;
+         gap: 0.5rem;
+         cursor: pointer;
+         font-size: 0.875rem;
+         color: var(--gray-700);
+       }
+
+       .download-option-radio {
+         cursor: pointer;
+       }
+     </style>
   </head>
 
   <body>
