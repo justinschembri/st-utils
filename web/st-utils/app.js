@@ -44,7 +44,8 @@ const state = {
     markerCluster: null,
     maxClusterSize: 1, // Track maximum cluster size for color normalization
     currentThingDatastreams: [], // Track datastreams for current thing
-    currentDatastreamIndex: -1 // Track current datastream index for cycling
+    currentDatastreamIndex: -1, // Track current datastream index for cycling
+    selectedThingId: null // Track currently selected thing for marker highlighting
 };
 
 // Initialize application
@@ -471,8 +472,18 @@ async function processThing(thing) {
     const coordinates = locationData.value[0].location.coordinates;
     const locationDescription = locationData.value[0].description || '';
     
+    // Create custom icon for marker
+    const defaultIcon = L.divIcon({
+        className: 'custom-marker',
+        html: '<div style="background-color: #3b82f6; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>',
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+    
     // Create marker (coordinates are [lat, lon] from FROST API)
-    const marker = L.marker([coordinates[0], coordinates[1]]);
+    const marker = L.marker([coordinates[0], coordinates[1]], {
+        icon: defaultIcon
+    });
     
     // Add marker to cluster group instead of directly to map
     state.markerCluster.addLayer(marker);
@@ -497,11 +508,7 @@ async function processThing(thing) {
     
     state.markers[thingId] = marker;
     
-    // Create popup content
-    const popupContent = createPopupContent(thing);
-    marker.bindPopup(popupContent);
-    
-    // Handle marker click
+    // Handle marker click - no popup, just open sidebar
     marker.on('click', async () => {
         highlightThingInList(thing.name);
         showThingMetadata(thingId);
@@ -545,9 +552,6 @@ async function loadDatastreamsForThing(thingId) {
         
         // Calculate time since last observation for this thing (async, don't block)
         calculateThingHealthStatusAsync(thingId, datastreamData.value);
-        
-        // Update popup (for map markers)
-        await updatePopupWithDatastreams(thingId, datastreamData.value);
         
         // Update metadata sidebar if open
         updateThingMetadataDatastreams(thingId, datastreamData.value);
@@ -1071,10 +1075,33 @@ function zoomToExtents() {
     }
 }
 
+// Update marker icon based on selection state
+function updateMarkerIcon(thingId, isSelected) {
+    const marker = state.markers[thingId];
+    if (!marker) return;
+    
+    const color = isSelected ? '#ef4444' : '#3b82f6'; // Red when selected, blue otherwise
+    const icon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="background-color: ${color}; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"></div>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+    });
+    
+    marker.setIcon(icon);
+}
+
 // Show thing metadata sidebar
 function showThingMetadata(thingId) {
     const thing = state.things[thingId];
     if (!thing) return;
+    
+    // Update marker icons - deselect previous, select current
+    if (state.selectedThingId && state.selectedThingId !== thingId) {
+        updateMarkerIcon(state.selectedThingId, false);
+    }
+    state.selectedThingId = thingId;
+    updateMarkerIcon(thingId, true);
     
     const sidebar = document.getElementById('thingMetadataSidebar');
     const title = document.getElementById('thingMetadataTitle');
@@ -1132,6 +1159,12 @@ function showThingMetadata(thingId) {
 
 // Hide thing metadata sidebar
 function hideThingMetadata() {
+    // Deselect marker when sidebar is closed
+    if (state.selectedThingId) {
+        updateMarkerIcon(state.selectedThingId, false);
+        state.selectedThingId = null;
+    }
+    
     const sidebar = document.getElementById('thingMetadataSidebar');
     const mainContent = document.querySelector('.main-content');
     
