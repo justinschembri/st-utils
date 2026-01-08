@@ -10,6 +10,9 @@ services:
     volumes:
       - ../web/st-utils:/usr/local/tomcat/webapps/st-utils
       - python-app_logs:/usr/local/tomcat/webapps/st-utils/logs:ro
+      - ./init-webapp-auth.sh:/init-webapp-auth.sh
+      - ./secrets/credentials/tomcat-users.xml:/usr/local/tomcat/conf/tomcat-users.xml
+    entrypoint: ["/init-webapp-auth.sh"]
 
   python-app:
     secrets:
