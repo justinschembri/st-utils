@@ -6,11 +6,13 @@ import json
 import logging
 import os
 import subprocess
+from pathlib import Path
 from getpass import getpass
 
 # external
 # internal
 from .paths import CREDENTIALS_DIR, TOKENS_DIR
+from .preflight.validation import validate_all_credentials
 
 logger = logging.getLogger("st-utils")
 logger.setLevel(logging.INFO)
@@ -74,18 +76,24 @@ def _check_postgres_persistent_volume():
         return False
 
 
-def _check_existing_credentials():
-    """Check which credentials already exist."""
+def _check_existing_and_valid_credentials():
+    """Check which credentials already exist and validate their structure."""
     CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
     TOKENS_DIR.mkdir(parents=True, exist_ok=True)
     
+    # Validate all credential files
+    validation_results = validate_all_credentials(CREDENTIALS_DIR)
+    
     existing = {
-        'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists(),
-        'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists(),
-        'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists(),
-        'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists(),
-        'application': (CREDENTIALS_DIR / "application_credentials.json").exists(),
+        'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists() and validation_results['frost'][0],
+        'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists() and validation_results['postgres'][0],
+        'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists() and validation_results['mqtt'][0],
+        'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists() and validation_results['tomcat'][0],
+        'application': (CREDENTIALS_DIR / "application_credentials.json").exists() and validation_results['application'][0],
     }
+    
+    # Store validation results for later use
+    existing['_validation_results'] = validation_results
     
     # List existing token files
     existing['tokens'] = [
@@ -93,6 +101,15 @@ def _check_existing_credentials():
     ] if TOKENS_DIR.exists() else []
     
     return existing
+
+def _check_valid_credentials(credential_file:Path) -> bool:
+    """Check that mandatory credentials inlcude the right keys."""
+    EXPECTED_KEYS = {
+            "frost": ["frost_username", "frost_password"],
+            "postgres" : ["postgres_user", "postgres_password"],
+            "mqtt" : ["username", "password", "topics"],
+            }
+
 
 
 def _get_missing_mandatory(existing):
@@ -328,25 +345,57 @@ def _show_main_menu(existing):
         
         if choice == "1":
             setup_frost_credentials()
-            existing['frost'] = True
+            # Re-validate after update
+            existing = _check_existing_and_valid_credentials()
+            validation_results = existing.pop('_validation_results', {})
+            if validation_results.get('frost', (False, []))[0]:
+                existing['frost'] = True
+            else:
+                print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "2":
             if _setup_postgres_credentials():
-                existing['postgres'] = True
+                # Re-validate after update
+                existing = _check_existing_and_valid_credentials()
+                validation_results = existing.pop('_validation_results', {})
+                if validation_results.get('postgres', (False, []))[0]:
+                    existing['postgres'] = True
+                else:
+                    print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "3":
             if _setup_mqtt_credentials():
-                existing['mqtt'] = True
+                # Re-validate after update
+                existing = _check_existing_and_valid_credentials()
+                validation_results = existing.pop('_validation_results', {})
+                if validation_results.get('mqtt', (False, []))[0]:
+                    existing['mqtt'] = True
+                else:
+                    print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "4":
             if _setup_tomcat_users():
-                existing['tomcat'] = True
+                # Re-validate after update
+                existing = _check_existing_and_valid_credentials()
+                validation_results = existing.pop('_validation_results', {})
+                if validation_results.get('tomcat', (False, []))[0]:
+                    existing['tomcat'] = True
+                else:
+                    print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "5":
             if _setup_application_credentials():
-                existing['application'] = True
+                # Re-validate after update
+                existing = _check_existing_and_valid_credentials()
+                validation_results = existing.pop('_validation_results', {})
+                if validation_results.get('application', (False, []))[0]:
+                    existing['application'] = True
+                else:
+                    print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "6":
             if _setup_token_file():
-                existing = _check_existing_credentials()  # Refresh token list
+                existing = _check_existing_and_valid_credentials()  # Refresh token list
+                existing.pop('_validation_results', None)  # Remove validation results
         elif choice == "7":
             _manage_tokens(existing['tokens'])
-            existing = _check_existing_credentials()  # Refresh token list
+            existing = _check_existing_and_valid_credentials()  # Refresh token list
+            existing.pop('_validation_results', None)  # Remove validation results
         elif choice == "8":
             print("\nExiting setup.")
             break
@@ -412,8 +461,75 @@ def _setup_credentials(args):
         print("   After setup, run: docker compose restart")
         print()
     
-    # Check existing credentials
-    existing = _check_existing_credentials()
+    # Check existing credentials and validate them
+    existing = _check_existing_and_valid_credentials()
+    validation_results = existing.pop('_validation_results', {})
+    
+    # Check for invalid credential files and prompt user to fix them
+    invalid_files = []
+    for cred_type, (is_valid, errors) in validation_results.items():
+        file_exists = {
+            'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists(),
+            'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists(),
+            'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists(),
+            'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists(),
+            'application': (CREDENTIALS_DIR / "application_credentials.json").exists(),
+        }.get(cred_type, False)
+        
+        if file_exists and not is_valid:
+            invalid_files.append((cred_type, errors))
+    
+    if invalid_files:
+        print("\n⚠️  WARNING: Some credential files have validation errors!")
+        print("=" * 50)
+        for cred_type, errors in invalid_files:
+            print(f"\n❌ Invalid {cred_type.upper()} credentials:")
+            for error in errors:
+                print(f"   {error}")
+        
+        print("\n" + "=" * 50)
+        response = input("\nWould you like to fix these files now? (yes/no) [yes]: ").strip().lower()
+        if response != 'no':
+            print("\nFixing invalid credential files...\n")
+            for cred_type, _ in invalid_files:
+                if cred_type == 'frost':
+                    setup_frost_credentials()
+                    existing['frost'] = True
+                elif cred_type == 'postgres':
+                    if _setup_postgres_credentials():
+                        existing['postgres'] = True
+                elif cred_type == 'mqtt':
+                    if _setup_mqtt_credentials():
+                        existing['mqtt'] = True
+                elif cred_type == 'tomcat':
+                    if _setup_tomcat_users():
+                        existing['tomcat'] = True
+                elif cred_type == 'application':
+                    if _setup_application_credentials():
+                        existing['application'] = True
+            
+            # Re-validate after fixing
+            existing = _check_existing_and_valid_credentials()
+            validation_results = existing.pop('_validation_results', {})
+            print("\n✓ Validation complete. Re-checking files...")
+            
+            # Check if any files are still invalid
+            still_invalid = [
+                cred_type for cred_type, (is_valid, _) in validation_results.items()
+                if not is_valid and {
+                    'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists(),
+                    'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists(),
+                    'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists(),
+                    'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists(),
+                    'application': (CREDENTIALS_DIR / "application_credentials.json").exists(),
+                }.get(cred_type, False)
+            ]
+            
+            if still_invalid:
+                print(f"⚠️  Warning: Some files are still invalid: {', '.join(still_invalid)}")
+                print("   You may need to fix them manually or try again.")
+        else:
+            print("Skipping validation fixes. You can fix them later from the main menu.")
     
     # Handle legacy command-line flags (for backward compatibility)
     if any([args.all, args.frost, args.postgres, args.mqtt, args.tomcat, args.token]):
@@ -428,8 +544,37 @@ def _setup_credentials(args):
             _setup_tomcat_users()
         if args.token or args.all:
             _setup_token_file()
+        
+        # Validate all created/updated files
         print("\n" + "=" * 50)
-        print("Setup complete!")
+        print("Validating credential files...")
+        validation_results = validate_all_credentials(CREDENTIALS_DIR)
+        
+        all_valid = True
+        for cred_type, (is_valid, errors) in validation_results.items():
+            file_exists = {
+                'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists(),
+                'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists(),
+                'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists(),
+                'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists(),
+                'application': (CREDENTIALS_DIR / "application_credentials.json").exists(),
+            }.get(cred_type, False)
+            
+            if file_exists:
+                if is_valid:
+                    print(f"✓ {cred_type.upper()} credentials: Valid")
+                else:
+                    all_valid = False
+                    print(f"❌ {cred_type.upper()} credentials: Invalid")
+                    for error in errors:
+                        print(f"   {error}")
+        
+        print("\n" + "=" * 50)
+        if all_valid:
+            print("Setup complete! All credential files are valid.")
+        else:
+            print("Setup complete, but some files have validation errors.")
+            print("Please fix the errors above or run 'stu setup' again to fix them.")
         return
     
     # New interactive menu mode
@@ -443,16 +588,42 @@ def _setup_credentials(args):
         for cred_type in missing:
             if cred_type == 'frost':
                 setup_frost_credentials()
-                existing['frost'] = True
             elif cred_type == 'postgres':
-                if _setup_postgres_credentials():
-                    existing['postgres'] = True
+                _setup_postgres_credentials()
             elif cred_type == 'mqtt':
-                if _setup_mqtt_credentials():
-                    existing['mqtt'] = True
+                _setup_mqtt_credentials()
             elif cred_type == 'tomcat':
-                if _setup_tomcat_users():
-                    existing['tomcat'] = True
+                _setup_tomcat_users()
+        
+        # Re-validate after creating missing credentials
+        existing = _check_existing_and_valid_credentials()
+        validation_results = existing.pop('_validation_results', {})
+        
+        # Check if any created files are invalid
+        invalid_created = []
+        for cred_type in missing:
+            if cred_type in validation_results:
+                is_valid, errors = validation_results[cred_type]
+                file_exists = {
+                    'frost': (CREDENTIALS_DIR / "frost_credentials.json").exists(),
+                    'postgres': (CREDENTIALS_DIR / "postgres_credentials.json").exists(),
+                    'mqtt': (CREDENTIALS_DIR / "mqtt_credentials.json").exists(),
+                    'tomcat': (CREDENTIALS_DIR / "tomcat-users.xml").exists(),
+                }.get(cred_type, False)
+                
+                if file_exists:
+                    if is_valid:
+                        existing[cred_type] = True
+                    else:
+                        invalid_created.append((cred_type, errors))
+        
+        if invalid_created:
+            print("\n⚠️  Warning: Some credential files were created but have validation errors:")
+            for cred_type, errors in invalid_created:
+                print(f"\n❌ {cred_type.upper()} credentials:")
+                for error in errors:
+                    print(f"   {error}")
+            print("\nYou can fix these from the main menu.")
     
     # Step 2: Show main menu
     _show_main_menu(existing)
