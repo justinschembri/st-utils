@@ -10,8 +10,10 @@ from pathlib import Path
 from getpass import getpass
 
 # external
+import yaml
+
 # internal
-from .paths import CREDENTIALS_DIR, TOKENS_DIR
+from .paths import CREDENTIALS_DIR, TOKENS_DIR, APPLICATION_CONFIG_FILE
 from .preflight.validation import validate_all_credentials
 
 logger = logging.getLogger("st-utils")
@@ -101,6 +103,159 @@ def _check_existing_and_valid_credentials():
     ] if TOKENS_DIR.exists() else []
     
     return existing
+
+def _get_application_status():
+    """
+    Get status of all configured applications.
+    
+    Returns:
+        Dictionary mapping app_name to dict with:
+            - 'auth_type': 'credentials' or 'tokens'
+            - 'configured': bool (whether auth is set up)
+            - 'connection_class': str
+    """
+    app_status = {}
+    
+    # Read application config file
+    if not APPLICATION_CONFIG_FILE.exists():
+        return app_status
+    
+    try:
+        with open(APPLICATION_CONFIG_FILE, "r") as f:
+            config = yaml.safe_load(f)
+    except Exception as e:
+        logger.warning(f"Could not read application config: {e}")
+        return app_status
+    
+    if not config or "applications" not in config:
+        return app_status
+    
+    # Read application credentials if they exist
+    app_creds = {}
+    app_creds_file = CREDENTIALS_DIR / "application_credentials.json"
+    if app_creds_file.exists():
+        try:
+            with open(app_creds_file, "r") as f:
+                app_creds = json.load(f)
+        except Exception:
+            pass
+    
+    # Check each application
+    for app_name, app_config in config["applications"].items():
+        auth_type = app_config.get("authentication_type", "credentials")
+        connection_class = app_config.get("connection_class", "Unknown")
+        
+        configured = False
+        if auth_type == "credentials":
+            # Check if app exists in application_credentials.json
+            configured = app_name in app_creds
+        elif auth_type == "tokens":
+            # Check if token file exists
+            token_file = TOKENS_DIR / f"{app_name}.json"
+            configured = token_file.exists()
+        
+        app_status[app_name] = {
+            "auth_type": auth_type,
+            "configured": configured,
+            "connection_class": connection_class,
+        }
+    
+    return app_status
+
+
+def _show_application_status():
+    """Display status of all configured applications and allow setup of missing ones."""
+    while True:
+        app_status = _get_application_status()
+        
+        if not app_status:
+            print("\nNo applications configured in application-configs.yml")
+            return
+        
+        print("\n" + "=" * 50)
+        print("Configured Applications")
+        print("=" * 50)
+        
+        apps_by_auth = {"credentials": [], "tokens": []}
+        unconfigured_apps = []
+        
+        for app_name, status in app_status.items():
+            apps_by_auth[status["auth_type"]].append((app_name, status))
+            if not status["configured"]:
+                unconfigured_apps.append((app_name, status))
+        
+        # Show credentials-based apps
+        if apps_by_auth["credentials"]:
+            print("\n📋 Applications using Credentials:")
+            for app_name, status in apps_by_auth["credentials"]:
+                status_icon = "✓" if status["configured"] else "✗"
+                print(f"  {status_icon} {app_name}")
+                print(f"      Connection: {status['connection_class']}")
+                if not status["configured"]:
+                    print(f"      ⚠️  Missing in application_credentials.json")
+        
+        # Show token-based apps
+        if apps_by_auth["tokens"]:
+            print("\n🔑 Applications using Tokens:")
+            for app_name, status in apps_by_auth["tokens"]:
+                status_icon = "✓" if status["configured"] else "✗"
+                print(f"  {status_icon} {app_name}")
+                print(f"      Connection: {status['connection_class']}")
+                if not status["configured"]:
+                    print(f"      ⚠️  Missing token file: {app_name}.json")
+        
+        # Summary
+        total = len(app_status)
+        configured = sum(1 for s in app_status.values() if s["configured"])
+        print(f"\nSummary: {configured}/{total} applications configured")
+        
+        # Interactive setup for unconfigured apps
+        if unconfigured_apps:
+            print("\n" + "=" * 50)
+            print("Unconfigured Applications - Quick Setup")
+            print("=" * 50)
+            print("Select an application to set up (or press Enter to skip):")
+            
+            for i, (app_name, status) in enumerate(unconfigured_apps, 1):
+                auth_type_label = "Credentials" if status["auth_type"] == "credentials" else "Token file"
+                print(f"  [{i}] {app_name} ({auth_type_label})")
+            print(f"  [{len(unconfigured_apps) + 1}] Skip / Back to menu")
+            
+            choice = input(f"\nSelect option [1-{len(unconfigured_apps) + 1}]: ").strip()
+            
+            try:
+                idx = int(choice) - 1
+                if 0 <= idx < len(unconfigured_apps):
+                    app_name, status = unconfigured_apps[idx]
+                    
+                    if status["auth_type"] == "credentials":
+                        # Set up using credentials
+                        if _setup_application_credentials(app_name=app_name):
+                            print(f"\n✓ Successfully set up credentials for {app_name}")
+                        else:
+                            print(f"\n⚠️  Setup cancelled or incomplete for {app_name}")
+                    else:
+                        # Set up using token file
+                        if _setup_token_file(token_name=app_name):
+                            print(f"\n✓ Successfully set up token file for {app_name}")
+                        else:
+                            print(f"\n⚠️  Setup cancelled or incomplete for {app_name}")
+                    
+                    # Continue loop to refresh status and show remaining apps
+                    continue
+                elif idx == len(unconfigured_apps):
+                    # Skip/Back - exit the loop
+                    break
+                else:
+                    print("Invalid selection.")
+                    continue
+            except ValueError:
+                # User pressed Enter or entered non-numeric - exit the loop
+                break
+        else:
+            print("\n✓ All applications are configured!")
+            break
+
 
 def _check_valid_credentials(credential_file:Path) -> bool:
     """Check that mandatory credentials inlcude the right keys."""
@@ -258,53 +413,75 @@ def _setup_tomcat_users():
     return False
 
 
-def _setup_application_credentials():
-    """Setup application credentials."""
+def _setup_application_credentials(app_name: str = None):
+    """Setup application credentials.
+    
+    Args:
+        app_name: Optional application name to pre-fill. If provided, only sets up this app.
+    """
     print("\n--- Application Credentials ---")
-    print("Enter key-value pairs for application credentials.")
-    print("Example: sensor provider names and their API keys")
-    print("(press Enter with empty key to finish):")
     
+    # Load existing credentials if file exists
+    app_file = CREDENTIALS_DIR / "application_credentials.json"
     app_creds = {}
-    while True:
-        key = input("  Key: ").strip()
-        if not key:
-            break
-        
-        # Check if value should be a nested object or simple string
-        value_type = input(f"  Value type for '{key}' (simple/object) [simple]: ").strip().lower() or "simple"
-        
-        if value_type == "object":
-            # Nested object
-            nested = {}
-            print(f"    Enter nested key-value pairs for '{key}' (empty key to finish):")
-            while True:
-                nested_key = input("      Nested key: ").strip()
-                if not nested_key:
-                    break
-                nested_value = input(f"      Value for {nested_key}: ").strip()
-                nested[nested_key] = nested_value
-            app_creds[key] = nested
-        else:
-            # Simple string value
-            value = input(f"  Value for {key}: ").strip()
-            app_creds[key] = value
+    if app_file.exists():
+        try:
+            with open(app_file, "r") as f:
+                app_creds = json.load(f)
+        except Exception:
+            pass
     
-    if app_creds:
-        app_file = CREDENTIALS_DIR / "application_credentials.json"
-        with open(app_file, "w") as f:
-            json.dump(app_creds, f, indent=4)
-        print(f"✓ Created/Updated {app_file}")
-        return True
-    return False
-
-
-def _setup_token_file():
-    """Setup a new token file."""
-    print("\n--- Token Files (Freeform JSON) ---")
-    token_name = input("Token file name (without .json extension): ").strip()
-    if not token_name:
+    if app_name:
+        # Single app mode - pre-filled, just ask for api_key
+        print(f"Setting up credentials for: {app_name}")
+        api_key = getpass("  API key: ").strip()
+        
+        if api_key:
+            app_creds[app_name] = {"api_key": api_key}
+            with open(app_file, "w") as f:
+                json.dump(app_creds, f, indent=4)
+            print(f"✓ Created/Updated {app_file}")
+            return True
         return False
+    else:
+        # Multi-app mode - ask for application name and api_key
+        print("Enter application credentials.")
+        print("For each application, provide the application name and API key.")
+        print("(press Enter with empty application name to finish):")
+        
+        new_creds = {}
+        while True:
+            app_name_input = input("  Application name: ").strip()
+            if not app_name_input:
+                break
+            
+            api_key = getpass(f"  API key for {app_name_input}: ").strip()
+            if api_key:
+                new_creds[app_name_input] = {"api_key": api_key}
+        
+        if new_creds:
+            app_creds.update(new_creds)
+            with open(app_file, "w") as f:
+                json.dump(app_creds, f, indent=4)
+            print(f"✓ Created/Updated {app_file}")
+            return True
+        return False
+
+
+def _setup_token_file(token_name: str = None):
+    """Setup a new token file.
+    
+    Args:
+        token_name: Optional token file name to pre-fill (without .json extension).
+    """
+    print("\n--- Token Files (Freeform JSON) ---")
+    
+    if token_name:
+        print(f"Setting up token file for: {token_name}")
+    else:
+        token_name = input("Token file name (without .json extension): ").strip()
+        if not token_name:
+            return False
     
     print("Enter JSON key-value pairs (press Enter with empty key to finish):")
     token_data = {}
@@ -328,6 +505,14 @@ def _setup_token_file():
 def _show_main_menu(existing):
     """Show main menu and handle selections."""
     while True:
+        # Get application status for summary
+        app_status = _get_application_status()
+        app_summary = ""
+        if app_status:
+            total = len(app_status)
+            configured = sum(1 for s in app_status.values() if s["configured"])
+            app_summary = f" ({configured}/{total} configured)"
+        
         print("\n" + "=" * 50)
         print("Main Menu")
         print("=" * 50)
@@ -339,9 +524,10 @@ def _show_main_menu(existing):
         print("[6] Add new token file")
         token_status = f" ({len(existing['tokens'])} existing)" if existing['tokens'] else " (none)"
         print(f"[7] Manage existing token files{token_status}")
-        print("[8] Exit")
+        print(f"[8] Show configured applications{app_summary}")
+        print("[9] Exit")
         
-        choice = input("\nSelect an option [8]: ").strip() or "8"
+        choice = input("\nSelect an option [9]: ").strip() or "9"
         
         if choice == "1":
             setup_frost_credentials()
@@ -397,6 +583,9 @@ def _show_main_menu(existing):
             existing = _check_existing_and_valid_credentials()  # Refresh token list
             existing.pop('_validation_results', None)  # Remove validation results
         elif choice == "8":
+            _show_application_status()
+            input("\nPress Enter to continue...")
+        elif choice == "9":
             print("\nExiting setup.")
             break
         else:

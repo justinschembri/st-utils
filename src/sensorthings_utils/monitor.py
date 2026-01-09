@@ -8,7 +8,7 @@ import threading
 from collections import defaultdict
 import sys
 
-from sensorthings_utils.config import ROOT_DIR
+from sensorthings_utils.paths import ROOT_DIR
 from sensorthings_utils.transformers.types import SensorID
 
 main_logger = logging.getLogger("network_monitor")

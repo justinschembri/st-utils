@@ -10,7 +10,7 @@ import os
 
 # internal
 from sensorthings_utils.loggers import setup_loggers  # noqa: F401
-from .paths import APPLICATION_CONFIG_FILE
+from sensorthings_utils.paths import APPLICATION_CONFIG_FILE
 from sensorthings_utils.config import (
     SENSOR_CONFIG_FILES,
     FROST_ENDPOINT_DEFAULT,
