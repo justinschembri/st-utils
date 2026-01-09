@@ -9,9 +9,9 @@ import threading
 import os
 
 # internal
-from sensorthings_utils import config  # noqa: F401
+from sensorthings_utils.loggers import setup_loggers  # noqa: F401
+from .paths import APPLICATION_CONFIG_FILE
 from sensorthings_utils.config import (
-    APPLICATION_CONFIG_FILE,
     SENSOR_CONFIG_FILES,
     FROST_ENDPOINT_DEFAULT,
 )
@@ -25,10 +25,10 @@ from sensorthings_utils.monitor import netmon
 from sensorthings_utils.transformers.types import SensorID, SupportedSensors
 
 # import from config.py:
+setup_loggers()
 main_logger = logging.getLogger("main")
 event_logger = logging.getLogger("events")
 debug_logger = logging.getLogger("debug")
-
 
 def parse_application_config(config_path: Path) -> set[SensorApplicationConnection]:
     """

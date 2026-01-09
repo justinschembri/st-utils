@@ -21,7 +21,7 @@ from sensorthings_utils.frost import frost_observation_upload
 
 # internal
 from .monitor import netmon
-from .config import CREDENTIALS_DIR, TOKENS_DIR
+from .paths import CREDENTIALS_DIR, TOKENS_DIR
 from .transformers.application_unpackers import (
     ApplicationUnpacker,
     NetatmoUnpacker,
