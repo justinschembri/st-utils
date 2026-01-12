@@ -2,8 +2,8 @@
 
 # standard
 import json
+import subprocess
 from getpass import getpass
-
 # internal
 from ..paths import CREDENTIALS_DIR
 from .system_checks import _check_postgres_persistent_volume
@@ -37,18 +37,35 @@ def _setup_postgres_credentials():
     # Check if persistent volume exists - CRITICAL WARNING
     has_persistent_volume = _check_postgres_persistent_volume()
     if has_persistent_volume:
-        print("\n🚨 CRITICAL WARNING: PostgreSQL persistent volume detected!")
-        print("   Changing the password here will LOCK YOU OUT of the database!")
-        print("   The database still has the old password stored in the persistent volume.")
-        print("\n   To safely change the password:")
-        print("   1. Connect to the running database:")
-        print("      docker compose exec database psql -U <current_user> -d sensorthings")
-        print("   2. Run: ALTER USER <username> WITH PASSWORD '<new_password>';")
-        print("   3. Then update postgres_credentials.json with the new password")
-        print("   4. Restart containers: docker compose restart")
-        print("\n   Or, if you want to start fresh (⚠️  DATA LOSS):")
-        print("   docker compose down -v  # Removes volumes")
-        print("   # Then run setup again")
+        created_at = subprocess.run(
+            [
+                "docker", 
+                "volume", 
+                "inspect", 
+                "st-utils-production_postgis_volume", 
+                "--format", 
+                "{{.CreatedAt}}"
+                ],
+            capture_output=True,
+            text=True,
+            timeout=5
+        ).stdout.strip()
+        print(
+            f"\n🚨 CRITICAL WARNING: PostgreSQL production persistent volume created at {created_at} detected!\n"
+            "   Changing the password here will LOCK YOU OUT of the database!\n"
+            "   The database still has the old password stored in the persistent volume.\n"
+            "\n"
+            "   To safely change the password:\n"
+            "   1. Connect to the running database:\n"
+            "      docker compose exec database psql -U <current_user> -d sensorthings\n"
+            "   2. Run: ALTER USER <username> WITH PASSWORD '<new_password>';\n"
+            "   3. Then update postgres_credentials.json with the new password\n"
+            "   4. Restart containers: docker compose restart\n"
+            "\n"
+            "   Or, if you want to start fresh (⚠️  DATA LOSS):\n"
+            "   docker compose down -v  # Removes volumes\n"
+            "   # Then run setup again"
+        )
         
         response = input("\n   Continue anyway? This may lock you out! (yes/no) [no]: ").strip().lower()
         if response != 'yes':

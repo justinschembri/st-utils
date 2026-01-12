@@ -33,10 +33,9 @@ def _check_postgres_persistent_volume():
             timeout=5
         )
         volumes = result.stdout.strip().split('\n')
-        # Check for common volume names
         postgis_volumes = [
             v for v in volumes
-            if 'postgis' in v.lower() or 'postgres' in v.lower()
+            if 'st-utils-production_postgis_volume' in v.lower() 
         ]
         return len(postgis_volumes) > 0
     except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.SubprocessError):
