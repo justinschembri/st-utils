@@ -72,7 +72,7 @@ def _setup_postgres_credentials():
             print("   Skipping PostgreSQL credentials setup.")
             return False
     
-    postgres_user = input("PostgreSQL user [sta-manager]: ").strip() or "sta-manager"
+    postgres_user = input("PostgreSQL user [sta-admin]: ").strip() or "sta-admin"
     postgres_password = getpass("PostgreSQL password: ")
     
     postgres_creds = {

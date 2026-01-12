@@ -290,7 +290,7 @@ def _add_application_to_config():
     
     if connection_type == "http":
         # HTTP-specific fields
-        interval = input("\nInterval (optional, press Enter to skip): ").strip()
+        interval = input("\nRequest Interval (seconds) (optional, press Enter to skip): ").strip()
         if interval:
             while True:
                 try:

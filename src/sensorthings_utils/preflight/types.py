@@ -45,8 +45,8 @@ class MqttCredentialStore(RootModel):
 
     {
         "mqtt_user_1": {
-            "username": "sta-manager",
-            "password": "sta-manager",
+            "username": "sta-admin",
+            "password": "sta-admin",
             "topics": [
                 {"name": "sensors/#", "perm": "readwrite"},
                 {"name": "logs/#", "perm": "read"}
