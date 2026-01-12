@@ -2,221 +2,209 @@
 
 ## What is it?
 
-**st-utils** (SensorThings Utilities) is a suite of tools for managing networks of *heterogeneous* sensors using the [OGC SensorThings](https://www.ogc.org/publications/standard/sensorthings/) standards and data model.
+**st-utils** (SensorThings Utilities) is an **Extract, Transform and Load**
+Internet of Things (IoT) application with data interoperability as its founding
+principle.
 
-## Capabilities
+The application allows for observations from *hetereogeneous* sensor networks
+into one normalized stream and structure which conforms with the [OGC
+SensorThings](https://www.ogc.org/publications/standard/sensorthings/) standards
+and data model: 
 
-**Extract** observations from one or more sensors, **transform** the data to the OGC SensorsThings data model and **load** into a persistent PostgreSQL + PostGIS database.
+```mermaid
+flowchart LR
+    A@{ shape: processes, label: HTTP IoT Applications}
+    B@{ shape: processes, label: MQTT IoT Applications}
+    A e1@==> |data stream| C
+    C@{ shape: fork, label: "st-utils"}
+    B e2@==> |data stream| C
+    e1@{ animate: true }
+    e2@{ animate: true }
+    C --> D[Transform to `OGC SensorThings` Data Model]
+    D --> E[(Store)]
+    E --> F[Serve]
+```
 
-First time deployment of `st-utils` involves:
+`st-utils` is built on Franhofer's [FROST
+Server](https://github.com/FraunhoferIOSB/FROST-Server) and adds a
+transformation and management layer.
 
-1. The creation of a A PostgreSQL database with tables matching the OGC SensorThings models are created. This is handled in full by [`FROST-Server`](https://github.com/FraunhoferIOSB/FROST-Server),
-2. Populating the database with the entities found in the sensor configurations (`sensor_configs`),
-3. Start a sensor *stream* requesting observations from sensor APIs,
-4. Incoming observations are extracted, trasnformed, and loaded to the correct database tables,
-5. The stream keeps running, indefinitely until stopped,
-6. Sensor networks are visualized at `http://localhost:8080/st-utils`, 
+## System Requirements
 
-# Table of Contents
+The system requirements are fairly minimal:
 
-- [st-utils](#st-utils)
-  - [What is it?](#what-is-it)
-  - [Capabilities](#capabilities)
-- [Table of Contents](#table-of-contents)
-- [Deployment Methods](#deployment-methods)
-  - [Environment Set-up](#environment-set-up)
-    - [Step 1: Clone the Repo](#step-1-clone-the-repo)
-    - [Step 2: Set Environment and Sensor Credentials](#step-2-set-environment-and-sensor-credentials)
-    - [Step 3: Set Sensor Configuration Files](#step-3-set-sensor-configuration-files)
-  - [Startup](#startup)
-    - [Docker](#docker)
-    - [Manual Installation / Deployment](#manual-installation--deployment)
-- [Sensor Configuration Files](#sensor-configuration-files)
-- [Contributing: Additional Sensor Support](#contributing-additional-sensor-support)
-  - [Add a YAML Template for New Sensor Support](#add-a-yaml-template-for-new-sensor-support)
-  - [Extract, Transform and Stream Functions](#extract-transform-and-stream-functions)
-    - [Extract Function](#extract-function)
-    - [Transform Function](#transform-function)
-    - [Stream Function](#stream-function)
-- [Supported Sensor Models](#supported-sensor-models)
+- `Docker` and `Docker Compose`
+- `git`
+- `Python >=3.9`
+- Internet access
 
-# Deployment Methods
+## Deployment Requirements
 
-It is assumed the target system includes `git`. For sensors supported by `st-utils`, refer to [Supported Sensors](#supported-sensor-models).
+Deployment requires and assumes the following:
 
-## Environment Set-up
+### Upstream Data Sources
 
-Before anything, the environment must be set-up to match your sensor network. Here, "sensor network" refers to physical collection of (supported) sensors for which you have the necessary credentials to connect to.
+You must have authenticated access to one or more Upstream Data Sources.
+st-utils supports ingestion from:
 
-### Step 1: Clone the Repo
-Begin by cloning the repository into the target machine and create a `.env` file at the project root:
+- RESTful APIs: Sources providing observations via HTTP GET/POST (e.g.,
+  proprietary vendor clouds)
+
+- MQTT Brokers: Sources publishing to topics (e.g., The Things Network). 
+
+### Sensor Specifications and Architecture
+
+The application assumes you have enough information about the sensor *and what
+it is observing* to be able to specify enough information to populate the
+SensorThings datamodel:
+
+![](docs/readme_sensorThingsDataModel.png)
+
+## Quick Setup
+
+The overall setup involves:
+
+1. Cloning the repository,
+2. Setting up mandatory internal credentials, 
+3. Setting up external IoT applications and credentials,
+4. Launching the system.
+
+### Step 1: Clone the Repo and Create a Python Virtual Environment
 
 ```bash
 git clone https://github.com/justinschembri/st-utils.git st-utils
 cd st-utils
-touch .env
-```
-### Step 2: Set Environment and Sensor Credentials
-The default username used in all services, is `sta-manager`. This will be the username throughout, for both the database and the FROST server. The `.env` must include a value for the key `FROST_PASSWORD`:
-
-```
-FROST_PASSWORD="changeMe"
-```
-
-Other than that, the `.env` must be populated with sensor API credentials. Credential requirements vary by sensor, see [supported](#supported-sensor-models) by `st-utils`. Example credentials might look like:
-
-```
-NETATMO_CLIENT_ID = "67d2becabca425905a081d84"
-NETATMO_CLIENT_SECRET = "4Itqudt6L8PcpSHT7oATXUcmogj12xYxbBGn46A676k"
-NETATMO_REFRESH_TOKEN = "676414d415a6db50d5091272|82ee861f6539bae8bcb953615075eb2f"
-```
-### Step 3: Set Sensor Configuration Files
-Similarly, populate the `sensor_configs` directory with configuration files for each of the sensors on your network. An empty directory exists for each supported sensor type. For more on setting up sensor configuration files, see [Sensor Configuration Files](#yaml-sensor-configuration-files).
-
-## Startup
-
-Deploy with Docker or a manual installation. 
-
-### Docker
-
-Deployment with Docker (requires `docker` and `docker-compose`) is the most straight-forward. Assuming the repository has been cloned, follow these steps:
-
-1. copy the template `docker-compose.yml` file as `docker-compose.overide.yml`; your production credentials go here,
-2. fill out the system passwords (note the `FROST_PASSWORD` and `POSTGRES_PASSWORD` must match)
-
-Assuming your working directory is the project root:
-
-```bash
-cd st-utils/scripts
-docker-compose up -p st-utils
-```
-
-This should spin up a server, persistent database and deploy the application. After the web-server and database are set up, you should see logs similar too:
-
-```bash
-2025-03-19 17:29:37    Building st-utils @ file:///app
-2025-03-19 17:29:38       Built st-utils @ file:///app
-2025-03-19 17:29:38 Uninstalled 1 package in 4ms
-2025-03-19 17:29:38 Installed 1 package in 0.43ms
-2025-03-19 17:29:38 2025-03-19 16:29:38: INFO - Sensor stream starts in 30s.
-2025-03-19 17:30:09 2025-03-19 16:30:09: INFO - New Thing created at http://localhost:8080/FROST-Server/v1.1/Things(34)
-2025-03-19 17:30:09 2025-03-19 16:30:09: INFO - New Location created at http://localhost:8080/FROST-Server/v1.1/Locations(1)
-...
-...
-2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - Retrieved 3 sets of observations.
-2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(1)
-2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(2)
-2025-03-19 17:30:10 2025-03-19 16:30:10: INFO - New Observation created at http://localhost:8080/FROST-Server/v1.1/Observations(3)
-...
-```
-
-### Manual Installation / Deployment
-
-**st-utils** requires the following: 
-
-- **Python 3.13**
-- A running instance of [**`FROST Server`**](https://github.com/FraunhoferIOSB/FROST-Server) must be available; follow the official [instructions](https://fraunhoferiosb.github.io/FROST-Server/deployment/tomcat.html) for installation. `FROST Server` will handle connections and transactions with a `PostgreSQL` database with the `PostGIS` extension (all included in the instructions above).
-- `Tomcat Apache` (a requirement for the ` FROST Server`)
-- The `.env` file that includes the sensor credentials should also include the `FROST` endpoint, for example:
-    - `FROST_ENDPOINT` = "\<END POINT URL\>" , e.g.:
-
-```bash
-FROST_ENDPOINT=http://localhost:8080/FROST-Server.HTTP-2.5.3/v1.1
-```
-
-Next, create the required venv and install the python library using [`UV`]() ...
-
-```zsh
-uv venv
-uv pip install .
+python3 -m venv .venv
 source .venv/bin/activate
+pip install -e .
+# alternatively, if using uv: uv sync
 ```
 
-... or `pip`:
+### Step 2: Mandatory Internal Credentials
+
+To quickly set up your instance of `st-utils`, use the inbuilt tooling:
 
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-pip install .
+$ stu setup
 ```
 
-Ensure the FROST Server is running, and run the application:
+Upon the first launch of the CLI, you will be guided through setting up mandatory internal credentials. The system uses default usernames (`sta-admin`) which you can accept or override:
 
-```zsh
-source .venv/bin/activate 
-python src/sensorthings_utils/main.py
+- **FROST**: Credentials for the FROST server (needed for data access and writing)
+  - Default username: `sta-admin`
+- **PostgreSQL**: Credentials for the backend PostgreSQL database
+  - Default username: `sta-admin`
+- **MQTT**: Internal Mosquitto users (at least one user is required)
+  - Default username: `sta-admin` (for the first user)
+- **Tomcat**: Web application authentication (optional)
+  - Leave empty to allow public access (no authentication required)
+  - Default username: `sta-admin` (if creating users)
+
+All credentials are stored in the `deploy/secrets/credentials` directory.
+
+### Step 3: Configure Applications
+
+After setting up internal credentials, you'll see the main menu. To configure IoT applications:
+
+**Option [1] Add application to config**: This will:
+1. Guide you through adding a new application (HTTP or MQTT)
+2. Configure connection settings and authentication type
+3. **Automatically** prompt you to set up credentials/tokens for the application
+
+IoT applications you have access to must be configured. Having 'access' to an IoT application means you have the required credentials or tokens to pull data from the IoT application. This present version of st-utils supports two application platforms: *Netatmo* and the popular *TheThingsStack*.
+
+**Option [2] Manage existing credentials and tokens**: Use this to modify or update any credentials (internal or application-level) after initial setup.
+
+**Option [3] Show configured applications**: View the status of all configured applications and their credential setup status.
+
+### Step 4: Configure Sensor Configurations
+
+Each physical sensor in your network requires a configuration file that describes the sensor, its location, the thing it monitors, and the datastreams it produces. These files must be placed in the `deploy/sensor_configs/` directory.
+
+**Key Requirements:**
+
+1. **One sensor per file**: Each configuration file describes exactly one sensor
+2. **Filename convention**: The filename should match the sensor name (typically the device MAC address)
+3. **File structure**: Each file must contain the following sections:
+   - `sensors`: Physical sensor definition
+   - `things`: The physical thing being monitored (building, room, component, etc.)
+   - `locations`: Geographic location (must comply with GeoJSON)
+   - `datastreams`: Data streams produced by the sensor (one per measurement type)
+   - `observedProperties`: Properties being observed by the datastreams
+
+**Template File:**
+
+A template file is provided at `deploy/sensor_configs/template.yaml`. Use this as a starting point:
+
+```bash
+cp deploy/sensor_configs/template.yaml deploy/sensor_configs/<your-sensor-name>.yaml
 ```
 
-# Sensor Configuration Files
+Then edit the file following the instructions and `*fill` markers.
 
-A requirement for deployment of the application are **sensor configuration files**: `YAML` files which contain five top-level keys, namely: `sensors`, `things`, `locations`, `datastreams` and `observedProperties`. A high-level template is provided in [`\sensor_configs`](sensor_configs/template.yaml). These five keys are equivalent to the main objects in the SensorThings datamodel:
+**Important Notes:**
 
-![](docs/readme_sensorThingsDataModel.png)
+- The sensor `name` field should typically match the device MAC address
+- The sensor key (in the `sensors` section) can be in `<model>.<type>` format (e.g., `netatmo.nws03`, `milesight.am308l`)
+- All `iot_links` references must use entity **names** (not keys)
+- Use YAML anchors (`&`) and aliases (`*`) to avoid repetition (see template examples)
+- The number of datastreams must match the list in the sensor's `iot_links.datastreams`
+- Each datastream must link to exactly one sensor, one thing, and one observedProperty
+- Location coordinates must follow GeoJSON format (longitude, latitude for Point type)
 
-Using the template for supported sensors, set up a real world sensor arrangement. Each file represents ONE sensor object and all its associations. Thus if you are setting up 10 sensors, you should expect to 10 sensor config files. `Locations`, `Things`, `ObservedProperties` MAY be common among different sensors, just make sure that the items are identical. The function which parses the configuration file will infer the items are the same, and not create two identical locations.
+**Validation:**
 
-1. Copy the template, the filename should be the sensor MAC address,
-2. Fill out all the details that remain pending, make sure to copy and paste identical items from one file to another to avoid creating duplicate entities later on.
+You can validate your sensor configuration files using:
 
-# Contributing: Additional Sensor Support
-
-Methods for accessing sensor observations vary across sensor brands. Some models will handle remote storage and provide web-based such as dashboards and APIs. Other configurations may include data-loggers, and more "DIY" solutions such as Arduino are also valid. Furthermore, the observations themselves are likely to use varying serialization schemas.
-
-What **st-utils** offers is a standarized way of *Extracting, Transforming and Loading* (ETL) the data from a wide network of sensors. Support for various sensors brands is added progressively, requires the development of:
-
-- A `YAML` configuration file template for a specific sensor brand ([Creating a YAML Config](#sensor-yaml-configuration-files))
-- The design of 3 functions in a separate python file:
-  - `_extract`
-  - `_transform`
-  - `stream`
-
-For example, support for the Netatmo NWS03 is provided by `/sensor_configs/netatmo/netatmo_nws03.yaml`. The `netatmo.stream` function wraps `_extract` and `_transform` methods in the `netatmo.py` file.
-
-## Add a YAML Template for New Sensor Support
-
-To add support for a new sensor typology:
-
-1. Make a new directory in the [`\sensor_configs`](sensor_configs), whose name should match the sensor name,
-2. Using the general [template](sensor_configs/template.yaml), fill out the fields in the `sensors` and `datastreams` items.
-3. Place a `.gitignore` to ignore all files in these directories, except for the template
-
-## Extract, Transform and Stream Functions
-
-Since every sensor is expected to be just a little bit different, a separate set of logic must be prepared for each newly supported sensor typology. In order to standardize the approach, for each new sensor we expect three functions: `_extract`, `_transform` and `stream`.
-
-### Extract Function
-
-The `_extract` function handles querying the observations from a sensor's data infrastructure. It shall return a `Dict[str, Dict[str, Any]]` object. The primary key should be some unique identifier: if multiple sensors are being queried there should be no confusion as to what data belongs to what sensor. All sensors should be queried at the same time, thus one object will be returned where each key is the unique reference to a specific sensor. The nested `Dict` should have keys which are the references to the datastreams available by that sensor and values which are the respective observation results.
-
-### Transform Function
-
-The `_transform` function essentially maps out the sensor native keys to the respective names of the datastreams found in the earlier prepared `YAML` configuration files. For example:
-
-```python
-# keys = sensor native key
-# values = datastream names
-NETATMO_TO_DATASTREAM_MAP = {
-    "Temperature": "temperature_indoor",
-    "CO2": "co2",
-    "Humidity": "humidity",
-    "Noise": "noise",
-    "Pressure": "pressure",
-    "AbsolutePressure": "absolute_pressure",
-}
+```bash
+stu validate <path-to-config-file.yaml>
 ```
 
-The `_transform` shall take a `Dict[str, Any]` and return a NamedTuple with fields `sensor_name (str)`, `datastream_name (str)`, `result (Any)`, `result_time (datetime)`.
+Or validate all configuration files in the current directory:
 
-### Stream Function
+```bash
+stu validate
+```
 
-The stream function is a wrapper around the the `_extract` and `_transform` functions and returns a `Tuple[Observations, ...]`, and expects a `sleep_time (int)`.
+**Example Structure:**
+
+See the example configurations in:
+- `deploy/sensor_configs/netatmo/` - Netatmo weather station examples
+- `deploy/sensor_configs/milesight/` - Milesight sensor examples
+
+
+# Supported Applications
+
+st-utils supports integration with the following IoT application platforms:
+
+- **Netatmo**: HTTP-based connection to Netatmo weather station APIs
+  - Connection class: `NetatmoConnection`
+  - Authentication: Token-based (OAuth2)
+  - Protocol: HTTP/S (REST API)
+
+- **TheThingsStack (TTS)**: MQTT-based connection to The Things Network
+  - Connection class: `TTSConnection`
+  - Authentication: API key-based
+  - Protocol: MQTT
 
 # Supported Sensor Models
 
-The following sensors are currently supported:
+The following sensor models are currently supported:
 
-- [Netatmo Home Weather Station (NWS03)](https://www.netatmo.com/en-eu/smart-weather-station)
+- **Milesight AM103L** (`milesight.am103l`): Indoor Air Quality Sensor
+  - Measurements: Battery level, CO₂, Humidity, Temperature
+  - Protocol: LoRaWAN (via TheThingsStack)
+  - [Product Information](https://www.milesight.com/iot/am103l/)
+
+- **Milesight AM308L** (`milesight.am308l`): Indoor Air Quality Sensor (7-in-1)
+  - Measurements: Battery level, CO₂, Humidity, Temperature, Light level, Motion (PIR), Particulate Matter (PM2.5, PM10), Pressure, TVOC
+  - Protocol: LoRaWAN (via TheThingsStack)
+  - [Product Information](https://www.milesight.com/iot/am308l/)
+
+- **Netatmo NWS03** (`netatmo.nws03`): Home Weather Station
+  - Measurements: Temperature, CO₂, Humidity, Noise, Pressure
+  - Protocol: Wi-Fi (via Netatmo API)
+  - [Product Information](https://www.netatmo.com/en-eu/smart-weather-station)
 
 
 

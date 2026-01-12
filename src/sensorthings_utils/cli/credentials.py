@@ -97,14 +97,26 @@ def _setup_mqtt_credentials():
     """Setup MQTT credentials."""
     print("\n--- MQTT Credentials ---")
     mqtt_users = {}
+    user_count = 0
     
     while True:
-        user_key = input("\nMQTT user key (e.g., mqtt_user_1) [press Enter to finish]: ").strip()
-        if not user_key:
-            break
+        user_count += 1
+        if user_count == 1:
+            # First user is required, use default username
+            user_key = input(f"\nMQTT user key (e.g., mqtt_user_1) [mqtt_user_1]: ").strip() or "mqtt_user_1"
+            username = input(f"  Username for {user_key} [sta-admin]: ").strip() or "sta-admin"
+        else:
+            # Additional users are optional
+            user_key = input("\nMQTT user key (e.g., mqtt_user_2) [press Enter to finish]: ").strip()
+            if not user_key:
+                break
+            username = input(f"  Username for {user_key} [sta-admin]: ").strip() or "sta-admin"
         
-        username = input(f"  Username for {user_key}: ").strip()
-        password = getpass(f"  Password for {user_key}: ")
+        password = getpass(f"  Password for {username}: ")
+        if not password:
+            print("  ⚠️  Password is required. Please try again.")
+            user_count -= 1
+            continue
         
         topics = []
         print("  Topics (press Enter with empty name to finish):")
@@ -131,16 +143,24 @@ def _setup_mqtt_credentials():
 
 
 def _setup_tomcat_users():
-    """Setup Tomcat users."""
+    """Setup Tomcat users.
+    
+    If no users are provided, the file will be deleted to allow public access.
+    """
     print("\n--- Tomcat Users (Webapp Authentication) ---")
+    print("Leave empty to allow public access (no authentication required).")
     users = []
     
     while True:
-        username = input("\nTomcat username [press Enter to finish]: ").strip()
+        username = input("\nTomcat username [press Enter to finish/skip]: ").strip()
         if not username:
             break
         
         password = getpass(f"  Password for {username}: ")
+        if not password:
+            print("  ⚠️  Password is required. Please try again.")
+            continue
+        
         roles = input(f"  Roles (comma-separated) [webapp-users]: ").strip() or "webapp-users"
         
         users.append({
@@ -149,8 +169,9 @@ def _setup_tomcat_users():
             "roles": roles
         })
     
+    tomcat_file = CREDENTIALS_DIR / "tomcat-users.xml"
+    
     if users:
-        tomcat_file = CREDENTIALS_DIR / "tomcat-users.xml"
         xml_content = '''<?xml version="1.0" encoding="UTF-8"?>
 <tomcat-users xmlns="http://tomcat.apache.org/xml"
               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -165,8 +186,15 @@ def _setup_tomcat_users():
         with open(tomcat_file, "w") as f:
             f.write(xml_content)
         print(f"✓ Created/Updated {tomcat_file}")
-        return True
-    return False
+    else:
+        # No users provided - delete file to allow public access
+        if tomcat_file.exists():
+            tomcat_file.unlink()
+            print(f"✓ Removed {tomcat_file} - application will be publicly accessible")
+        else:
+            print("✓ No authentication file - application will be publicly accessible")
+    
+    return True
 
 
 def _setup_application_credentials(app_name: str = None):
