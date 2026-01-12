@@ -64,5 +64,4 @@ def generate_sensor_config_files() -> List[Path]:
     return sensor_configs
 
 
-SENSOR_CONFIG_FILES = generate_sensor_config_files()
 

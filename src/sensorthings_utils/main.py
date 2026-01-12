@@ -12,7 +12,7 @@ import os
 from sensorthings_utils.loggers import setup_loggers  # noqa: F401
 from sensorthings_utils.paths import APPLICATION_CONFIG_FILE
 from sensorthings_utils.config import (
-    SENSOR_CONFIG_FILES,
+    generate_sensor_config_files,
     FROST_ENDPOINT_DEFAULT,
 )
 from sensorthings_utils.sensor_things.extensions import (
@@ -91,7 +91,7 @@ def _setup_sensor_arrangements(sensor_config: SensorConfig) -> None:
 
 
 def push_available(
-    sensor_config_paths: List[Path] = SENSOR_CONFIG_FILES,
+    sensor_config_paths: List[Path] = generate_sensor_config_files(),
     exclude: Optional[List[SensorID]] = None,
     frost_endpoint: Optional[str] = None,
     start_delay: int = 30,
