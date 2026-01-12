@@ -25,9 +25,8 @@ TOKENS_DIR = DEPLOY_DIR / "secrets" / "tokens"
 TEST_DATA_DIR = ROOT_DIR / "tests" / "sensorthings_utils" / "data"
 
 # APPLICATION_CONFIG_FILE - find the first application-configs yaml/yml file
-APPLICATION_CONFIG_FILE = next(DEPLOY_DIR.glob("application-configs.y*ml"), Path())
-if not APPLICATION_CONFIG_FILE.exists():
-    raise FileNotFoundError(f"No application_configs.y*ml found in {DEPLOY_DIR}")
+# Default to application-configs.yml if not found (allows creation)
+APPLICATION_CONFIG_FILE = next(DEPLOY_DIR.glob("application-configs.y*ml"), DEPLOY_DIR / "application-configs.yml")
 
 if __name__ == "__main__":
     print(

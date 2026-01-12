@@ -2,7 +2,7 @@
 
 # internal
 from ..paths import CREDENTIALS_DIR, TOKENS_DIR
-from .system_checks import _check_existing_and_valid_credentials, _get_missing_mandatory, _check_containers_running
+from .system_checks import _check_existing_and_valid_credentials, _get_missing_mandatory, _check_containers_running, _is_first_time_setup
 from .credentials import (
     setup_frost_credentials,
     _setup_postgres_credentials,
@@ -33,8 +33,8 @@ def _show_main_menu(existing):
         print("[3] Overwrite MQTT credentials" + (" ✓" if existing['mqtt'] else ""))
         print("[4] Overwrite Tomcat users" + (" ✓" if existing['tomcat'] else ""))
         print("[5] Add/Overwrite application credentials" + (" ✓" if existing['application'] else ""))
-        print("[6] Add new token file")
-        print("[7] Add application to config")
+        print("[6] Add application to config")
+        print("[7] Add new token file")
         token_status = f" ({len(existing['tokens'])} existing)" if existing['tokens'] else " (none)"
         print(f"[8] Manage existing token files{token_status}")
         print(f"[9] Show configured applications{app_summary}")
@@ -88,11 +88,11 @@ def _show_main_menu(existing):
                 else:
                     print("⚠️  Warning: File created but validation failed. Please check the file structure.")
         elif choice == "6":
+            _add_application_to_config()
+        elif choice == "7":
             if _setup_token_file():
                 existing = _check_existing_and_valid_credentials()  # Refresh token list
                 existing.pop('_validation_results', None)  # Remove validation results
-        elif choice == "7":
-            _add_application_to_config()
         elif choice == "8":
             _manage_tokens(existing['tokens'])
             existing = _check_existing_and_valid_credentials()  # Refresh token list
@@ -126,6 +126,16 @@ def _setup_credentials(args):
     # Check existing credentials and validate them
     existing = _check_existing_and_valid_credentials()
     validation_results = existing.pop('_validation_results', {})
+    
+    # Check if this is first-time setup
+    is_first_time = _is_first_time_setup(existing)
+    if is_first_time:
+        print("\n🎉 Welcome to SensorThings Utils!")
+        print("=" * 50)
+        print("This appears to be your first time setting up st-utils.")
+        print("We'll guide you through the initial configuration.")
+        print("=" * 50)
+        print()
     
     # Check for invalid credential files and prompt user to fix them
     invalid_files = []

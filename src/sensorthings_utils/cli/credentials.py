@@ -21,6 +21,9 @@ def setup_frost_credentials():
     }
     
     frost_file = CREDENTIALS_DIR / "frost_credentials.json"
+    if not frost_file.exists():
+        frost_file.touch()
+
     with open(frost_file, "w") as f:
         json.dump(frost_creds, f, indent=4)
     print(f"✓ Created/Updated {frost_file}")

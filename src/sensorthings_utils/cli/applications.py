@@ -29,7 +29,7 @@ def _get_application_status():
     app_status = {}
     
     # Read application config file
-    if not APPLICATION_CONFIG_FILE.exists():
+    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
         return app_status
     
     try:
@@ -227,7 +227,7 @@ def _add_application_to_config():
     
     # Load existing config
     config = {}
-    if APPLICATION_CONFIG_FILE.exists():
+    if APPLICATION_CONFIG_FILE.exists() and APPLICATION_CONFIG_FILE.is_file():
         try:
             with open(APPLICATION_CONFIG_FILE, "r") as f:
                 config = yaml.safe_load(f) or {}

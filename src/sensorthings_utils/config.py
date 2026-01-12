@@ -29,7 +29,7 @@ def get_frost_credentials() -> tuple[str, str]:
             credentials = json.load(f)
     except Exception:
         print("Error with FROST_CREDENTIALS, start stu setup.")
-        from .cli import setup_frost_credentials
+        from .cli.credentials import setup_frost_credentials
         setup_frost_credentials()
         with open(secret_file, "r") as f:
             credentials = json.load(f)

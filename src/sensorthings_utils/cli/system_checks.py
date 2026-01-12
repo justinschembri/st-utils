@@ -85,3 +85,9 @@ def _get_missing_mandatory(existing):
     """Get list of missing mandatory credentials."""
     mandatory = ['frost', 'postgres', 'mqtt', 'tomcat']
     return [cred for cred in mandatory if not existing.get(cred, False)]
+
+
+def _is_first_time_setup(existing):
+    """Check if this is a first-time setup (no credentials exist)."""
+    mandatory = ['frost', 'postgres', 'mqtt', 'tomcat']
+    return not any(existing.get(cred, False) for cred in mandatory)
