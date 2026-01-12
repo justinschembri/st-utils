@@ -14,6 +14,119 @@ from .tokens import _setup_token_file, _manage_tokens
 from .applications import _get_application_status, _show_application_status, _add_application_to_config
 
 
+def _manage_credentials_and_tokens(existing):
+    """Unified menu for managing all credentials and tokens."""
+    while True:
+        try:
+            # Get application status for display
+            app_status = _get_application_status()
+            app_status_text = ""
+            if app_status:
+                total = len(app_status)
+                configured = sum(1 for s in app_status.values() if s["configured"])
+                app_status_text = f" ({configured} of {total} configured)"
+            
+            # Get token count
+            token_count = len(existing['tokens']) if existing.get('tokens') else 0
+            token_text = f" ({token_count} existing)" if token_count > 0 else ""
+            
+            print("\n" + "=" * 50)
+            print("Manage Credentials and Tokens")
+            print("=" * 50)
+            print("[1] FROST credentials" + (" ✓" if existing.get('frost') else ""))
+            print("[2] PostgreSQL credentials" + (" ✓" if existing.get('postgres') else ""))
+            print("[3] MQTT credentials" + (" ✓" if existing.get('mqtt') else ""))
+            print("[4] Tomcat users" + (" ✓" if existing.get('tomcat') else ""))
+            print("[5] Application credentials" + app_status_text)
+            if token_count > 0:
+                print(f"[6] Manage token files{token_text}")
+            else:
+                print("[6] Add new token file")
+            print("[7] Back to main menu")
+            
+            choice = input("\nSelect an option [7]: ").strip() or "7"
+            
+            if choice == "1":
+                try:
+                    setup_frost_credentials()
+                    # Re-validate after update
+                    existing = _check_existing_and_valid_credentials()
+                    validation_results = existing.pop('_validation_results', {})
+                    if validation_results.get('frost', (False, []))[0]:
+                        existing['frost'] = True
+                    else:
+                        print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "2":
+                try:
+                    if _setup_postgres_credentials():
+                        # Re-validate after update
+                        existing = _check_existing_and_valid_credentials()
+                        validation_results = existing.pop('_validation_results', {})
+                        if validation_results.get('postgres', (False, []))[0]:
+                            existing['postgres'] = True
+                        else:
+                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "3":
+                try:
+                    if _setup_mqtt_credentials():
+                        # Re-validate after update
+                        existing = _check_existing_and_valid_credentials()
+                        validation_results = existing.pop('_validation_results', {})
+                        if validation_results.get('mqtt', (False, []))[0]:
+                            existing['mqtt'] = True
+                        else:
+                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "4":
+                try:
+                    if _setup_tomcat_users():
+                        # Re-validate after update
+                        existing = _check_existing_and_valid_credentials()
+                        validation_results = existing.pop('_validation_results', {})
+                        if validation_results.get('tomcat', (False, []))[0]:
+                            existing['tomcat'] = True
+                        else:
+                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "5":
+                try:
+                    if _setup_application_credentials():
+                        # Re-validate after update
+                        existing = _check_existing_and_valid_credentials()
+                        validation_results = existing.pop('_validation_results', {})
+                        if validation_results.get('application', (False, []))[0]:
+                            existing['application'] = True
+                        else:
+                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "6":
+                try:
+                    if token_count > 0:
+                        _manage_tokens(existing['tokens'])
+                        existing = _check_existing_and_valid_credentials()  # Refresh token list
+                        existing.pop('_validation_results', None)  # Remove validation results
+                    else:
+                        if _setup_token_file():
+                            existing = _check_existing_and_valid_credentials()  # Refresh token list
+                            existing.pop('_validation_results', None)  # Remove validation results
+                except KeyboardInterrupt:
+                    print("\n\nReturning to credentials menu...")
+            elif choice == "7":
+                break
+            else:
+                print("Invalid option. Please try again.")
+        except KeyboardInterrupt:
+            print("\n\nReturning to main menu...")
+            break
+
+
 def _show_main_menu(existing):
     """Show main menu and handle selections."""
     while True:
@@ -29,106 +142,43 @@ def _show_main_menu(existing):
             print("\n" + "=" * 50)
             print("Main Menu")
             print("=" * 50)
-            print("[1] Overwrite FROST credentials" + (" ✓" if existing['frost'] else ""))
-            print("[2] Overwrite PostgreSQL credentials" + (" ✓" if existing['postgres'] else ""))
-            print("[3] Overwrite MQTT credentials" + (" ✓" if existing['mqtt'] else ""))
-            print("[4] Overwrite Tomcat users" + (" ✓" if existing['tomcat'] else ""))
-            print("[5] Add application to config")
-            print("[6] Add/Overwrite application credentials" + (" ✓" if existing['application'] else ""))
-            print("[7] Add new token file")
-            token_status = f" ({len(existing['tokens'])} existing)" if existing['tokens'] else " (none)"
-            print(f"[8] Manage existing token files{token_status}")
-            print(f"[9] Show configured applications{app_summary}")
-            print("[10] Exit")
+            print("[1] Add application to config")
+            print("[2] Manage existing credentials and tokens")
+            print(f"[3] Show configured applications{app_summary}")
+            print("[4] Exit")
             
-            choice = input("\nSelect an option [10]: ").strip() or "10"
+            choice = input("\nSelect an option [4]: ").strip() or "4"
             
             if choice == "1":
                 try:
-                    setup_frost_credentials()
-                    # Re-validate after update
-                    existing = _check_existing_and_valid_credentials()
-                    validation_results = existing.pop('_validation_results', {})
-                    if validation_results.get('frost', (False, []))[0]:
-                        existing['frost'] = True
-                    else:
-                        print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                    success, app_name, auth_type = _add_application_to_config()
+                    if success and app_name and auth_type:
+                        print(f"\nApplication '{app_name}' added successfully!")
+                        print("Setting up credentials/tokens for this application...\n")
+                        if auth_type == "credentials":
+                            _setup_application_credentials(app_name=app_name)
+                        elif auth_type == "tokens":
+                            _setup_token_file(token_name=app_name)
+                        # Refresh existing state after setup
+                        existing = _check_existing_and_valid_credentials()
+                        existing.pop('_validation_results', None)
                 except KeyboardInterrupt:
                     print("\n\nReturning to main menu...")
             elif choice == "2":
                 try:
-                    if _setup_postgres_credentials():
-                        # Re-validate after update
-                        existing = _check_existing_and_valid_credentials()
-                        validation_results = existing.pop('_validation_results', {})
-                        if validation_results.get('postgres', (False, []))[0]:
-                            existing['postgres'] = True
-                        else:
-                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
+                    _manage_credentials_and_tokens(existing)
+                    # Refresh existing state after returning from management
+                    existing = _check_existing_and_valid_credentials()
+                    existing.pop('_validation_results', None)
                 except KeyboardInterrupt:
                     print("\n\nReturning to main menu...")
             elif choice == "3":
-                try:
-                    if _setup_mqtt_credentials():
-                        # Re-validate after update
-                        existing = _check_existing_and_valid_credentials()
-                        validation_results = existing.pop('_validation_results', {})
-                        if validation_results.get('mqtt', (False, []))[0]:
-                            existing['mqtt'] = True
-                        else:
-                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "4":
-                try:
-                    if _setup_tomcat_users():
-                        # Re-validate after update
-                        existing = _check_existing_and_valid_credentials()
-                        validation_results = existing.pop('_validation_results', {})
-                        if validation_results.get('tomcat', (False, []))[0]:
-                            existing['tomcat'] = True
-                        else:
-                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "5":
-                try:
-                    _add_application_to_config()
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "6":
-                try:
-                    if _setup_application_credentials():
-                        # Re-validate after update
-                        existing = _check_existing_and_valid_credentials()
-                        validation_results = existing.pop('_validation_results', {})
-                        if validation_results.get('application', (False, []))[0]:
-                            existing['application'] = True
-                        else:
-                            print("⚠️  Warning: File created but validation failed. Please check the file structure.")
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "7":
-                try:
-                    if _setup_token_file():
-                        existing = _check_existing_and_valid_credentials()  # Refresh token list
-                        existing.pop('_validation_results', None)  # Remove validation results
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "8":
-                try:
-                    _manage_tokens(existing['tokens'])
-                    existing = _check_existing_and_valid_credentials()  # Refresh token list
-                    existing.pop('_validation_results', None)  # Remove validation results
-                except KeyboardInterrupt:
-                    print("\n\nReturning to main menu...")
-            elif choice == "9":
                 try:
                     _show_application_status()
                     input("\nPress Enter to continue...")
                 except KeyboardInterrupt:
                     print("\n\nReturning to main menu...")
-            elif choice == "10":
+            elif choice == "4":
                 print("\nExiting setup.")
                 break
             else:

@@ -200,7 +200,13 @@ def _show_application_status():
 
 
 def _add_application_to_config():
-    """Add a new application to application-configs.yml."""
+    """Add a new application to application-configs.yml.
+    
+    Returns:
+        Tuple of (success: bool, app_name: str | None, auth_type: str | None)
+        On success, returns (True, app_name, auth_type)
+        On failure, returns (False, None, None)
+    """
     print("\n--- Add Application to Config ---")
     
     # Step 1: Ask for connection type with numeric selection
@@ -233,7 +239,7 @@ def _add_application_to_config():
                 config = yaml.safe_load(f) or {}
         except Exception as e:
             print(f"Error reading config file: {e}")
-            return False
+            return (False, None, None)
     else:
         # File doesn't exist, create new structure
         config = {"applications": {}}
@@ -243,7 +249,7 @@ def _add_application_to_config():
         overwrite = input(f"\nApplication '{app_name}' already exists. Overwrite? (yes/no) [no]: ").strip().lower()
         if overwrite != "yes":
             print("Cancelled.")
-            return False
+            return (False, None, None)
     
     # Initialize applications dict if needed
     if "applications" not in config:
@@ -271,7 +277,7 @@ def _add_application_to_config():
     available_classes = _get_available_connection_classes(connection_type)
     if not available_classes:
         print(f"\nNo {connection_type.upper()} connection classes found in connections.py")
-        return False
+        return (False, None, None)
     
     while True:
         print(f"\nAvailable {connection_type.upper()} connection classes:")
@@ -380,7 +386,8 @@ def _add_application_to_config():
         with open(APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
         print(f"\n✓ Added '{app_name}' to {APPLICATION_CONFIG_FILE.name}")
-        return True
+        auth_type = app_config.get("authentication_type", "credentials")
+        return (True, app_name, auth_type)
     except Exception as e:
         print(f"Error saving config file: {e}")
-        return False
+        return (False, None, None)
