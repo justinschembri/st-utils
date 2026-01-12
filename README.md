@@ -60,14 +60,15 @@ SensorThings datamodel:
 
 ![](docs/readme_sensorThingsDataModel.png)
 
-## Quick Setup
+## Setup
 
 The overall setup involves:
 
 1. Cloning the repository,
 2. Setting up mandatory internal credentials, 
 3. Setting up external IoT applications and credentials,
-4. Launching the system.
+4. Writing sensor configuration files.
+5. Launching the system.
 
 ### Step 1: Clone the Repo and Create a Python Virtual Environment
 
@@ -121,36 +122,35 @@ IoT applications you have access to must be configured. Having 'access' to an Io
 
 Each physical sensor in your network requires a configuration file that describes the sensor, its location, the thing it monitors, and the datastreams it produces. These files must be placed in the `deploy/sensor_configs/` directory.
 
-**Key Requirements:**
+**Quick Start (Recommended):**
 
-1. **One sensor per file**: Each configuration file describes exactly one sensor
-2. **Filename convention**: The filename should match the sensor name (typically the device MAC address)
-3. **File structure**: Each file must contain the following sections:
-   - `sensors`: Physical sensor definition
-   - `things`: The physical thing being monitored (building, room, component, etc.)
-   - `locations`: Geographic location (must comply with GeoJSON)
-   - `datastreams`: Data streams produced by the sensor (one per measurement type)
-   - `observedProperties`: Properties being observed by the datastreams
-
-**Template File:**
-
-A template file is provided at `deploy/sensor_configs/template.yaml`. Use this as a starting point:
+For supported sensor models, use the template-based generator:
 
 ```bash
-cp deploy/sensor_configs/template.yaml deploy/sensor_configs/<your-sensor-name>.yaml
+stu generate-config <sensor-model>
 ```
 
-Then edit the file following the instructions and `*fill` markers.
+Where `<sensor-model>` is one of:
+- `milesight.am103l`
+- `milesight.am308l`
+- `netatmo.nws03`
 
-**Important Notes:**
+The CLI will prompt you for:
+- Sensor ID/name (typically the device MAC address)
+- Thing name and description
+- Location name, description, and coordinates (longitude, latitude)
 
-- The sensor `name` field should typically match the device MAC address
-- The sensor key (in the `sensors` section) can be in `<model>.<type>` format (e.g., `netatmo.nws03`, `milesight.am308l`)
-- All `iot_links` references must use entity **names** (not keys)
-- Use YAML anchors (`&`) and aliases (`*`) to avoid repetition (see template examples)
-- The number of datastreams must match the list in the sensor's `iot_links.datastreams`
-- Each datastream must link to exactly one sensor, one thing, and one observedProperty
-- Location coordinates must follow GeoJSON format (longitude, latitude for Point type)
+All standard datastreams and observedProperties are automatically populated from the template. See [Sensor Configuration Templates](docs/sensor-config-templates.md) for detailed information.
+
+**Manual Configuration:**
+
+If you need to create a configuration manually, template files are available at:
+- `deploy/sensor_configs/template_milesight.am103l.yaml`
+- `deploy/sensor_configs/template_milesight.am308l.yaml`
+- `deploy/sensor_configs/template_netatmo.nws03.yaml`
+- `deploy/sensor_configs/template.yaml` (generic template)
+
+See [Sensor Configuration Templates](docs/sensor-config-templates.md) for detailed documentation on the configuration file structure and requirements.
 
 **Validation:**
 
@@ -166,12 +166,11 @@ Or validate all configuration files in the current directory:
 stu validate
 ```
 
-**Example Structure:**
+### Step 5
 
-See the example configurations in:
-- `deploy/sensor_configs/netatmo/` - Netatmo weather station examples
-- `deploy/sensor_configs/milesight/` - Milesight sensor examples
-
+You can launch the application by running the production script
+`deploy/start-production.sh`. You can visit the application
+`http://localhost:8080`.
 
 # Supported Applications
 

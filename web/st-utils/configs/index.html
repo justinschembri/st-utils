@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sensor Config Builder - ST-Utils</title>
+    <link rel="stylesheet" href="../styles.css">
+    <link rel="stylesheet" href="config-builder.css">
+    <script src="https://cdn.jsdelivr.net/npm/js-yaml@4.1.0/dist/js-yaml.min.js"></script>
+</head>
+<body>
+    <div class="config-builder-container">
+        <div class="config-builder-header">
+            <h1>Sensor Configuration Builder</h1>
+            <p>Create sensor configuration YAML files for st-utils</p>
+        </div>
+
+        <form id="sensorConfigForm" class="config-form">
+            <!-- Sensor Section -->
+            <section class="form-section">
+                <h2>Sensor Configuration</h2>
+                <div class="form-group">
+                    <label for="sensorModel">Sensor Model <span class="required">*</span></label>
+                    <select id="sensorModel" name="sensorModel" required>
+                        <option value="">Select a sensor model...</option>
+                        <option value="milesight.am103l">Milesight AM103L</option>
+                        <option value="milesight.am308l">Milesight AM308L</option>
+                        <option value="netatmo.nws03">Netatmo NWS03</option>
+                    </select>
+                    <small>Select the sensor model first to enable the rest of the form and auto-populate datastreams and observedProperties</small>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorKey">Sensor Key <span class="required">*</span></label>
+                    <input type="text" id="sensorKey" name="sensorKey" required placeholder="e.g., milesight.am103l or MAC address" disabled>
+                    <small>Format: &lt;model&gt;.&lt;type&gt; or device MAC address</small>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorName">Sensor Name <span class="required">*</span></label>
+                    <input type="text" id="sensorName" name="sensorName" required placeholder="e.g., 24E124707D378803" disabled>
+                    <small>Typically the device MAC address (must match filename)</small>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorDescription">Sensor Description <span class="required">*</span></label>
+                    <textarea id="sensorDescription" name="sensorDescription" required rows="2" placeholder="Description of the sensor" disabled></textarea>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorMetadata">Metadata URL</label>
+                    <input type="url" id="sensorMetadata" name="sensorMetadata" placeholder="https://example.com/datasheet.pdf or 'none'" disabled>
+                    <small>URL to sensor documentation or "none"</small>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorEncodingType">Encoding Type <span class="required">*</span></label>
+                    <select id="sensorEncodingType" name="sensorEncodingType" required disabled>
+                        <option value="text">text</option>
+                        <option value="application/pdf">application/pdf</option>
+                        <option value="application/json">application/json</option>
+                    </select>
+                </div>
+
+                <div class="form-group" data-disabled-until-model>
+                    <label for="sensorProperties">Sensor Properties (JSON)</label>
+                    <textarea id="sensorProperties" name="sensorProperties" rows="4" placeholder='{"connectivity": "Wi-Fi 802.11 b/g/n", "recording_frequency": "5 minutes"}' disabled></textarea>
+                    <small>Optional JSON object with sensor properties (or leave empty for null)</small>
+                </div>
+            </section>
+
+            <!-- Thing Section -->
+            <section class="form-section" data-disabled-until-model>
+                <h2>Thing Configuration</h2>
+                <div class="form-group">
+                    <label for="thingName">Thing Name <span class="required">*</span></label>
+                    <input type="text" id="thingName" name="thingName" required placeholder="e.g., Room 120">
+                    <small>The physical thing being monitored (building, room, component, etc.)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="thingDescription">Thing Description <span class="required">*</span></label>
+                    <textarea id="thingDescription" name="thingDescription" required rows="2" placeholder="Description of the thing"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="thingProperties">Thing Properties (JSON)</label>
+                    <textarea id="thingProperties" name="thingProperties" rows="4" placeholder='{"type": "room", "floor": "fourth"}'></textarea>
+                    <small>Optional JSON object (or leave empty for null)</small>
+                </div>
+            </section>
+
+            <!-- Location Section -->
+            <section class="form-section" data-disabled-until-model>
+                <h2>Location Configuration</h2>
+                <div class="form-group">
+                    <label for="locationName">Location Name <span class="required">*</span></label>
+                    <input type="text" id="locationName" name="locationName" required placeholder="e.g., TU Delft BK.01.West.120">
+                </div>
+
+                <div class="form-group">
+                    <label for="locationDescription">Location Description <span class="required">*</span></label>
+                    <textarea id="locationDescription" name="locationDescription" required rows="2" placeholder="Description of the location"></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label for="locationProperties">Location Properties (JSON)</label>
+                    <textarea id="locationProperties" name="locationProperties" rows="3" placeholder='{"climate_zone": "Warm Mediterranean climate"}'></textarea>
+                    <small>Optional JSON object (or leave empty for null)</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="locationType">Location Geometry Type <span class="required">*</span></label>
+                    <select id="locationType" name="locationType" required>
+                        <option value="Point" selected>Point</option>
+                        <option value="Polygon">Polygon</option>
+                        <option value="LineString">LineString</option>
+                        <option value="MultiPoint">MultiPoint</option>
+                        <option value="MultiPolygon">MultiPolygon</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="locationLongitude">Longitude <span class="required">*</span></label>
+                    <input type="number" id="locationLongitude" name="locationLongitude" step="any" required placeholder="4.37034">
+                </div>
+
+                <div class="form-group">
+                    <label for="locationLatitude">Latitude <span class="required">*</span></label>
+                    <input type="number" id="locationLatitude" name="locationLatitude" step="any" required placeholder="52.00482">
+                </div>
+            </section>
+
+            <!-- Datastreams Section (Compact) -->
+            <section class="form-section-compact" data-disabled-until-model>
+                <details>
+                    <summary>
+                        <h2 style="display: inline;">Datastreams (<span id="datastreamCount">0</span>)</h2>
+                    </summary>
+                    <div id="datastreamsContainer" class="compact-container">
+                        <p class="info-message">Auto-populated based on selected sensor model.</p>
+                    </div>
+                </details>
+            </section>
+
+            <!-- ObservedProperties Section (Compact) -->
+            <section class="form-section-compact" data-disabled-until-model>
+                <details>
+                    <summary>
+                        <h2 style="display: inline;">ObservedProperties (<span id="observedPropertyCount">0</span>)</h2>
+                    </summary>
+                    <div id="observedPropertiesContainer" class="compact-container">
+                        <p class="info-message">Auto-populated based on selected sensor model.</p>
+                    </div>
+                </details>
+            </section>
+
+            <!-- Actions -->
+            <div class="form-actions" data-disabled-until-model>
+                <button type="button" id="previewBtn" class="btn-primary" disabled>Preview & Copy YAML</button>
+            </div>
+        </form>
+
+        <!-- Preview Modal -->
+        <div id="previewModal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h2>YAML Preview</h2>
+                    <button type="button" class="modal-close" id="closePreviewModal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <pre id="yamlPreview"><code></code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-primary" id="copyYamlBtn">Copy YAML to Clipboard</button>
+                    <button type="button" class="btn-secondary" id="closePreviewBtn">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="config-builder.js"></script>
+</body>
+</html>

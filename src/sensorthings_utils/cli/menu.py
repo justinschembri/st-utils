@@ -1,5 +1,8 @@
 """Menu and orchestration functions."""
 
+# standard
+import json
+
 # internal
 from ..paths import CREDENTIALS_DIR, TOKENS_DIR
 from .system_checks import _check_existing_and_valid_credentials, _get_missing_mandatory, _check_containers_running, _is_first_time_setup
@@ -192,6 +195,13 @@ def _setup_credentials(args):
     """Interactive setup for credential files with menu system."""
     CREDENTIALS_DIR.mkdir(parents=True, exist_ok=True)
     TOKENS_DIR.mkdir(parents=True, exist_ok=True)
+    
+    # Create empty application_credentials.json if it doesn't exist
+    # This is required for docker-compose file mounts
+    app_creds_file = CREDENTIALS_DIR / "application_credentials.json"
+    if not app_creds_file.exists():
+        with open(app_creds_file, "w") as f:
+            json.dump({}, f, indent=4)
     
     print("SensorThings Utils Credential Setup")
     print("=" * 50)

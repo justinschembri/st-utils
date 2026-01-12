@@ -31,8 +31,9 @@ debug*.py
 # Local docker compose
 docker-compose.override.yml
 
-# Sensorconfigs
+# Sensorconfigs (but track templates)
 sensor_configs/*
+!sensor_configs/template*.yaml
 
 # Observations
 observations/*
