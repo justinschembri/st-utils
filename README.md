@@ -116,6 +116,7 @@ IoT applications you have access to must be configured. Having 'access' to an Io
 
 **Option [2] Manage existing credentials and tokens**: Use this to modify or update any credentials (internal or application-level) after initial setup.
 
+<<<<<<< HEAD
 **Option [3] Manage configured applications**: View the status of all configured applications and their credential setup status. You can also modify or remove existing application configurations from this menu.
 
 ### Step 4: Configure Sensor Configurations
@@ -169,6 +170,63 @@ stu validate
 You can launch the application by running the production script
 `deploy/start-production.sh`. You can visit the application
 `http://localhost:8080/st-utils`.
+
+=======
+**Option [3] Show configured applications**: View the status of all configured applications and their credential setup status.
+
+### Step 4: Configure Sensor Configurations
+
+Each physical sensor in your network requires a configuration file that describes the sensor, its location, the thing it monitors, and the datastreams it produces. These files must be placed in the `deploy/sensor_configs/` directory.
+
+**Quick Start (Recommended):**
+
+For supported sensor models, use the template-based generator:
+
+```bash
+stu generate-config <sensor-model>
+```
+
+Where `<sensor-model>` is one of:
+- `milesight.am103l`
+- `milesight.am308l`
+- `netatmo.nws03`
+
+The CLI will prompt you for:
+- Sensor ID/name (typically the device MAC address)
+- Thing name and description
+- Location name, description, and coordinates (longitude, latitude)
+
+All standard datastreams and observedProperties are automatically populated from the template. See [Sensor Configuration Templates](docs/sensor-config-templates.md) for detailed information.
+
+**Manual Configuration:**
+
+If you need to create a configuration manually, template files are available at:
+- `deploy/sensor_configs/template_milesight.am103l.yaml`
+- `deploy/sensor_configs/template_milesight.am308l.yaml`
+- `deploy/sensor_configs/template_netatmo.nws03.yaml`
+- `deploy/sensor_configs/template.yaml` (generic template)
+
+See [Sensor Configuration Templates](docs/sensor-config-templates.md) for detailed documentation on the configuration file structure and requirements.
+
+**Validation:**
+
+You can validate your sensor configuration files using:
+
+```bash
+stu validate <path-to-config-file.yaml>
+```
+
+Or validate all configuration files in the current directory:
+
+```bash
+stu validate
+```
+
+### Step 5
+
+You can launch the application by running the production script
+`deploy/start-production.sh`. You can visit the application
+`http://localhost:8080`.
 
 # Supported Applications
 
