@@ -15,6 +15,147 @@ from .credentials import (
 )
 from .tokens import _setup_token_file, _manage_tokens
 from .applications import _get_application_status, _show_application_status, _add_application_to_config
+from .config_generator import generate_config_from_template
+from ..transformers.types import SupportedSensors
+
+
+def _get_sensors_by_brand():
+    """Organize supported sensors by brand.
+    
+    Returns:
+        dict: Mapping of brand names to lists of (model_name, SupportedSensors enum) tuples
+    """
+    sensors_by_brand = {
+        "Milesight": [
+            ("AM103L", SupportedSensors.MILESIGHT_AM103L),
+            ("AM308L", SupportedSensors.MILESIGHT_AM308L),
+        ],
+        "Netatmo": [
+            ("NWS03", SupportedSensors.NETATMO_NWS03),
+        ],
+    }
+    return sensors_by_brand
+
+
+def _setup_sensor_configuration():
+    """Interactive setup for sensor configuration generation."""
+    try:
+        print("\n" + "=" * 50)
+        print("Setup Sensor Configuration")
+        print("=" * 50)
+        
+        # Step 1: Select brand
+        sensors_by_brand = _get_sensors_by_brand()
+        brands = list(sensors_by_brand.keys())
+        
+        print("\nSelect sensor brand:")
+        for i, brand in enumerate(brands, 1):
+            print(f"[{i}] {brand}")
+        print(f"[{len(brands) + 1}] Back to main menu")
+        
+        brand_choice = input(f"\nSelect a brand [{len(brands) + 1}]: ").strip() or str(len(brands) + 1)
+        
+        if brand_choice == str(len(brands) + 1):
+            print("\nReturning to main menu...")
+            return
+        
+        try:
+            brand_index = int(brand_choice) - 1
+            if brand_index < 0 or brand_index >= len(brands):
+                print("Invalid selection. Returning to main menu...")
+                return
+            selected_brand = brands[brand_index]
+        except ValueError:
+            print("Invalid selection. Returning to main menu...")
+            return
+        
+        # Step 2: Select model within brand
+        models = sensors_by_brand[selected_brand]
+        print(f"\nSelect {selected_brand} sensor model:")
+        for i, (model_name, _) in enumerate(models, 1):
+            print(f"[{i}] {model_name}")
+        print(f"[{len(models) + 1}] Back to main menu")
+        
+        model_choice = input(f"\nSelect a model [{len(models) + 1}]: ").strip() or str(len(models) + 1)
+        
+        if model_choice == str(len(models) + 1):
+            print("\nReturning to main menu...")
+            return
+        
+        try:
+            model_index = int(model_choice) - 1
+            if model_index < 0 or model_index >= len(models):
+                print("Invalid selection. Returning to main menu...")
+                return
+            model_name, sensor_model = models[model_index]
+        except ValueError:
+            print("Invalid selection. Returning to main menu...")
+            return
+        
+        # Step 3: Collect configuration details
+        print(f"\nGenerating configuration for {selected_brand} {model_name}")
+        print("=" * 50)
+        
+        sensor_id = input("Sensor ID/Name (typically MAC address): ").strip()
+        if not sensor_id:
+            print("Error: Sensor ID is required")
+            return
+        
+        print("\nThing Configuration:")
+        thing_name = input("Thing name: ").strip()
+        if not thing_name:
+            print("Error: Thing name is required")
+            return
+        
+        thing_description = input("Thing description: ").strip()
+        if not thing_description:
+            print("Error: Thing description is required")
+            return
+        
+        print("\nLocation Configuration:")
+        location_name = input("Location name: ").strip()
+        if not location_name:
+            print("Error: Location name is required")
+            return
+        
+        location_description = input("Location description: ").strip()
+        if not location_description:
+            print("Error: Location description is required")
+            return
+        
+        try:
+            longitude = float(input("Longitude: ").strip())
+            latitude = float(input("Latitude: ").strip())
+        except ValueError:
+            print("Error: Longitude and latitude must be valid numbers")
+            return
+        
+        # Step 4: Generate configuration
+        try:
+            output_path = generate_config_from_template(
+                sensor_model=sensor_model,
+                sensor_id=sensor_id,
+                thing_name=thing_name,
+                thing_description=thing_description,
+                location_name=location_name,
+                location_description=location_description,
+                longitude=longitude,
+                latitude=latitude,
+            )
+            print(f"\n✓ Configuration generated successfully: {output_path}")
+            print(f"\nNext steps:")
+            print(f"  1. Review the configuration file")
+            print(f"  2. Validate it using: stu validate {output_path}")
+            input("\nPress Enter to continue...")
+        except Exception as e:
+            print(f"\nError generating configuration: {e}")
+            import traceback
+            traceback.print_exc()
+            input("\nPress Enter to continue...")
+    
+    except KeyboardInterrupt:
+        print("\n\nReturning to main menu...")
+        return
 
 
 def _manage_credentials_and_tokens(existing):
@@ -145,12 +286,13 @@ def _show_main_menu(existing):
             print("\n" + "=" * 50)
             print("Main Menu")
             print("=" * 50)
-            print("[1] Add application to config")
+            print("[1] Add sensor application")
             print("[2] Manage existing credentials and tokens")
-            print(f"[3] Show configured applications{app_summary}")
-            print("[4] Exit")
+            print(f"[3] Manage configured applications{app_summary}")
+            print("[4] Setup a sensor configuration")
+            print("[5] Exit")
             
-            choice = input("\nSelect an option [4]: ").strip() or "4"
+            choice = input("\nSelect an option [5]: ").strip() or "5"
             
             if choice == "1":
                 try:
@@ -182,6 +324,11 @@ def _show_main_menu(existing):
                 except KeyboardInterrupt:
                     print("\n\nReturning to main menu...")
             elif choice == "4":
+                try:
+                    _setup_sensor_configuration()
+                except KeyboardInterrupt:
+                    print("\n\nReturning to main menu...")
+            elif choice == "5":
                 print("\nExiting setup.")
                 break
             else:

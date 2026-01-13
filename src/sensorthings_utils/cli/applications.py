@@ -161,7 +161,7 @@ def _show_application_status():
             for i, (app_name, status) in enumerate(unconfigured_apps, 1):
                 auth_type_label = "Credentials" if status["auth_type"] == "credentials" else "Token file"
                 print(f"  [{i}] {app_name} ({auth_type_label})")
-            print(f"  [{len(unconfigured_apps) + 1}] Skip / Back to menu")
+            print(f"  [{len(unconfigured_apps) + 1}] Skip / Manage applications")
             
             choice = input(f"\nSelect option [1-{len(unconfigured_apps) + 1}]: ").strip()
             
@@ -186,17 +186,359 @@ def _show_application_status():
                     # Continue loop to refresh status and show remaining apps
                     continue
                 elif idx == len(unconfigured_apps):
-                    # Skip/Back - exit the loop
-                    break
+                    # Skip/Manage - proceed to management menu
+                    pass
                 else:
                     print("Invalid selection.")
                     continue
             except ValueError:
-                # User pressed Enter or entered non-numeric - exit the loop
+                # User pressed Enter or entered non-numeric - proceed to management menu
+                pass
+        
+        # Management menu
+        print("\n" + "=" * 50)
+        print("Application Management")
+        print("=" * 50)
+        print("Select an application to manage:")
+        
+        app_list = list(app_status.items())
+        for i, (app_name, status) in enumerate(app_list, 1):
+            status_icon = "✓" if status["configured"] else "✗"
+            auth_label = "Credentials" if status["auth_type"] == "credentials" else "Tokens"
+            print(f"  [{i}] {status_icon} {app_name} ({auth_label})")
+        print(f"  [{len(app_list) + 1}] Back to main menu")
+        
+        choice = input(f"\nSelect option [1-{len(app_list) + 1}]: ").strip()
+        
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(app_list):
+                app_name, status = app_list[idx]
+                _manage_application(app_name)
+                # Continue loop to refresh status
+                continue
+            elif idx == len(app_list):
+                # Back to main menu - exit the loop
                 break
-        else:
-            print("\n✓ All applications are configured!")
+            else:
+                print("Invalid selection.")
+                continue
+        except ValueError:
+            # User pressed Enter or entered non-numeric - exit the loop
             break
+
+
+def _get_connection_type_from_config(app_config: dict) -> str:
+    """Determine connection type (http/mqtt) from application config."""
+    # MQTT connections typically have 'host', 'port', and 'topic'
+    if "host" in app_config or "topic" in app_config:
+        return "mqtt"
+    # HTTP connections typically have 'interval'
+    elif "interval" in app_config:
+        return "http"
+    # Default to http if unclear
+    return "http"
+
+
+def _manage_application(app_name: str):
+    """Manage a specific application - modify or remove."""
+    while True:
+        print("\n" + "=" * 50)
+        print(f"Manage Application: {app_name}")
+        print("=" * 50)
+        print("[1] Modify configuration")
+        print("[2] Remove application")
+        print("[3] Back to application list")
+        
+        choice = input("\nSelect an option [3]: ").strip() or "3"
+        
+        if choice == "1":
+            try:
+                if _modify_application_config(app_name):
+                    print(f"\n✓ Successfully modified {app_name}")
+                    input("\nPress Enter to continue...")
+                    break  # Exit to refresh the list
+            except KeyboardInterrupt:
+                print("\n\nCancelled modification.")
+        elif choice == "2":
+            try:
+                if _remove_application(app_name):
+                    print(f"\n✓ Successfully removed {app_name}")
+                    input("\nPress Enter to continue...")
+                    break  # Exit to refresh the list
+            except KeyboardInterrupt:
+                print("\n\nCancelled removal.")
+        elif choice == "3":
+            break
+        else:
+            print("Invalid option. Please try again.")
+
+
+def _modify_application_config(app_name: str) -> bool:
+    """Modify an existing application configuration."""
+    # Load existing config
+    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
+        print("Error: Application config file not found")
+        return False
+    
+    try:
+        with open(APPLICATION_CONFIG_FILE, "r") as f:
+            config = yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"Error reading config file: {e}")
+        return False
+    
+    if "applications" not in config or app_name not in config["applications"]:
+        print(f"Error: Application '{app_name}' not found in config")
+        return False
+    
+    current_config = config["applications"][app_name].copy()
+    connection_type = _get_connection_type_from_config(current_config)
+    
+    print(f"\n--- Modify Application: {app_name} ---")
+    print("(Press Enter to keep current value)")
+    
+    # Show current values and allow modification
+    new_config = {}
+    
+    # Authentication type
+    current_auth = current_config.get("authentication_type", "credentials")
+    print(f"\nCurrent authentication type: {current_auth}")
+    while True:
+        print("  [1] tokens")
+        print("  [2] credentials")
+        choice = input(f"Select authentication type [Enter to keep '{current_auth}']: ").strip()
+        if not choice:
+            new_config["authentication_type"] = current_auth
+            break
+        elif choice == "1":
+            new_config["authentication_type"] = "tokens"
+            break
+        elif choice == "2":
+            new_config["authentication_type"] = "credentials"
+            break
+        else:
+            print("Invalid selection. Please enter 1 or 2, or press Enter to keep current.")
+    
+    # Connection class
+    current_class = current_config.get("connection_class", "")
+    available_classes = _get_available_connection_classes(connection_type)
+    if not available_classes:
+        print(f"\nNo {connection_type.upper()} connection classes found")
+        return False
+    
+    print(f"\nCurrent connection class: {current_class}")
+    print(f"Available {connection_type.upper()} connection classes:")
+    for i, class_name in enumerate(available_classes, 1):
+        marker = " <-- current" if class_name == current_class else ""
+        print(f"  [{i}] {class_name}{marker}")
+    
+    while True:
+        choice = input(f"Select connection class [Enter to keep '{current_class}']: ").strip()
+        if not choice:
+            new_config["connection_class"] = current_class
+            break
+        try:
+            idx = int(choice) - 1
+            if 0 <= idx < len(available_classes):
+                new_config["connection_class"] = available_classes[idx]
+                break
+            else:
+                print(f"Invalid selection. Please enter 1-{len(available_classes)} or press Enter.")
+        except ValueError:
+            print("Invalid input. Please enter a number or press Enter.")
+    
+    # HTTP-specific fields
+    if connection_type == "http":
+        current_interval = current_config.get("interval", "")
+        new_interval = input(f"\nRequest Interval (seconds) [Current: {current_interval}, Enter to keep]: ").strip()
+        if new_interval:
+            try:
+                new_config["interval"] = int(new_interval)
+            except ValueError:
+                print("Invalid interval value. Keeping current value.")
+                new_config["interval"] = current_interval
+        else:
+            if current_interval:
+                new_config["interval"] = current_interval
+        
+        current_max_retries = current_config.get("max_retries", "")
+        new_max_retries = input(f"Max retries [Current: {current_max_retries}, Enter to keep]: ").strip()
+        if new_max_retries:
+            try:
+                new_config["max_retries"] = int(new_max_retries)
+            except ValueError:
+                print("Invalid max_retries value. Keeping current value.")
+                new_config["max_retries"] = current_max_retries if current_max_retries else None
+        else:
+            if current_max_retries:
+                new_config["max_retries"] = current_max_retries
+        
+        current_expected_sensors = current_config.get("expected_sensors", "")
+        new_expected_sensors = input(f"Expected sensors [Current: {current_expected_sensors}, Enter to keep]: ").strip()
+        if new_expected_sensors:
+            try:
+                new_config["expected_sensors"] = int(new_expected_sensors)
+            except ValueError:
+                print("Invalid expected_sensors value. Keeping current value.")
+                new_config["expected_sensors"] = current_expected_sensors if current_expected_sensors else None
+        else:
+            if current_expected_sensors:
+                new_config["expected_sensors"] = current_expected_sensors
+    
+    # MQTT-specific fields
+    else:
+        current_max_retries = current_config.get("max_retries", "")
+        new_max_retries = input(f"\nMax retries [Current: {current_max_retries}, Enter to keep]: ").strip()
+        if new_max_retries:
+            try:
+                new_config["max_retries"] = int(new_max_retries)
+            except ValueError:
+                print("Invalid max_retries value. Keeping current value.")
+                new_config["max_retries"] = current_max_retries if current_max_retries else None
+        else:
+            if current_max_retries:
+                new_config["max_retries"] = current_max_retries
+        
+        current_host = current_config.get("host", "")
+        new_host = input(f"Host [Current: {current_host}]: ").strip()
+        if new_host:
+            new_config["host"] = new_host
+        else:
+            new_config["host"] = current_host
+        
+        current_port = current_config.get("port", 8883)
+        new_port = input(f"Port [Current: {current_port}]: ").strip()
+        if new_port:
+            try:
+                new_config["port"] = int(new_port)
+            except ValueError:
+                print("Invalid port value. Keeping current value.")
+                new_config["port"] = current_port
+        else:
+            new_config["port"] = current_port
+        
+        current_topic = current_config.get("topic", "")
+        new_topic = input(f"Topic [Current: {current_topic}]: ").strip()
+        if new_topic:
+            new_config["topic"] = new_topic
+        else:
+            new_config["topic"] = current_topic
+        
+        current_expected_sensors = current_config.get("expected_sensors", "")
+        new_expected_sensors = input(f"Expected sensors [Current: {current_expected_sensors}, Enter to keep]: ").strip()
+        if new_expected_sensors:
+            try:
+                new_config["expected_sensors"] = int(new_expected_sensors)
+            except ValueError:
+                print("Invalid expected_sensors value. Keeping current value.")
+                new_config["expected_sensors"] = current_expected_sensors if current_expected_sensors else None
+        else:
+            if current_expected_sensors:
+                new_config["expected_sensors"] = current_expected_sensors
+    
+    # Update config
+    config["applications"][app_name] = new_config
+    
+    # Save config
+    try:
+        with open(APPLICATION_CONFIG_FILE, "w") as f:
+            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
+        return True
+    except Exception as e:
+        print(f"Error saving config file: {e}")
+        return False
+
+
+def _remove_application(app_name: str) -> bool:
+    """Remove an application from config and optionally remove credentials/tokens."""
+    # Load existing config
+    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
+        print("Error: Application config file not found")
+        return False
+    
+    try:
+        with open(APPLICATION_CONFIG_FILE, "r") as f:
+            config = yaml.safe_load(f) or {}
+    except Exception as e:
+        print(f"Error reading config file: {e}")
+        return False
+    
+    if "applications" not in config or app_name not in config["applications"]:
+        print(f"Error: Application '{app_name}' not found in config")
+        return False
+    
+    app_config = config["applications"][app_name]
+    auth_type = app_config.get("authentication_type", "credentials")
+    
+    # Confirm removal
+    print(f"\n⚠️  WARNING: This will remove '{app_name}' from the configuration.")
+    if auth_type == "credentials":
+        print(f"   The application credentials in application_credentials.json will NOT be removed automatically.")
+    else:
+        token_file = TOKENS_DIR / f"{app_name}.json"
+        if token_file.exists():
+            print(f"   Token file: {token_file} exists and will NOT be removed automatically.")
+    
+    confirm = input("\nAre you sure you want to remove this application? (yes/no) [no]: ").strip().lower()
+    if confirm != "yes":
+        print("Cancelled.")
+        return False
+    
+    # Optionally remove credentials/tokens
+    remove_auth = False
+    if auth_type == "credentials":
+        app_creds_file = CREDENTIALS_DIR / "application_credentials.json"
+        if app_creds_file.exists():
+            try:
+                with open(app_creds_file, "r") as f:
+                    app_creds = json.load(f)
+                if app_name in app_creds:
+                    remove_auth_choice = input(f"\nAlso remove credentials from application_credentials.json? (yes/no) [no]: ").strip().lower()
+                    if remove_auth_choice == "yes":
+                        remove_auth = True
+            except Exception:
+                pass
+    else:  # tokens
+        token_file = TOKENS_DIR / f"{app_name}.json"
+        if token_file.exists():
+            remove_auth_choice = input(f"\nAlso delete token file {token_file.name}? (yes/no) [no]: ").strip().lower()
+            if remove_auth_choice == "yes":
+                remove_auth = True
+    
+    # Remove from config
+    del config["applications"][app_name]
+    
+    # Save config
+    try:
+        with open(APPLICATION_CONFIG_FILE, "w") as f:
+            yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
+    except Exception as e:
+        print(f"Error saving config file: {e}")
+        return False
+    
+    # Remove credentials/tokens if requested
+    if remove_auth:
+        if auth_type == "credentials":
+            try:
+                with open(app_creds_file, "r") as f:
+                    app_creds = json.load(f)
+                if app_name in app_creds:
+                    del app_creds[app_name]
+                    with open(app_creds_file, "w") as f:
+                        json.dump(app_creds, f, indent=4)
+                    print(f"✓ Removed credentials for {app_name}")
+            except Exception as e:
+                print(f"Warning: Could not remove credentials: {e}")
+        else:  # tokens
+            try:
+                if token_file.exists():
+                    token_file.unlink()
+                    print(f"✓ Deleted token file {token_file.name}")
+            except Exception as e:
+                print(f"Warning: Could not delete token file: {e}")
+    
+    return True
 
 
 def _add_application_to_config():
