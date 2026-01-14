@@ -186,7 +186,7 @@ def _setup(
 
 # Register commands
 app.command(name="validate")(_validate)
-app.command(name="push")(_push_available)
+app.command(name="start")(_push_available)
 app.command(name="generate-config")(_generate_config)
 app.command(name="setup")(_setup)
 
