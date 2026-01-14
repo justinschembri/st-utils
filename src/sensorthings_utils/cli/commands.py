@@ -4,7 +4,7 @@
 import os
 from pathlib import Path
 from typing import Optional
-
+import subprocess
 # external
 import typer
 from rich.console import Console
@@ -14,7 +14,7 @@ from rich import print as rprint
 
 # internal
 from .menu import _setup_credentials
-
+from ..paths import START_SCRIPT
 # Create typer app and console
 app = typer.Typer(
     help="st-utils CLI - SensorThings Utilities",
@@ -71,11 +71,21 @@ def _push_available(
         None, "--exclude", help="Pass a list of sensor MAC addresses to exclude from the stream."
     ),
 ):
-    """Push available sensor data to FROST server."""
+    """Start the STU instance."""
     from sensorthings_utils.main import push_available
     
     console.print("[bold]Starting data stream to FROST server...[/bold]")
-    push_available(exclude=exclude, frost_endpoint=frost_endpoint)
+    result = subprocess.run(
+            [START_SCRIPT], 
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+    if result.returncode != 0:
+        console.print(f"Failed to start STU: {result.stderr}") # This is where your Docker error is hiding!
+    else:
+        console.print("System starting and available at http://localhost:8080/st-utils")
 
 
 def _generate_config(
@@ -185,10 +195,10 @@ def _setup(
 
 
 # Register commands
-app.command(name="validate")(_validate)
 app.command(name="start")(_push_available)
-app.command(name="generate-config")(_generate_config)
 app.command(name="setup")(_setup)
+app.command(name="validate")(_validate)
+app.command(name="generate-config")(_generate_config)
 
 
 def main():

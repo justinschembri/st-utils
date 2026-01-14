@@ -12,12 +12,14 @@ __all__ = [
     "TOKENS_DIR",
     "TEST_DATA_DIR",
     "APPLICATION_CONFIG_FILE",
+    "START_SCRIPT"
 ]
 
 ROOT_DIR = Path(__file__).parent.parent.parent
 # Derived paths
 ENV_FILE = ROOT_DIR / ".env"
 DEPLOY_DIR = ROOT_DIR / "deploy"
+START_SCRIPT = DEPLOY_DIR / "start-production.sh"
 LOGS_DIR = ROOT_DIR / "logs"
 CONFIG_PATHS = DEPLOY_DIR / "sensor_configs"
 CREDENTIALS_DIR = DEPLOY_DIR / "secrets" / "credentials"
