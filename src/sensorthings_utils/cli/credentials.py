@@ -3,16 +3,29 @@
 # standard
 import json
 import subprocess
+
+# external
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt
+from rich import print as rprint
 from getpass import getpass
+
 # internal
 from ..paths import CREDENTIALS_DIR
 from .system_checks import _check_postgres_persistent_volume
 
+console = Console()
+
 
 def setup_frost_credentials():
     """Setup FROST credentials."""
-    print("\n--- FROST Credentials ---")
-    frost_username = input("FROST username [sta-admin]: ").strip() or "sta-admin"
+    console.print(Panel.fit(
+        "[bold]FROST Credentials[/bold]",
+        border_style="blue"
+    ))
+    
+    frost_username = Prompt.ask("FROST username", default="sta-admin")
     frost_password = getpass("FROST password: ")
     
     frost_creds = {
@@ -26,13 +39,16 @@ def setup_frost_credentials():
 
     with open(frost_file, "w") as f:
         json.dump(frost_creds, f, indent=4)
-    print(f"✓ Created/Updated {frost_file}")
+    console.print(f"[green]✓ Created/Updated {frost_file}[/green]")
     return True
 
 
 def _setup_postgres_credentials():
     """Setup PostgreSQL credentials."""
-    print("\n--- PostgreSQL Credentials ---")
+    console.print(Panel.fit(
+        "[bold]PostgreSQL Credentials[/bold]",
+        border_style="blue"
+    ))
     
     # Check if persistent volume exists - CRITICAL WARNING
     has_persistent_volume = _check_postgres_persistent_volume()
@@ -50,29 +66,32 @@ def _setup_postgres_credentials():
             text=True,
             timeout=5
         ).stdout.strip()
-        print(
-            f"\n🚨 CRITICAL WARNING: PostgreSQL production persistent volume created at {created_at} detected!\n"
-            "   Changing the password here will LOCK YOU OUT of the database!\n"
-            "   The database still has the old password stored in the persistent volume.\n"
-            "\n"
-            "   To safely change the password:\n"
-            "   1. Connect to the running database:\n"
-            "      docker compose exec database psql -U <current_user> -d sensorthings\n"
-            "   2. Run: ALTER USER <username> WITH PASSWORD '<new_password>';\n"
-            "   3. Then update postgres_credentials.json with the new password\n"
-            "   4. Restart containers: docker compose restart\n"
-            "\n"
-            "   Or, if you want to start fresh (⚠️  DATA LOSS):\n"
-            "   docker compose down -v  # Removes volumes\n"
-            "   # Then run setup again"
+        
+        warning_text = (
+            f"[bold red]🚨 CRITICAL WARNING:[/bold red] PostgreSQL production persistent volume "
+            f"created at {created_at} detected!\n\n"
+            "Changing the password here will LOCK YOU OUT of the database!\n"
+            "The database still has the old password stored in the persistent volume.\n\n"
+            "[bold]To safely change the password:[/bold]\n"
+            "1. Connect to the running database:\n"
+            "   [cyan]docker compose exec database psql -U <current_user> -d sensorthings[/cyan]\n"
+            "2. Run: [cyan]ALTER USER <username> WITH PASSWORD '<new_password>';[/cyan]\n"
+            "3. Then update postgres_credentials.json with the new password\n"
+            "4. Restart containers: [cyan]docker compose restart[/cyan]\n\n"
+            "[bold]Or, if you want to start fresh (⚠️  DATA LOSS):[/bold]\n"
+            "[cyan]docker compose down -v[/cyan]  # Removes volumes\n"
+            "# Then run setup again"
         )
         
-        response = input("\n   Continue anyway? This may lock you out! (yes/no) [no]: ").strip().lower()
-        if response != 'yes':
-            print("   Skipping PostgreSQL credentials setup.")
+        console.print(Panel(warning_text, border_style="red"))
+        
+        from rich.prompt import Confirm
+        response = Confirm.ask("\nContinue anyway? This may lock you out!", default=False)
+        if not response:
+            console.print("[yellow]Skipping PostgreSQL credentials setup.[/yellow]")
             return False
     
-    postgres_user = input("PostgreSQL user [sta-admin]: ").strip() or "sta-admin"
+    postgres_user = Prompt.ask("PostgreSQL user", default="sta-admin")
     postgres_password = getpass("PostgreSQL password: ")
     
     postgres_creds = {
@@ -83,19 +102,23 @@ def _setup_postgres_credentials():
     postgres_file = CREDENTIALS_DIR / "postgres_credentials.json"
     with open(postgres_file, "w") as f:
         json.dump(postgres_creds, f, indent=4)
-    print(f"✓ Created/Updated {postgres_file}")
+    console.print(f"[green]✓ Created/Updated {postgres_file}[/green]")
     
     if has_persistent_volume:
-        print("\n⚠️  REMINDER: You must update the password in the database!")
-        print("   The file has been updated, but the database still has the old password.")
-        print("   See instructions above to safely change it.")
+        console.print("\n[yellow]⚠️  REMINDER:[/yellow] You must update the password in the database!")
+        console.print("   The file has been updated, but the database still has the old password.")
+        console.print("   See instructions above to safely change it.")
     
     return True
 
 
 def _setup_mqtt_credentials():
     """Setup MQTT credentials."""
-    print("\n--- MQTT Credentials ---")
+    console.print(Panel.fit(
+        "[bold]MQTT Credentials[/bold]",
+        border_style="blue"
+    ))
+    
     mqtt_users = {}
     user_count = 0
     
@@ -103,28 +126,44 @@ def _setup_mqtt_credentials():
         user_count += 1
         if user_count == 1:
             # First user is required, use default username
-            user_key = input(f"\nMQTT user key (e.g., mqtt_user_1) [mqtt_user_1]: ").strip() or "mqtt_user_1"
-            username = input(f"  Username for {user_key} [sta-admin]: ").strip() or "sta-admin"
+            user_key = Prompt.ask(
+                f"\nMQTT user key (e.g., mqtt_user_1)",
+                default="mqtt_user_1"
+            )
+            username = Prompt.ask(
+                f"  Username for {user_key}",
+                default="sta-admin"
+            )
         else:
             # Additional users are optional
-            user_key = input("\nMQTT user key (e.g., mqtt_user_2) [press Enter to finish]: ").strip()
+            user_key = Prompt.ask(
+                "\nMQTT user key (e.g., mqtt_user_2)",
+                default=""
+            )
             if not user_key:
                 break
-            username = input(f"  Username for {user_key} [sta-admin]: ").strip() or "sta-admin"
+            username = Prompt.ask(
+                f"  Username for {user_key}",
+                default="sta-admin"
+            )
         
         password = getpass(f"  Password for {username}: ")
         if not password:
-            print("  ⚠️  Password is required. Please try again.")
+            console.print("  [yellow]⚠️  Password is required. Please try again.[/yellow]")
             user_count -= 1
             continue
         
         topics = []
-        print("  Topics (press Enter with empty name to finish):")
+        console.print("  Topics (press Enter with empty name to finish):")
         while True:
-            topic_name = input("    Topic name: ").strip()
+            topic_name = Prompt.ask("    Topic name", default="").strip()
             if not topic_name:
                 break
-            topic_perm = input(f"    Permission (read/readwrite) [read]: ").strip() or "read"
+            topic_perm = Prompt.ask(
+                f"    Permission (read/readwrite)",
+                default="read",
+                choices=["read", "readwrite"]
+            )
             topics.append({"name": topic_name, "perm": topic_perm})
         
         mqtt_users[user_key] = {
@@ -137,7 +176,7 @@ def _setup_mqtt_credentials():
         mqtt_file = CREDENTIALS_DIR / "mqtt_credentials.json"
         with open(mqtt_file, "w") as f:
             json.dump(mqtt_users, f, indent=4)
-        print(f"✓ Created/Updated {mqtt_file}")
+        console.print(f"[green]✓ Created/Updated {mqtt_file}[/green]")
         return True
     return False
 
@@ -147,21 +186,25 @@ def _setup_tomcat_users():
     
     If no users are provided, the file will be deleted to allow public access.
     """
-    print("\n--- Tomcat Users (Webapp Authentication) ---")
-    print("Leave empty to allow public access (no authentication required).")
+    console.print(Panel.fit(
+        "[bold]Tomcat Users (Webapp Authentication)[/bold]",
+        border_style="blue"
+    ))
+    console.print("[dim]Leave empty to allow public access (no authentication required).[/dim]")
+    
     users = []
     
     while True:
-        username = input("\nTomcat username [press Enter to finish/skip]: ").strip()
+        username = Prompt.ask("\nTomcat username", default="").strip()
         if not username:
             break
         
         password = getpass(f"  Password for {username}: ")
         if not password:
-            print("  ⚠️  Password is required. Please try again.")
+            console.print("  [yellow]⚠️  Password is required. Please try again.[/yellow]")
             continue
         
-        roles = input(f"  Roles (comma-separated) [webapp-users]: ").strip() or "webapp-users"
+        roles = Prompt.ask(f"  Roles (comma-separated)", default="webapp-users")
         
         users.append({
             "username": username,
@@ -185,14 +228,14 @@ def _setup_tomcat_users():
         
         with open(tomcat_file, "w") as f:
             f.write(xml_content)
-        print(f"✓ Created/Updated {tomcat_file}")
+        console.print(f"[green]✓ Created/Updated {tomcat_file}[/green]")
     else:
         # No users provided - delete file to allow public access
         if tomcat_file.exists():
             tomcat_file.unlink()
-            print(f"✓ Removed {tomcat_file} - application will be publicly accessible")
+            console.print(f"[green]✓ Removed {tomcat_file}[/green] - application will be publicly accessible")
         else:
-            print("✓ No authentication file - application will be publicly accessible")
+            console.print("[green]✓ No authentication file[/green] - application will be publicly accessible")
     
     return True
 
@@ -203,7 +246,10 @@ def _setup_application_credentials(app_name: str = None):
     Args:
         app_name: Optional application name to pre-fill. If provided, only sets up this app.
     """
-    print("\n--- Application Credentials ---")
+    console.print(Panel.fit(
+        "[bold]Application Credentials[/bold]",
+        border_style="blue"
+    ))
     
     # Load existing credentials if file exists
     app_file = CREDENTIALS_DIR / "application_credentials.json"
@@ -217,25 +263,25 @@ def _setup_application_credentials(app_name: str = None):
     
     if app_name:
         # Single app mode - pre-filled, just ask for api_key
-        print(f"Setting up credentials for: {app_name}")
+        console.print(f"Setting up credentials for: [cyan]{app_name}[/cyan]")
         api_key = getpass("  API key: ").strip()
         
         if api_key:
             app_creds[app_name] = {"api_key": api_key}
             with open(app_file, "w") as f:
                 json.dump(app_creds, f, indent=4)
-            print(f"✓ Created/Updated {app_file}")
+            console.print(f"[green]✓ Created/Updated {app_file}[/green]")
             return True
         return False
     else:
         # Multi-app mode - ask for application name and api_key
-        print("Enter application credentials.")
-        print("For each application, provide the application name and API key.")
-        print("(press Enter with empty application name to finish):")
+        console.print("Enter application credentials.")
+        console.print("For each application, provide the application name and API key.")
+        console.print("[dim](press Enter with empty application name to finish)[/dim]")
         
         new_creds = {}
         while True:
-            app_name_input = input("  Application name: ").strip()
+            app_name_input = Prompt.ask("  Application name", default="").strip()
             if not app_name_input:
                 break
             
@@ -247,6 +293,6 @@ def _setup_application_credentials(app_name: str = None):
             app_creds.update(new_creds)
             with open(app_file, "w") as f:
                 json.dump(app_creds, f, indent=4)
-            print(f"✓ Created/Updated {app_file}")
+            console.print(f"[green]✓ Created/Updated {app_file}[/green]")
             return True
         return False

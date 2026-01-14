@@ -5,9 +5,14 @@ import yaml
 from pathlib import Path
 from typing import Any, Dict
 
+# external
+from rich.console import Console
+
 # internal
 from ..paths import CONFIG_PATHS
 from ..transformers.types import SupportedSensors
+
+console = Console()
 
 
 def _load_template(sensor_model: SupportedSensors) -> Dict[str, Any]:

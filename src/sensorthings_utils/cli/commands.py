@@ -2,16 +2,36 @@
 
 # standard
 import os
+from pathlib import Path
+from typing import Optional
+
+# external
+import typer
+from rich.console import Console
+from rich.panel import Panel
+from rich.prompt import Prompt, Confirm
+from rich import print as rprint
 
 # internal
 from .menu import _setup_credentials
 
+# Create typer app and console
+app = typer.Typer(
+    help="st-utils CLI - SensorThings Utilities",
+    rich_markup_mode="rich",
+    no_args_is_help=True,
+)
+console = Console()
 
-def _validate(args):
+
+def _validate(
+    file: Optional[Path] = typer.Argument(None, help="Config file to validate (optional).")
+):
     """Validate sensor configuration files."""
     from sensorthings_utils.sensor_things.extensions import SensorConfig
-    if args.file:
-        validation_files = [args.file]
+    
+    if file:
+        validation_files = [str(file)]
     else:
         validation_files = [
             os.path.join(root, f)
@@ -20,72 +40,107 @@ def _validate(args):
             if (f.endswith((".yaml", "yml")) and not f.startswith("template"))
         ]
 
+    if not validation_files:
+        console.print("[yellow]No YAML files found to validate.[/yellow]")
+        return
+
+    console.print(f"\n[bold]Validating {len(validation_files)} file(s)...[/bold]\n")
+    
+    all_valid = True
     for f in validation_files:
         result, errors = SensorConfig(f).check_validity()
         if errors:
+            all_valid = False
+            console.print(f"[red]❌ {f}[/red]")
             for e in errors:
-                print(e)
+                console.print(f"  [red]{e}[/red]")
+        else:
+            console.print(f"[green]✓ {f}[/green]")
+    
+    if all_valid:
+        console.print("\n[bold green]All files are valid![/bold green]")
+    else:
+        console.print("\n[bold red]Some files have validation errors.[/bold red]")
 
 
-def _push_available(args):
+def _push_available(
+    frost_endpoint: Optional[str] = typer.Option(
+        None, "--frost-endpoint", help="Change default FROST server URL."
+    ),
+    exclude: Optional[str] = typer.Option(
+        None, "--exclude", help="Pass a list of sensor MAC addresses to exclude from the stream."
+    ),
+):
     """Push available sensor data to FROST server."""
     from sensorthings_utils.main import push_available
-    push_available(exclude=args.exclude, frost_endpoint=args.frost_endpoint)
+    
+    console.print("[bold]Starting data stream to FROST server...[/bold]")
+    push_available(exclude=exclude, frost_endpoint=frost_endpoint)
 
 
-def _generate_config(args):
-    """Generate sensor configuration from template."""
+def _generate_config(
+    sensor_model: str = typer.Argument(
+        ..., help="Sensor model: milesight.am103l, milesight.am308l, or netatmo.nws03"
+    ),
+    output: Optional[Path] = typer.Option(
+        None, "--output", "-o", help="Output file path (defaults to sensor_configs/{sensor_id}.yaml)"
+    ),
+):
+    """Generate sensor configuration file from template."""
     from .config_generator import generate_config_from_template
     from sensorthings_utils.transformers.types import SupportedSensors
     
     try:
-        sensor_model = SupportedSensors(args.sensor_model)
+        sensor_model_enum = SupportedSensors(sensor_model)
     except ValueError:
-        print(f"Error: Unsupported sensor model: {args.sensor_model}")
-        return
+        console.print(f"[bold red]Error:[/bold red] Unsupported sensor model: {sensor_model}")
+        console.print("Supported models: milesight.am103l, milesight.am308l, netatmo.nws03")
+        raise typer.Exit(1)
     
-    # Collect user inputs
-    print(f"\nGenerating configuration for {sensor_model.value}")
-    print("=" * 50)
+    # Collect user inputs with rich prompts
+    console.print(Panel.fit(
+        f"[bold]Generating configuration for {sensor_model_enum.value}[/bold]",
+        border_style="blue"
+    ))
     
-    sensor_id = input("Sensor ID/Name (typically MAC address): ").strip()
+    sensor_id = Prompt.ask("Sensor ID/Name", default="").strip()
     if not sensor_id:
-        print("Error: Sensor ID is required")
-        return
+        console.print("[bold red]Error:[/bold red] Sensor ID is required")
+        raise typer.Exit(1)
     
-    print("\nThing Configuration:")
-    thing_name = input("Thing name: ").strip()
+    console.print("\n[bold]Thing Configuration:[/bold]")
+    thing_name = Prompt.ask("Thing name", default="").strip()
     if not thing_name:
-        print("Error: Thing name is required")
-        return
+        console.print("[bold red]Error:[/bold red] Thing name is required")
+        raise typer.Exit(1)
     
-    thing_description = input("Thing description: ").strip()
+    thing_description = Prompt.ask("Thing description", default="").strip()
     if not thing_description:
-        print("Error: Thing description is required")
-        return
+        console.print("[bold red]Error:[/bold red] Thing description is required")
+        raise typer.Exit(1)
     
-    print("\nLocation Configuration:")
-    location_name = input("Location name: ").strip()
+    console.print("\n[bold]Location Configuration:[/bold]")
+    location_name = Prompt.ask("Location name", default="").strip()
     if not location_name:
-        print("Error: Location name is required")
-        return
+        console.print("[bold red]Error:[/bold red] Location name is required")
+        raise typer.Exit(1)
     
-    location_description = input("Location description: ").strip()
+    location_description = Prompt.ask("Location description", default="").strip()
     if not location_description:
-        print("Error: Location description is required")
-        return
+        console.print("[bold red]Error:[/bold red] Location description is required")
+        raise typer.Exit(1)
     
     try:
-        longitude = float(input("Longitude: ").strip())
-        latitude = float(input("Latitude: ").strip())
+        longitude = float(Prompt.ask("Longitude", default="").strip())
+        latitude = float(Prompt.ask("Latitude", default="").strip())
     except ValueError:
-        print("Error: Longitude and latitude must be valid numbers")
-        return
+        console.print("[bold red]Error:[/bold red] Longitude and latitude must be valid numbers")
+        raise typer.Exit(1)
     
     # Generate config
     try:
         output_path = generate_config_from_template(
-            sensor_model=sensor_model,
+            sensor_model=sensor_model_enum,
             sensor_id=sensor_id,
             thing_name=thing_name,
             thing_description=thing_description,
@@ -93,84 +148,53 @@ def _generate_config(args):
             location_description=location_description,
             longitude=longitude,
             latitude=latitude,
-            output_path=args.output,
+            output_path=output_path,
         )
-        print(f"\n✓ Configuration generated successfully: {output_path}")
-        print(f"\nNext steps:")
-        print(f"  1. Review the configuration file")
-        print(f"  2. Validate it using: stu validate {output_path}")
+        console.print(f"\n[bold green]✓ Configuration generated successfully:[/bold green] {output_path}")
+        console.print("\n[bold]Next steps:[/bold]")
+        console.print(f"  1. Review the configuration file")
+        console.print(f"  2. Validate it using: [cyan]stu validate {output_path}[/cyan]")
     except Exception as e:
-        print(f"\nError generating configuration: {e}")
+        console.print(f"\n[bold red]Error generating configuration:[/bold red] {e}")
         import traceback
-        traceback.print_exc()
+        console.print_exception()
+        raise typer.Exit(1)
+
+
+def _setup(
+    all: bool = typer.Option(False, "--all", help="Setup all credential types."),
+    frost: bool = typer.Option(False, "--frost", help="Setup FROST credentials."),
+    postgres: bool = typer.Option(False, "--postgres", help="Setup PostgreSQL credentials."),
+    mqtt: bool = typer.Option(False, "--mqtt", help="Setup MQTT credentials."),
+    tomcat: bool = typer.Option(False, "--tomcat", help="Setup Tomcat users (webapp authentication)."),
+    token: bool = typer.Option(False, "--token", help="Setup a token file (freeform JSON)."),
+):
+    """Interactive setup for credential files."""
+    # Create a simple args-like object for backward compatibility
+    class Args:
+        def __init__(self):
+            self.all = all
+            self.frost = frost
+            self.postgres = postgres
+            self.mqtt = mqtt
+            self.tomcat = tomcat
+            self.token = token
+    
+    args = Args()
+    _setup_credentials(args)
+
+
+# Register commands
+app.command(name="validate")(_validate)
+app.command(name="push")(_push_available)
+app.command(name="generate-config")(_generate_config)
+app.command(name="setup")(_setup)
 
 
 def main():
     """Main CLI entry point."""
-    import argparse
-    
-    parser = argparse.ArgumentParser(description="st-utils CLI.")
-    subparsers = parser.add_subparsers(dest="command", required=True)
+    app()
 
-    # subcommand: push
-    push_parser = subparsers.add_parser("push", help="Start the stream.")
-    push_parser.add_argument(
-        "--frost-endpoint",
-        help="Change default FROST server URL.",
-    )
-    push_parser.add_argument(
-        "--exclude",
-        help="Pass a list of sensor MAC addresses to exclude from the stream.",
-    )
-    push_parser.set_defaults(func=_push_available)
 
-    # subcommand: validate
-    validate_parser = subparsers.add_parser(
-        "validate", help="Validate all yaml files in the working directory."
-    )
-    validate_parser.add_argument(
-        "file", nargs="?", default=None, help="Config file to validate."
-    )
-    validate_parser.set_defaults(func=_validate)
-
-    # subcommand: setup
-    setup_parser = subparsers.add_parser(
-        "setup", help="Interactive setup for credential files."
-    )
-    setup_parser.add_argument(
-        "--all", action="store_true", help="Setup all credential types."
-    )
-    setup_parser.add_argument(
-        "--frost", action="store_true", help="Setup FROST credentials."
-    )
-    setup_parser.add_argument(
-        "--postgres", action="store_true", help="Setup PostgreSQL credentials."
-    )
-    setup_parser.add_argument(
-        "--mqtt", action="store_true", help="Setup MQTT credentials."
-    )
-    setup_parser.add_argument(
-        "--tomcat", action="store_true", help="Setup Tomcat users (webapp authentication)."
-    )
-    setup_parser.add_argument(
-        "--token", action="store_true", help="Setup a token file (freeform JSON)."
-    )
-    setup_parser.set_defaults(func=_setup_credentials)
-
-    # subcommand: generate-config
-    gen_config_parser = subparsers.add_parser(
-        "generate-config", help="Generate sensor configuration file from template."
-    )
-    gen_config_parser.add_argument(
-        "sensor_model",
-        choices=["milesight.am103l", "milesight.am308l", "netatmo.nws03"],
-        help="Sensor model to generate config for."
-    )
-    gen_config_parser.add_argument(
-        "--output",
-        help="Output file path (defaults to sensor_configs/{sensor_id}.yaml)"
-    )
-    gen_config_parser.set_defaults(func=_generate_config)
-
-    args = parser.parse_args()
-    args.func(args)
+if __name__ == "__main__":
+    main()

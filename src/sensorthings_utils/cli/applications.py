@@ -8,12 +8,18 @@ from pathlib import Path
 
 # external
 import yaml
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.prompt import Prompt, Confirm, IntPrompt
+from rich import print as rprint
 
 # internal
 from ..paths import CREDENTIALS_DIR, TOKENS_DIR, APPLICATION_CONFIG_FILE
 from ..connections import HTTPSensorApplicationConnection, MQTTSensorApplicationConnection
 
 logger = logging.getLogger("st-utils")
+console = Console()
 
 
 def _get_application_status():
@@ -111,13 +117,13 @@ def _show_application_status():
         app_status = _get_application_status()
         
         if not app_status:
-            print("\nNo applications configured in application-configs.yml")
+            console.print(Panel(
+                "[yellow]No applications configured in application-configs.yml[/yellow]",
+                border_style="yellow"
+            ))
             return
         
-        print("\n" + "=" * 50)
-        print("Configured Applications")
-        print("=" * 50)
-        
+        # Create status tables
         apps_by_auth = {"credentials": [], "tokens": []}
         unconfigured_apps = []
         
@@ -128,60 +134,76 @@ def _show_application_status():
         
         # Show credentials-based apps
         if apps_by_auth["credentials"]:
-            print("\n📋 Applications using Credentials:")
+            creds_table = Table(title="📋 Applications using Credentials", show_header=True, header_style="bold")
+            creds_table.add_column("Status", style="magenta", width=8)
+            creds_table.add_column("Application", style="cyan")
+            creds_table.add_column("Connection", style="blue")
+            creds_table.add_column("Notes", style="yellow")
+            
             for app_name, status in apps_by_auth["credentials"]:
-                status_icon = "✓" if status["configured"] else "✗"
-                print(f"  {status_icon} {app_name}")
-                print(f"      Connection: {status['connection_class']}")
-                if not status["configured"]:
-                    print(f"      ⚠️  Missing in application_credentials.json")
+                status_icon = "[green]✓[/green]" if status["configured"] else "[red]✗[/red]"
+                notes = "" if status["configured"] else "[yellow]⚠️  Missing in application_credentials.json[/yellow]"
+                creds_table.add_row(status_icon, app_name, status['connection_class'], notes)
+            
+            console.print(creds_table)
         
         # Show token-based apps
         if apps_by_auth["tokens"]:
-            print("\n🔑 Applications using Tokens:")
+            tokens_table = Table(title="🔑 Applications using Tokens", show_header=True, header_style="bold")
+            tokens_table.add_column("Status", style="magenta", width=8)
+            tokens_table.add_column("Application", style="cyan")
+            tokens_table.add_column("Connection", style="blue")
+            tokens_table.add_column("Notes", style="yellow")
+            
             for app_name, status in apps_by_auth["tokens"]:
-                status_icon = "✓" if status["configured"] else "✗"
-                print(f"  {status_icon} {app_name}")
-                print(f"      Connection: {status['connection_class']}")
-                if not status["configured"]:
-                    print(f"      ⚠️  Missing token file: {app_name}.json")
+                status_icon = "[green]✓[/green]" if status["configured"] else "[red]✗[/red]"
+                notes = "" if status["configured"] else f"[yellow]⚠️  Missing token file: {app_name}.json[/yellow]"
+                tokens_table.add_row(status_icon, app_name, status['connection_class'], notes)
+            
+            console.print(tokens_table)
         
         # Summary
         total = len(app_status)
         configured = sum(1 for s in app_status.values() if s["configured"])
-        print(f"\nSummary: {configured}/{total} applications configured")
+        console.print(f"\n[bold]Summary:[/bold] [green]{configured}[/green]/[cyan]{total}[/cyan] applications configured")
         
         # Interactive setup for unconfigured apps
         if unconfigured_apps:
-            print("\n" + "=" * 50)
-            print("Unconfigured Applications - Quick Setup")
-            print("=" * 50)
-            print("Select an application to set up (or press Enter to skip):")
+            console.print(Panel.fit(
+                "[bold]Unconfigured Applications - Quick Setup[/bold]",
+                border_style="yellow"
+            ))
             
+            unconfig_table = Table(show_header=False, box=None, padding=(0, 2))
             for i, (app_name, status) in enumerate(unconfigured_apps, 1):
                 auth_type_label = "Credentials" if status["auth_type"] == "credentials" else "Token file"
-                print(f"  [{i}] {app_name} ({auth_type_label})")
-            print(f"  [{len(unconfigured_apps) + 1}] Skip / Manage applications")
+                unconfig_table.add_row(f"[cyan][{i}][/cyan]", f"{app_name} ([dim]{auth_type_label}[/dim])")
+            unconfig_table.add_row(f"[cyan][{len(unconfigured_apps) + 1}][/cyan]", "[dim]Skip / Manage applications[/dim]")
             
-            choice = input(f"\nSelect option [1-{len(unconfigured_apps) + 1}]: ").strip()
+            console.print(unconfig_table)
+            
+            choice = IntPrompt.ask(
+                f"\nSelect option",
+                default=len(unconfigured_apps) + 1
+            )
             
             try:
-                idx = int(choice) - 1
+                idx = choice - 1
                 if 0 <= idx < len(unconfigured_apps):
                     app_name, status = unconfigured_apps[idx]
                     
                     if status["auth_type"] == "credentials":
                         # Set up using credentials
                         if _setup_application_credentials(app_name=app_name):
-                            print(f"\n✓ Successfully set up credentials for {app_name}")
+                            console.print(f"\n[bold green]✓ Successfully set up credentials for {app_name}[/bold green]")
                         else:
-                            print(f"\n⚠️  Setup cancelled or incomplete for {app_name}")
+                            console.print(f"\n[yellow]⚠️  Setup cancelled or incomplete for {app_name}[/yellow]")
                     else:
                         # Set up using token file
                         if _setup_token_file(token_name=app_name):
-                            print(f"\n✓ Successfully set up token file for {app_name}")
+                            console.print(f"\n[bold green]✓ Successfully set up token file for {app_name}[/bold green]")
                         else:
-                            print(f"\n⚠️  Setup cancelled or incomplete for {app_name}")
+                            console.print(f"\n[yellow]⚠️  Setup cancelled or incomplete for {app_name}[/yellow]")
                     
                     # Continue loop to refresh status and show remaining apps
                     continue
@@ -189,29 +211,35 @@ def _show_application_status():
                     # Skip/Manage - proceed to management menu
                     pass
                 else:
-                    print("Invalid selection.")
+                    console.print("[red]Invalid selection.[/red]")
                     continue
-            except ValueError:
+            except (ValueError, IndexError):
                 # User pressed Enter or entered non-numeric - proceed to management menu
                 pass
         
         # Management menu
-        print("\n" + "=" * 50)
-        print("Application Management")
-        print("=" * 50)
-        print("Select an application to manage:")
+        console.print(Panel.fit(
+            "[bold]Application Management[/bold]",
+            border_style="blue"
+        ))
         
         app_list = list(app_status.items())
+        manage_table = Table(show_header=False, box=None, padding=(0, 2))
         for i, (app_name, status) in enumerate(app_list, 1):
-            status_icon = "✓" if status["configured"] else "✗"
+            status_icon = "[green]✓[/green]" if status["configured"] else "[red]✗[/red]"
             auth_label = "Credentials" if status["auth_type"] == "credentials" else "Tokens"
-            print(f"  [{i}] {status_icon} {app_name} ({auth_label})")
-        print(f"  [{len(app_list) + 1}] Back to main menu")
+            manage_table.add_row(f"[cyan][{i}][/cyan]", f"{status_icon} {app_name} ([dim]{auth_label}[/dim])")
+        manage_table.add_row(f"[cyan][{len(app_list) + 1}][/cyan]", "[dim]Back to main menu[/dim]")
         
-        choice = input(f"\nSelect option [1-{len(app_list) + 1}]: ").strip()
+        console.print(manage_table)
+        
+        choice = IntPrompt.ask(
+            f"\nSelect option",
+            default=len(app_list) + 1
+        )
         
         try:
-            idx = int(choice) - 1
+            idx = choice - 1
             if 0 <= idx < len(app_list):
                 app_name, status = app_list[idx]
                 _manage_application(app_name)
@@ -221,9 +249,9 @@ def _show_application_status():
                 # Back to main menu - exit the loop
                 break
             else:
-                print("Invalid selection.")
+                console.print("[red]Invalid selection.[/red]")
                 continue
-        except ValueError:
+        except (ValueError, IndexError):
             # User pressed Enter or entered non-numeric - exit the loop
             break
 
@@ -243,144 +271,164 @@ def _get_connection_type_from_config(app_config: dict) -> str:
 def _manage_application(app_name: str):
     """Manage a specific application - modify or remove."""
     while True:
-        print("\n" + "=" * 50)
-        print(f"Manage Application: {app_name}")
-        print("=" * 50)
-        print("[1] Modify configuration")
-        print("[2] Remove application")
-        print("[3] Back to application list")
+        menu_table = Table(show_header=False, box=None, padding=(0, 2))
+        menu_table.add_row("[cyan][1][/cyan]", "Modify configuration")
+        menu_table.add_row("[cyan][2][/cyan]", "Remove application")
+        menu_table.add_row("[cyan][3][/cyan]", "Back to application list")
         
-        choice = input("\nSelect an option [3]: ").strip() or "3"
+        console.print(Panel.fit(
+            menu_table,
+            title=f"[bold]Manage Application: {app_name}[/bold]",
+            border_style="blue"
+        ))
+        
+        choice = Prompt.ask("\nSelect an option", default="3", choices=["1", "2", "3"])
         
         if choice == "1":
             try:
                 if _modify_application_config(app_name):
-                    print(f"\n✓ Successfully modified {app_name}")
-                    input("\nPress Enter to continue...")
+                    console.print(f"\n[bold green]✓ Successfully modified {app_name}[/bold green]")
+                    Prompt.ask("\nPress Enter to continue", default="")
                     break  # Exit to refresh the list
             except KeyboardInterrupt:
-                print("\n\nCancelled modification.")
+                console.print("\n\n[yellow]Cancelled modification.[/yellow]")
         elif choice == "2":
             try:
                 if _remove_application(app_name):
-                    print(f"\n✓ Successfully removed {app_name}")
-                    input("\nPress Enter to continue...")
+                    console.print(f"\n[bold green]✓ Successfully removed {app_name}[/bold green]")
+                    Prompt.ask("\nPress Enter to continue", default="")
                     break  # Exit to refresh the list
             except KeyboardInterrupt:
-                print("\n\nCancelled removal.")
+                console.print("\n\n[yellow]Cancelled removal.[/yellow]")
         elif choice == "3":
             break
         else:
-            print("Invalid option. Please try again.")
+            console.print("[red]Invalid option. Please try again.[/red]")
 
 
 def _modify_application_config(app_name: str) -> bool:
     """Modify an existing application configuration."""
     # Load existing config
     if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
-        print("Error: Application config file not found")
+        console.print("[bold red]Error:[/bold red] Application config file not found")
         return False
     
     try:
         with open(APPLICATION_CONFIG_FILE, "r") as f:
             config = yaml.safe_load(f) or {}
     except Exception as e:
-        print(f"Error reading config file: {e}")
+        console.print(f"[bold red]Error reading config file:[/bold red] {e}")
         return False
     
     if "applications" not in config or app_name not in config["applications"]:
-        print(f"Error: Application '{app_name}' not found in config")
+        console.print(f"[bold red]Error:[/bold red] Application '{app_name}' not found in config")
         return False
     
     current_config = config["applications"][app_name].copy()
     connection_type = _get_connection_type_from_config(current_config)
     
-    print(f"\n--- Modify Application: {app_name} ---")
-    print("(Press Enter to keep current value)")
+    console.print(Panel.fit(
+        f"[bold]Modify Application: {app_name}[/bold]\n[dim](Press Enter to keep current value)[/dim]",
+        border_style="blue"
+    ))
     
     # Show current values and allow modification
     new_config = {}
     
     # Authentication type
     current_auth = current_config.get("authentication_type", "credentials")
-    print(f"\nCurrent authentication type: {current_auth}")
-    while True:
-        print("  [1] tokens")
-        print("  [2] credentials")
-        choice = input(f"Select authentication type [Enter to keep '{current_auth}']: ").strip()
-        if not choice:
-            new_config["authentication_type"] = current_auth
-            break
-        elif choice == "1":
-            new_config["authentication_type"] = "tokens"
-            break
-        elif choice == "2":
-            new_config["authentication_type"] = "credentials"
-            break
-        else:
-            print("Invalid selection. Please enter 1 or 2, or press Enter to keep current.")
+    console.print(f"\n[bold]Current authentication type:[/bold] {current_auth}")
+    auth_table = Table(show_header=False, box=None, padding=(0, 2))
+    auth_table.add_row("[cyan][1][/cyan]", "tokens")
+    auth_table.add_row("[cyan][2][/cyan]", "credentials")
+    console.print(auth_table)
+    
+    choice = Prompt.ask(
+        f"Select authentication type",
+        default="",
+        choices=["1", "2", ""]
+    )
+    if not choice:
+        new_config["authentication_type"] = current_auth
+    elif choice == "1":
+        new_config["authentication_type"] = "tokens"
+    elif choice == "2":
+        new_config["authentication_type"] = "credentials"
     
     # Connection class
     current_class = current_config.get("connection_class", "")
     available_classes = _get_available_connection_classes(connection_type)
     if not available_classes:
-        print(f"\nNo {connection_type.upper()} connection classes found")
+        console.print(f"\n[bold red]No {connection_type.upper()} connection classes found[/bold red]")
         return False
     
-    print(f"\nCurrent connection class: {current_class}")
-    print(f"Available {connection_type.upper()} connection classes:")
+    console.print(f"\n[bold]Current connection class:[/bold] {current_class}")
+    console.print(f"[bold]Available {connection_type.upper()} connection classes:[/bold]")
+    class_table = Table(show_header=False, box=None, padding=(0, 2))
     for i, class_name in enumerate(available_classes, 1):
-        marker = " <-- current" if class_name == current_class else ""
-        print(f"  [{i}] {class_name}{marker}")
+        marker = " [dim]<-- current[/dim]" if class_name == current_class else ""
+        class_table.add_row(f"[cyan][{i}][/cyan]", f"{class_name}{marker}")
+    console.print(class_table)
     
-    while True:
-        choice = input(f"Select connection class [Enter to keep '{current_class}']: ").strip()
-        if not choice:
-            new_config["connection_class"] = current_class
-            break
+    choice = Prompt.ask(
+        f"Select connection class",
+        default="",
+        choices=[str(i) for i in range(1, len(available_classes) + 1)] + [""]
+    )
+    if not choice:
+        new_config["connection_class"] = current_class
+    else:
         try:
             idx = int(choice) - 1
             if 0 <= idx < len(available_classes):
                 new_config["connection_class"] = available_classes[idx]
-                break
-            else:
-                print(f"Invalid selection. Please enter 1-{len(available_classes)} or press Enter.")
         except ValueError:
-            print("Invalid input. Please enter a number or press Enter.")
+            console.print("[red]Invalid input.[/red]")
+            return False
     
     # HTTP-specific fields
     if connection_type == "http":
         current_interval = current_config.get("interval", "")
-        new_interval = input(f"\nRequest Interval (seconds) [Current: {current_interval}, Enter to keep]: ").strip()
+        new_interval = Prompt.ask(
+            f"\nRequest Interval (seconds)",
+            default=str(current_interval) if current_interval else ""
+        )
         if new_interval:
             try:
                 new_config["interval"] = int(new_interval)
             except ValueError:
-                print("Invalid interval value. Keeping current value.")
-                new_config["interval"] = current_interval
+                console.print("[yellow]Invalid interval value. Keeping current value.[/yellow]")
+                if current_interval:
+                    new_config["interval"] = current_interval
         else:
             if current_interval:
                 new_config["interval"] = current_interval
         
         current_max_retries = current_config.get("max_retries", "")
-        new_max_retries = input(f"Max retries [Current: {current_max_retries}, Enter to keep]: ").strip()
+        new_max_retries = Prompt.ask(
+            "Max retries",
+            default=str(current_max_retries) if current_max_retries else ""
+        )
         if new_max_retries:
             try:
                 new_config["max_retries"] = int(new_max_retries)
             except ValueError:
-                print("Invalid max_retries value. Keeping current value.")
+                console.print("[yellow]Invalid max_retries value. Keeping current value.[/yellow]")
                 new_config["max_retries"] = current_max_retries if current_max_retries else None
         else:
             if current_max_retries:
                 new_config["max_retries"] = current_max_retries
         
         current_expected_sensors = current_config.get("expected_sensors", "")
-        new_expected_sensors = input(f"Expected sensors [Current: {current_expected_sensors}, Enter to keep]: ").strip()
+        new_expected_sensors = Prompt.ask(
+            "Expected sensors",
+            default=str(current_expected_sensors) if current_expected_sensors else ""
+        )
         if new_expected_sensors:
             try:
                 new_config["expected_sensors"] = int(new_expected_sensors)
             except ValueError:
-                print("Invalid expected_sensors value. Keeping current value.")
+                console.print("[yellow]Invalid expected_sensors value. Keeping current value.[/yellow]")
                 new_config["expected_sensors"] = current_expected_sensors if current_expected_sensors else None
         else:
             if current_expected_sensors:
@@ -389,49 +437,49 @@ def _modify_application_config(app_name: str) -> bool:
     # MQTT-specific fields
     else:
         current_max_retries = current_config.get("max_retries", "")
-        new_max_retries = input(f"\nMax retries [Current: {current_max_retries}, Enter to keep]: ").strip()
+        new_max_retries = Prompt.ask(
+            "\nMax retries",
+            default=str(current_max_retries) if current_max_retries else ""
+        )
         if new_max_retries:
             try:
                 new_config["max_retries"] = int(new_max_retries)
             except ValueError:
-                print("Invalid max_retries value. Keeping current value.")
+                console.print("[yellow]Invalid max_retries value. Keeping current value.[/yellow]")
                 new_config["max_retries"] = current_max_retries if current_max_retries else None
         else:
             if current_max_retries:
                 new_config["max_retries"] = current_max_retries
         
         current_host = current_config.get("host", "")
-        new_host = input(f"Host [Current: {current_host}]: ").strip()
-        if new_host:
-            new_config["host"] = new_host
-        else:
-            new_config["host"] = current_host
+        new_host = Prompt.ask("Host", default=current_host)
+        new_config["host"] = new_host if new_host else current_host
         
         current_port = current_config.get("port", 8883)
-        new_port = input(f"Port [Current: {current_port}]: ").strip()
+        new_port = Prompt.ask("Port", default=str(current_port))
         if new_port:
             try:
                 new_config["port"] = int(new_port)
             except ValueError:
-                print("Invalid port value. Keeping current value.")
+                console.print("[yellow]Invalid port value. Keeping current value.[/yellow]")
                 new_config["port"] = current_port
         else:
             new_config["port"] = current_port
         
         current_topic = current_config.get("topic", "")
-        new_topic = input(f"Topic [Current: {current_topic}]: ").strip()
-        if new_topic:
-            new_config["topic"] = new_topic
-        else:
-            new_config["topic"] = current_topic
+        new_topic = Prompt.ask("Topic", default=current_topic)
+        new_config["topic"] = new_topic if new_topic else current_topic
         
         current_expected_sensors = current_config.get("expected_sensors", "")
-        new_expected_sensors = input(f"Expected sensors [Current: {current_expected_sensors}, Enter to keep]: ").strip()
+        new_expected_sensors = Prompt.ask(
+            "Expected sensors",
+            default=str(current_expected_sensors) if current_expected_sensors else ""
+        )
         if new_expected_sensors:
             try:
                 new_config["expected_sensors"] = int(new_expected_sensors)
             except ValueError:
-                print("Invalid expected_sensors value. Keeping current value.")
+                console.print("[yellow]Invalid expected_sensors value. Keeping current value.[/yellow]")
                 new_config["expected_sensors"] = current_expected_sensors if current_expected_sensors else None
         else:
             if current_expected_sensors:
@@ -446,7 +494,7 @@ def _modify_application_config(app_name: str) -> bool:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
         return True
     except Exception as e:
-        print(f"Error saving config file: {e}")
+        console.print(f"[bold red]Error saving config file:[/bold red] {e}")
         return False
 
 
@@ -454,35 +502,37 @@ def _remove_application(app_name: str) -> bool:
     """Remove an application from config and optionally remove credentials/tokens."""
     # Load existing config
     if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
-        print("Error: Application config file not found")
+        console.print("[bold red]Error:[/bold red] Application config file not found")
         return False
     
     try:
         with open(APPLICATION_CONFIG_FILE, "r") as f:
             config = yaml.safe_load(f) or {}
     except Exception as e:
-        print(f"Error reading config file: {e}")
+        console.print(f"[bold red]Error reading config file:[/bold red] {e}")
         return False
     
     if "applications" not in config or app_name not in config["applications"]:
-        print(f"Error: Application '{app_name}' not found in config")
+        console.print(f"[bold red]Error:[/bold red] Application '{app_name}' not found in config")
         return False
     
     app_config = config["applications"][app_name]
     auth_type = app_config.get("authentication_type", "credentials")
     
     # Confirm removal
-    print(f"\n⚠️  WARNING: This will remove '{app_name}' from the configuration.")
+    warning_text = f"[bold yellow]⚠️  WARNING:[/bold yellow] This will remove '{app_name}' from the configuration.\n"
     if auth_type == "credentials":
-        print(f"   The application credentials in application_credentials.json will NOT be removed automatically.")
+        warning_text += "The application credentials in application_credentials.json will NOT be removed automatically."
     else:
         token_file = TOKENS_DIR / f"{app_name}.json"
         if token_file.exists():
-            print(f"   Token file: {token_file} exists and will NOT be removed automatically.")
+            warning_text += f"Token file: {token_file} exists and will NOT be removed automatically."
     
-    confirm = input("\nAre you sure you want to remove this application? (yes/no) [no]: ").strip().lower()
-    if confirm != "yes":
-        print("Cancelled.")
+    console.print(Panel(warning_text, border_style="yellow"))
+    
+    confirm = Confirm.ask("\nAre you sure you want to remove this application?", default=False)
+    if not confirm:
+        console.print("[yellow]Cancelled.[/yellow]")
         return False
     
     # Optionally remove credentials/tokens
@@ -494,17 +544,19 @@ def _remove_application(app_name: str) -> bool:
                 with open(app_creds_file, "r") as f:
                     app_creds = json.load(f)
                 if app_name in app_creds:
-                    remove_auth_choice = input(f"\nAlso remove credentials from application_credentials.json? (yes/no) [no]: ").strip().lower()
-                    if remove_auth_choice == "yes":
-                        remove_auth = True
+                    remove_auth = Confirm.ask(
+                        "\nAlso remove credentials from application_credentials.json?",
+                        default=False
+                    )
             except Exception:
                 pass
     else:  # tokens
         token_file = TOKENS_DIR / f"{app_name}.json"
         if token_file.exists():
-            remove_auth_choice = input(f"\nAlso delete token file {token_file.name}? (yes/no) [no]: ").strip().lower()
-            if remove_auth_choice == "yes":
-                remove_auth = True
+            remove_auth = Confirm.ask(
+                f"\nAlso delete token file {token_file.name}?",
+                default=False
+            )
     
     # Remove from config
     del config["applications"][app_name]
@@ -514,7 +566,7 @@ def _remove_application(app_name: str) -> bool:
         with open(APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
     except Exception as e:
-        print(f"Error saving config file: {e}")
+        console.print(f"[bold red]Error saving config file:[/bold red] {e}")
         return False
     
     # Remove credentials/tokens if requested
@@ -527,16 +579,16 @@ def _remove_application(app_name: str) -> bool:
                     del app_creds[app_name]
                     with open(app_creds_file, "w") as f:
                         json.dump(app_creds, f, indent=4)
-                    print(f"✓ Removed credentials for {app_name}")
+                    console.print(f"[green]✓ Removed credentials for {app_name}[/green]")
             except Exception as e:
-                print(f"Warning: Could not remove credentials: {e}")
+                console.print(f"[yellow]Warning: Could not remove credentials:[/yellow] {e}")
         else:  # tokens
             try:
                 if token_file.exists():
                     token_file.unlink()
-                    print(f"✓ Deleted token file {token_file.name}")
+                    console.print(f"[green]✓ Deleted token file {token_file.name}[/green]")
             except Exception as e:
-                print(f"Warning: Could not delete token file: {e}")
+                console.print(f"[yellow]Warning: Could not delete token file:[/yellow] {e}")
     
     return True
 
@@ -549,29 +601,30 @@ def _add_application_to_config():
         On success, returns (True, app_name, auth_type)
         On failure, returns (False, None, None)
     """
-    print("\n--- Add Application to Config ---")
+    console.print(Panel.fit(
+        "[bold]Add Application to Config[/bold]",
+        border_style="blue"
+    ))
     
     # Step 1: Ask for connection type with numeric selection
+    conn_table = Table(show_header=False, box=None, padding=(0, 2))
+    conn_table.add_row("[cyan][1][/cyan]", "HTTP")
+    conn_table.add_row("[cyan][2][/cyan]", "MQTT")
+    console.print("\n[bold]Connection type:[/bold]")
+    console.print(conn_table)
+    
     while True:
-        print("\nConnection type:")
-        print("  [1] HTTP")
-        print("  [2] MQTT")
-        choice = input("Select connection type [1-2]: ").strip()
-        if choice == "1":
-            connection_type = "http"
+        choice = IntPrompt.ask("Select connection type", default=1)
+        if choice in [1, 2]:
             break
-        elif choice == "2":
-            connection_type = "mqtt"
-            break
-        else:
-            print("Invalid selection. Please enter 1 or 2.")
+        console.print("[red]Invalid selection. Please enter 1 or 2.[/red]")
+    connection_type = "http" if choice == 1 else "mqtt"
     
     # Step 2: Ask for application name
-    while True:
-        app_name = input("\nApplication name: ").strip()
-        if app_name:
-            break
-        print("Application name cannot be empty. Please try again.")
+    app_name = Prompt.ask("\nApplication name")
+    if not app_name:
+        console.print("[bold red]Application name cannot be empty.[/bold red]")
+        return (False, None, None)
     
     # Load existing config
     config = {}
@@ -580,7 +633,7 @@ def _add_application_to_config():
             with open(APPLICATION_CONFIG_FILE, "r") as f:
                 config = yaml.safe_load(f) or {}
         except Exception as e:
-            print(f"Error reading config file: {e}")
+            console.print(f"[bold red]Error reading config file:[/bold red] {e}")
             return (False, None, None)
     else:
         # File doesn't exist, create new structure
@@ -588,9 +641,9 @@ def _add_application_to_config():
     
     # Check if application already exists
     if "applications" in config and app_name in config["applications"]:
-        overwrite = input(f"\nApplication '{app_name}' already exists. Overwrite? (yes/no) [no]: ").strip().lower()
-        if overwrite != "yes":
-            print("Cancelled.")
+        overwrite = Confirm.ask(f"\nApplication '{app_name}' already exists. Overwrite?", default=False)
+        if not overwrite:
+            console.print("[yellow]Cancelled.[/yellow]")
             return (False, None, None)
     
     # Initialize applications dict if needed
@@ -601,124 +654,94 @@ def _add_application_to_config():
     app_config = {}
     
     # Common fields - Authentication type with numeric selection
+    auth_table = Table(show_header=False, box=None, padding=(0, 2))
+    auth_table.add_row("[cyan][1][/cyan]", "tokens")
+    auth_table.add_row("[cyan][2][/cyan]", "credentials")
+    console.print("\n[bold]Authentication type:[/bold]")
+    console.print(auth_table)
+    
     while True:
-        print("\nAuthentication type:")
-        print("  [1] tokens")
-        print("  [2] credentials")
-        choice = input("Select authentication type [1-2]: ").strip()
-        if choice == "1":
-            app_config["authentication_type"] = "tokens"
+        choice = IntPrompt.ask("Select authentication type", default=2)
+        if choice in [1, 2]:
             break
-        elif choice == "2":
-            app_config["authentication_type"] = "credentials"
-            break
-        else:
-            print("Invalid selection. Please enter 1 or 2.")
+        console.print("[red]Invalid selection. Please enter 1 or 2.[/red]")
+    app_config["authentication_type"] = "tokens" if choice == 1 else "credentials"
     
     # Connection class - show available options
     available_classes = _get_available_connection_classes(connection_type)
     if not available_classes:
-        print(f"\nNo {connection_type.upper()} connection classes found in connections.py")
+        console.print(f"\n[bold red]No {connection_type.upper()} connection classes found in connections.py[/bold red]")
         return (False, None, None)
     
-    while True:
-        print(f"\nAvailable {connection_type.upper()} connection classes:")
-        for i, class_name in enumerate(available_classes, 1):
-            print(f"  [{i}] {class_name}")
-        choice = input(f"Select connection class [1-{len(available_classes)}]: ").strip()
-        try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(available_classes):
-                app_config["connection_class"] = available_classes[idx]
-                break
-            else:
-                print(f"Invalid selection. Please enter a number between 1 and {len(available_classes)}.")
-        except ValueError:
-            print("Invalid input. Please enter a number.")
+    class_table = Table(show_header=False, box=None, padding=(0, 2))
+    for i, class_name in enumerate(available_classes, 1):
+        class_table.add_row(f"[cyan][{i}][/cyan]", class_name)
+    console.print(f"\n[bold]Available {connection_type.upper()} connection classes:[/bold]")
+    console.print(class_table)
+    
+    choice = IntPrompt.ask(
+        f"Select connection class",
+        default=1
+    )
+    app_config["connection_class"] = available_classes[choice - 1]
     
     if connection_type == "http":
         # HTTP-specific fields
-        interval = input("\nRequest Interval (seconds) (optional, press Enter to skip): ").strip()
+        interval = Prompt.ask("\nRequest Interval (seconds)", default="")
         if interval:
-            while True:
-                try:
-                    app_config["interval"] = int(interval)
-                    break
-                except ValueError:
-                    interval = input("Invalid interval value. Must be a number. Try again (or press Enter to skip): ").strip()
-                    if not interval:
-                        break
+            try:
+                app_config["interval"] = int(interval)
+            except ValueError:
+                console.print("[yellow]Invalid interval value. Skipping.[/yellow]")
         
-        max_retries = input("Max retries (optional, press Enter to skip): ").strip()
+        max_retries = Prompt.ask("Max retries", default="")
         if max_retries:
-            while True:
-                try:
-                    app_config["max_retries"] = int(max_retries)
-                    break
-                except ValueError:
-                    max_retries = input("Invalid max_retries value. Must be a number. Try again (or press Enter to skip): ").strip()
-                    if not max_retries:
-                        break
+            try:
+                app_config["max_retries"] = int(max_retries)
+            except ValueError:
+                console.print("[yellow]Invalid max_retries value. Skipping.[/yellow]")
         
-        expected_sensors = input("Expected sensors (optional, press Enter to skip): ").strip()
+        expected_sensors = Prompt.ask("Expected sensors", default="")
         if expected_sensors:
-            while True:
-                try:
-                    app_config["expected_sensors"] = int(expected_sensors)
-                    break
-                except ValueError:
-                    expected_sensors = input("Invalid expected_sensors value. Must be a number. Try again (or press Enter to skip): ").strip()
-                    if not expected_sensors:
-                        break
+            try:
+                app_config["expected_sensors"] = int(expected_sensors)
+            except ValueError:
+                console.print("[yellow]Invalid expected_sensors value. Skipping.[/yellow]")
     
     else:  # mqtt
         # MQTT-specific fields
-        max_retries = input("\nMax retries (optional, press Enter to skip): ").strip()
+        max_retries = Prompt.ask("\nMax retries", default="")
         if max_retries:
-            while True:
-                try:
-                    app_config["max_retries"] = int(max_retries)
-                    break
-                except ValueError:
-                    max_retries = input("Invalid max_retries value. Must be a number. Try again (or press Enter to skip): ").strip()
-                    if not max_retries:
-                        break
+            try:
+                app_config["max_retries"] = int(max_retries)
+            except ValueError:
+                console.print("[yellow]Invalid max_retries value. Skipping.[/yellow]")
         
-        while True:
-            host = input("Host: ").strip()
-            if host:
-                app_config["host"] = host
-                break
-            print("Host is required for MQTT applications. Please try again.")
+        host = Prompt.ask("Host")
+        if not host:
+            console.print("[bold red]Host is required for MQTT applications.[/bold red]")
+            return (False, None, None)
+        app_config["host"] = host
         
-        port = input("Port [8883]: ").strip()
-        if port:
-            while True:
-                try:
-                    app_config["port"] = int(port)
-                    break
-                except ValueError:
-                    port = input("Invalid port value. Must be a number. Try again: ").strip()
-        else:
+        port = Prompt.ask("Port", default="8883")
+        try:
+            app_config["port"] = int(port)
+        except ValueError:
+            console.print("[yellow]Invalid port value. Using default 8883.[/yellow]")
             app_config["port"] = 8883
         
-        while True:
-            topic = input("Topic: ").strip()
-            if topic:
-                app_config["topic"] = topic
-                break
-            print("Topic is required for MQTT applications. Please try again.")
+        topic = Prompt.ask("Topic")
+        if not topic:
+            console.print("[bold red]Topic is required for MQTT applications.[/bold red]")
+            return (False, None, None)
+        app_config["topic"] = topic
         
-        expected_sensors = input("Expected sensors (optional, press Enter to skip): ").strip()
+        expected_sensors = Prompt.ask("Expected sensors", default="")
         if expected_sensors:
-            while True:
-                try:
-                    app_config["expected_sensors"] = int(expected_sensors)
-                    break
-                except ValueError:
-                    expected_sensors = input("Invalid expected_sensors value. Must be a number. Try again (or press Enter to skip): ").strip()
-                    if not expected_sensors:
-                        break
+            try:
+                app_config["expected_sensors"] = int(expected_sensors)
+            except ValueError:
+                console.print("[yellow]Invalid expected_sensors value. Skipping.[/yellow]")
     
     # Add application to config
     config["applications"][app_name] = app_config
@@ -727,9 +750,9 @@ def _add_application_to_config():
     try:
         with open(APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
-        print(f"\n✓ Added '{app_name}' to {APPLICATION_CONFIG_FILE.name}")
+        console.print(f"\n[bold green]✓ Added '{app_name}' to {APPLICATION_CONFIG_FILE.name}[/bold green]")
         auth_type = app_config.get("authentication_type", "credentials")
         return (True, app_name, auth_type)
     except Exception as e:
-        print(f"Error saving config file: {e}")
+        console.print(f"[bold red]Error saving config file:[/bold red] {e}")
         return (False, None, None)

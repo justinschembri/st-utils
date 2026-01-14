@@ -4,9 +4,14 @@
 import subprocess
 from pathlib import Path
 
+# external
+from rich.console import Console
+
 # internal
 from ..paths import CREDENTIALS_DIR, TOKENS_DIR
 from ..preflight.validation import validate_all_credentials
+
+console = Console()
 
 
 def _check_containers_running():
