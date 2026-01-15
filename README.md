@@ -153,13 +153,13 @@ The application should be connecting, receiving, parsing, transforming and
 storing your date. You can head over to `http://localhost:8080/st-utils` to
 check this out and explore your data visually.
 
-![](./docs/imgs/dashboard.gif)
+![](./docs/imgs/dashboard.jpg)
 
-![](./docs/imgs/graph.gif)
+![](./docs/imgs/graph.jpg)
 
 You can also check out the health monitor to see how your system is performing.k
 
-![](./docs/imgs/health.gif)
+![](./docs/imgs/health.jpg)
 
 ## Supported Applications
 
