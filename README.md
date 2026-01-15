@@ -5,16 +5,16 @@
 (The application currently supports a limited number of IoT applications and
 sensors: this list is expected to grow.) 
 
-**st-utils** (SensorThings Utilities) is an **Extract, Transform and Load**
-Internet of Things (IoT) application with ease of use, data interoperability and
-[OGC SensorThings](https://www.ogc.org/publications/standard/sensorthings/)
-compliance as its main goal. The following are its features:
+**st-utils** (SensorThings Utilities) is a deployment and management layer for
+Fraunhofer's [FROST Server](https://github.com/FraunhoferIOSB/FROST-Server). It
+makes deploying [OGC SensorThings API
+(STA)](https://www.ogc.org/publications/standard/sensorthings/) compliant sensor
+IoT applications easy! The following are its features:
 
+- Add, delete and manage IoT applications through an intuitive CLI,
+- Keep your sensors STA compliant - the app takes care of transformation and
+  management under the hood,
 - Spin up a batteries-included web-based Sensor Dashboard,
-- Add IoT applications and sensors easily through a CLI,
-- Heterogenous sensor models quickly become homogenous and predictably compliant
-  with the SensorThings model,
-
 
 ```mermaid
 flowchart LR
@@ -30,10 +30,6 @@ flowchart LR
     E --> F[Serve]
 ```
 
-`st-utils` is built on Fruanhofer's [FROST
-Server](https://github.com/FraunhoferIOSB/FROST-Server) and adds a
-transformation and management layer.
-
 ## System Requirements
 
 The system requirements are fairly minimal:
@@ -45,7 +41,8 @@ The system requirements are fairly minimal:
 
 ## Deployment Requirements
 
-Deployment requires and assumes the following:
+Deployment requires and assumes you have access (credentials) to sensor IoT
+applications. More technically:
 
 ### Upstream Data Sources
 
@@ -59,9 +56,9 @@ st-utils supports ingestion from:
 
 ### Sensor Specifications and Architecture
 
-The application assumes you have enough information about the sensor *and what
-it is observing* to be able to specify enough information to populate the
-SensorThings datamodel:
+The application will help you set up the STA data mode. However, it assumes you
+have enough information about the sensor *and what it is observing* to be able
+to specify enough information to populate the SensorThings datamodel.
 
 ![](docs/readme_sensorThingsDataModel.png)
 
@@ -73,7 +70,7 @@ The overall setup involves:
 2. Setting up mandatory internal credentials, 
 3. Setting up external IoT applications and credentials,
 4. Writing sensor configuration files.
-5. Launching the system.
+5. Launching the system!
 
 ### Step 1: Clone the Repo and Create a Python Virtual Environment
 
@@ -93,7 +90,13 @@ To quickly set up your instance of `st-utils`, use the inbuilt tooling:
 $ stu setup
 ```
 
-Upon the first launch of the CLI, you will be guided through setting up mandatory internal credentials. The system uses default usernames (`sta-admin`) which you can accept or override:
+Upon the first launch of the CLI, you will be guided through setting up
+mandatory internal credentials. 
+
+![](./docs/tapes/credentials.gif)
+
+The system uses default usernames (`sta-admin`) which you can accept or
+override:
 
 - **FROST**: Credentials for the FROST server (needed for data access and writing)
 - **PostgreSQL**: Credentials for the backend PostgreSQL database
@@ -104,79 +107,70 @@ All credentials are stored in the `deploy/secrets/credentials` directory.
 
 ### Step 3: Configure Applications
 
-After setting up internal credentials, you'll see the main menu. To configure IoT applications:
+After setting up internal credentials, its time to set up the IoT applications
+you have access to. Having 'access' to an IoT application means you have the
+required credentials or tokens to pull data from the IoT application. See
+[Supported Applications](#supported-applications) for the full list. 
 
-**Option [1] Add application to config**: This will:
-1. Guide you through adding a new application (HTTP or MQTT)
-2. Configure connection settings and authentication type
-3. **Automatically** prompt you to set up credentials/tokens for the application
+Run `stu setup` if its closed and select [1] to set up the IoT applications you
+have access too.  The app will guide you through the set up of (supported) HTTP
+and MQTT applications:
 
-IoT applications you have access to must be configured. Having 'access' to an IoT application means you have the required credentials or tokens to pull data from the IoT application. This present version of st-utils supports two application platforms: *Netatmo* and the popular *TheThingsStack*.
+![](./docs/tapes/application.gif)
 
-**Option [2] Manage existing credentials and tokens**: Use this to modify or update any credentials (internal or application-level) after initial setup.
-
-**Option [3] Manage configured applications**: View the status of all configured applications and their credential setup status. You can also modify or remove existing application configurations from this menu.
+Application are controlled by the `yaml` found in
+`deploy/application_configs.yaml`
 
 ### Step 4: Configure Sensor Configurations
 
 Each physical sensor in your network requires a configuration file that
 describes the sensor, its location, the thing it monitors, and the datastreams
-it produces. These files must be placed in the `deploy/sensor_configs/`
-directory.
+it produces. Again, using `stu setup` is the easiest, select item [2] and you'll
+again be guided through setting up of (supported) sensors:
 
-**Quick Start (Recommended):**
+![](./docs/tapes/config.gif)
 
-For supported sensor models, use `stu setup` option \[4\] **Setup a sensor
-configuration**.
+Sensor config are finicky `yaml` files that live in the `deploy/sensor_configs/`
+directory. 
 
-The CLI will prompt you for:
-- Sensor ID/name (typically the device MAC address)
-- Thing name and description
-- Location name, description, and coordinates (longitude, latitude)
+You can check the status of your applications using item [3] in the menu:
 
-All standard datastreams and observedProperties are automatically populated from
-the template. See [Sensor Configuration
-Templates](docs/sensor-config-templates.md) for detailed information.
+![](./docs/tapes/manage.gif)
 
-**Manual Configuration:**
+### Step 5: Start the App:
 
-If you need to create a configuration manually, template files are available at:
-- `deploy/sensor_configs/template_milesight.am103l.yaml`
-- `deploy/sensor_configs/template_milesight.am308l.yaml`
-- `deploy/sensor_configs/template_netatmo.nws03.yaml`
-- `deploy/sensor_configs/template.yaml` (generic template)
+Spin up the system using `stu start`, and stop it with `stu stop`.
 
-See [Sensor Configuration Templates](docs/sensor-config-templates.md) for
-detailed documentation on the configuration file structure and requirements.
+![](./docs/tapes/start.gif)
 
-**Validation:**
+By default, the application starts in a "public" mode that does not implement any
+*read* authentication. *Write* authentication is controlled by the FROST
+credentials you should have set up earlier. If you want to start in a "private"
+mode and have set up Tomcat users, then pass the --private flag: `stu start
+--public`.
 
-You can validate your sensor configuration files using:
+The application should be connecting, receiving, parsing, transforming and
+storing your date. You can head over to `http://localhost:8080/st-utils` to
+check this out and explore your data visually.
 
-```bash
-stu validate <path-to-config-file.yaml>
-```
+![](./docs/imgs/dashboard.gif)
 
-Or validate all configuration files in the current directory:
+![](./docs/imgs/graph.gif)
 
-```bash
-stu validate
-```
+You can also check out the health monitor to see how your system is performing.k
 
-### Step 5
+![](./docs/imgs/health.gif)
 
-You can launch the application by running the production script
-`deploy/start-production.sh`. You can visit the application
-`http://localhost:8080/st-utils`.
-
-# Supported Applications
+## Supported Applications
 
 st-utils supports integration with the following IoT application platforms:
 
-- **Netatmo** (`NetatmoConnection`): HTTP-based connection to Netatmo weather station APIs
-- **TheThingsStack (`TTSConnection`)**: MQTT-based connection to The Things Network
+- **Netatmo** (`NetatmoConnection`): HTTP-based connection to Netatmo weather
+  station APIs
+- **TheThingsStack (`TTSConnection`)**: MQTT-based connection to The Things
+  Network
 
-# Supported Sensor Models
+## Supported Sensor Models
 
 The following sensor models are currently supported:
 
