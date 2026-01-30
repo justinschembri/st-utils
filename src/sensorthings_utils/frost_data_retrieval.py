@@ -7,13 +7,12 @@ import time
 import csv
 from pathlib import Path
 from typing import NamedTuple
-
+from datetime import date
 # external
 import requests
 
 # internal
 from sensorthings_utils.sensor_things.core import Observation
-
 
 @dataclass
 class CuratedDataSet(ABC):
@@ -77,6 +76,8 @@ def observations_link_from_thing(
 
 def fetch_observations(
     observations_url: str,
+    iso_start_date: str | None = None,
+    iso_end_date:  str | None = None,
     max_retries: int = 5,
     delay: float = 0.05,
 ) -> list[Observation]:
@@ -86,6 +87,17 @@ def fetch_observations(
     retries = 0
     while next_url:
         params = {"$select": "phenomenonTime, resultTime, result"}
+        if iso_start_date:
+            # ensure correct format implicitly:
+            date.fromisoformat(iso_start_date)
+            params["$filter"] = f"phenomenonTime ge {iso_start_date}T00:00Z"
+            if iso_end_date:
+                # ensure correct format implicitly:
+                date.fromisoformat(iso_end_date)
+                params["$filter"] = (
+                        params["$filter"] + 
+                        f"and phenomenonTime le {iso_end_date}T00:00Z"
+                        )
         try:
             time.sleep(delay)
             response = requests.get(next_url, params)
