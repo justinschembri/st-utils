@@ -9,7 +9,7 @@ from typing import Any, Dict
 from rich.console import Console
 
 # internal
-from ..paths import CONFIG_PATHS
+from ..paths import SENSOR_CONFIG_PATH
 from ..transformers.types import SupportedSensors
 
 console = Console()
@@ -18,25 +18,25 @@ console = Console()
 def _load_template(sensor_model: SupportedSensors) -> Dict[str, Any]:
     """Load template file for a sensor model."""
     # Try direct path first (for backward compatibility)
-    template_path = CONFIG_PATHS / f"template_{sensor_model.value}.yaml"
+    template_path = SENSOR_CONFIG_PATH / f"template_{sensor_model.value}.yaml"
     
     # If not found, search recursively in subdirectories
     if not template_path.exists():
         # Extract model prefix (e.g., "netatmo" from "netatmo.nws03")
         model_prefix = sensor_model.value.split('.')[0]
         # Try in subdirectory matching the model prefix
-        template_path = CONFIG_PATHS / model_prefix / f"template_{sensor_model.value}.yaml"
+        template_path = SENSOR_CONFIG_PATH / model_prefix / f"template_{sensor_model.value}.yaml"
         
         # If still not found, search recursively for any template matching the pattern
         if not template_path.exists():
             pattern = f"template_{sensor_model.value}.yaml"
-            found_templates = list(CONFIG_PATHS.rglob(pattern))
+            found_templates = list(SENSOR_CONFIG_PATH.rglob(pattern))
             if found_templates:
                 template_path = found_templates[0]
             else:
                 raise FileNotFoundError(
                     f"Template not found for {sensor_model.value}. "
-                    f"Searched in {CONFIG_PATHS} and subdirectories. "
+                    f"Searched in {SENSOR_CONFIG_PATH} and subdirectories. "
                     f"Expected pattern: template_{sensor_model.value}.yaml"
                 )
     
@@ -171,7 +171,7 @@ def generate_config_from_template(
     
     # Determine output path
     if output_path is None:
-        output_path = CONFIG_PATHS / f"{sensor_id}.yaml"
+        output_path = SENSOR_CONFIG_PATH / f"{sensor_id}.yaml"
     else:
         output_path = Path(output_path)
     

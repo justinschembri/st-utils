@@ -1,13 +1,14 @@
 """Path definitions for st-utils project."""
 
 from pathlib import Path
+import os
 
 __all__ = [
     "ROOT_DIR",
     "ENV_FILE",
     "DEPLOY_DIR",
     "LOGS_DIR",
-    "CONFIG_PATHS",
+    "SENSOR_CONFIG_PATH",
     "CREDENTIALS_DIR",
     "TOKENS_DIR",
     "TEST_DATA_DIR",
@@ -23,7 +24,7 @@ DEPLOY_DIR = ROOT_DIR / "deploy"
 START_SCRIPT = DEPLOY_DIR / "start-production.sh"
 STOP_SCRIPT = DEPLOY_DIR / "stop-production.sh"
 LOGS_DIR = ROOT_DIR / "logs"
-CONFIG_PATHS = DEPLOY_DIR / "sensor_configs"
+SENSOR_CONFIG_PATH = os.getenv("SENSOR_CONFIG_PATH", DEPLOY_DIR / "sensor_configs")
 CREDENTIALS_DIR = DEPLOY_DIR / "secrets" / "credentials"
 TOKENS_DIR = DEPLOY_DIR / "secrets" / "tokens"
 TEST_DATA_DIR = ROOT_DIR / "tests" / "sensorthings_utils" / "data"
@@ -36,7 +37,7 @@ if __name__ == "__main__":
     print(
             f"{ROOT_DIR=} Exists: {ROOT_DIR.exists()}\n"
             f"{LOGS_DIR=} Exists: {LOGS_DIR.exists()}\n"
-            f"{CONFIG_PATHS=} Exists: {CONFIG_PATHS.exists()}\n"
+            f"{SENSOR_CONFIG_PATH=} Exists: {SENSOR_CONFIG_PATH.exists()}\n"
             f"{ENV_FILE=} Exists: {ENV_FILE.exists()}"
             )
 
