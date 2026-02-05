@@ -1,5 +1,5 @@
 # docker-compose.app.yml
-# NOT FOR PRODUCTION ##################################
+# PRODUCTION ##########################################
 # Must be merged with the base compose.               #
 # - Adds the python application                       #
 # - Private mode: mounts tomcat-users.xml and web.xml #
@@ -27,12 +27,16 @@ services:
       - web
       - database
       - mosquitto
+    env_file:
+      - path: ../.env
+      - required: false
     environment:
       - FROST_ENDPOINT=http://web:8080/FROST-Server/v1.1
       - CONTAINER_ENVIRONMENT=true
     volumes:
       - python-app_tokens:/app/deploy/secrets/tokens
       - python-app_logs:/app/logs
+      - ${SENSOR_CONFIG_PATH:-./sensor_configs}:/app/deploy/sensor_configs
     command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
     restart: unless-stopped
 

@@ -2,6 +2,7 @@
 
 from pathlib import Path
 import os
+import dotenv
 
 __all__ = [
     "ROOT_DIR",
@@ -18,13 +19,14 @@ __all__ = [
 ]
 
 ROOT_DIR = Path(__file__).parent.parent.parent
-# Derived paths
 ENV_FILE = ROOT_DIR / ".env"
+dotenv.load_dotenv(ENV_FILE)
+# Derived paths
 DEPLOY_DIR = ROOT_DIR / "deploy"
 START_SCRIPT = DEPLOY_DIR / "start-production.sh"
 STOP_SCRIPT = DEPLOY_DIR / "stop-production.sh"
 LOGS_DIR = ROOT_DIR / "logs"
-SENSOR_CONFIG_PATH = os.getenv("SENSOR_CONFIG_PATH", DEPLOY_DIR / "sensor_configs")
+SENSOR_CONFIG_PATH = Path(os.getenv("SENSOR_CONFIG_PATH", DEPLOY_DIR / "sensor_configs"))
 CREDENTIALS_DIR = DEPLOY_DIR / "secrets" / "credentials"
 TOKENS_DIR = DEPLOY_DIR / "secrets" / "tokens"
 TEST_DATA_DIR = ROOT_DIR / "tests" / "sensorthings_utils" / "data"
