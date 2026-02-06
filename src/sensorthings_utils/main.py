@@ -10,7 +10,7 @@ import os
 
 # internal
 from sensorthings_utils.loggers import setup_loggers  # noqa: F401
-from sensorthings_utils.paths import APPLICATION_CONFIG_FILE
+from sensorthings_utils.paths import RUNTIME_APPLICATION_CONFIG_FILE
 from sensorthings_utils.config import (
     generate_sensor_config_files,
     FROST_ENDPOINT_DEFAULT,
@@ -23,6 +23,7 @@ import sensorthings_utils.frost as frost
 from sensorthings_utils.connections import SensorApplicationConnection
 from sensorthings_utils.monitor import netmon
 from sensorthings_utils.transformers.types import SensorID, SupportedSensors
+
 
 # import from config.py:
 setup_loggers()
@@ -126,7 +127,7 @@ def push_available(
         netmon.expected_sensors.add(sensor_config.name)
         _setup_sensor_arrangements(sensor_config)
     # generate a list of connections
-    sensor_connections = parse_application_config(APPLICATION_CONFIG_FILE)
+    sensor_connections = parse_application_config(RUNTIME_APPLICATION_CONFIG_FILE)
 
     netmon.set_starting_threads([_.app_name for _ in sensor_connections])
 

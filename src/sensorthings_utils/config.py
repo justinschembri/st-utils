@@ -8,7 +8,7 @@ import os
 import base64
 import dotenv
 from .paths import (
-        SENSOR_CONFIG_PATH,
+        RUNTIME_SENSOR_CONFIG_PATH,
         CREDENTIALS_DIR,
         ENV_FILE,
         )
@@ -54,12 +54,16 @@ def generate_sensor_config_files() -> List[Path]:
     :rtype: List[Path]
     """
     sensor_configs: List[Path] = []
-    for f in SENSOR_CONFIG_PATH.rglob("*.*ml"):
+
+    # in a container environment we will always want to use the container 
+    # deployment directory which
+
+    for f in RUNTIME_SENSOR_CONFIG_PATH.rglob("*.*ml"):
         if "template" not in f.stem:
             sensor_configs.append(f)
 
     if not sensor_configs:
-        raise AttributeError(f"No sensor configs found in {SENSOR_CONFIG_PATH}.")
+        raise AttributeError(f"No sensor configs found in {RUNTIME_SENSOR_CONFIG_PATH}.")
 
     return sensor_configs
 
