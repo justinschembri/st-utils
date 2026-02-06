@@ -5,6 +5,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.4.1]
+
+### Fixed
+
+- **Python Version** - upgraded minimum python version to 3.12 due to typing styles
+  are PEP 701 compliant and therefore not compatabile with earlier versions.
+
 ## [v0.4.0]
 
 ### Added
