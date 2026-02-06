@@ -37,7 +37,7 @@ services:
       - python-app_tokens:/app/deploy/secrets/tokens
       - python-app_logs:/app/logs
       - ${SENSOR_CONFIG_PATH:-./sensor_configs}:/app/deploy/sensor_configs
-      - ${APPLICATION_CONFIG_FILE:-./application-configs.yml}:/app/deploy/application-config.yml
+      - ${APPLICATION_CONFIG_FILE:-./application-configs.yml}:/app/deploy/application-configs.yml
     command: ["uv", "run", "/app/src/sensorthings_utils/main.py"]
     restart: unless-stopped
 
