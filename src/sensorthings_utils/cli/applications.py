@@ -15,7 +15,7 @@ from rich.prompt import Prompt, Confirm, IntPrompt
 from rich import print as rprint
 
 # internal
-from ..paths import CREDENTIALS_DIR, TOKENS_DIR, APPLICATION_CONFIG_FILE
+from ..paths import CREDENTIALS_DIR, TOKENS_DIR, VARIABLE_APPLICATION_CONFIG_FILE
 from ..connections import HTTPSensorApplicationConnection, MQTTSensorApplicationConnection
 
 logger = logging.getLogger("st-utils")
@@ -35,11 +35,11 @@ def _get_application_status():
     app_status = {}
     
     # Read application config file
-    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
+    if not VARIABLE_APPLICATION_CONFIG_FILE.exists() or not VARIABLE_APPLICATION_CONFIG_FILE.is_file():
         return app_status
     
     try:
-        with open(APPLICATION_CONFIG_FILE, "r") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "r") as f:
             config = yaml.safe_load(f)
     except Exception as e:
         logger.warning(f"Could not read application config: {e}")
@@ -309,12 +309,12 @@ def _manage_application(app_name: str):
 def _modify_application_config(app_name: str) -> bool:
     """Modify an existing application configuration."""
     # Load existing config
-    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
+    if not VARIABLE_APPLICATION_CONFIG_FILE.exists() or not VARIABLE_APPLICATION_CONFIG_FILE.is_file():
         console.print("[bold red]Error:[/bold red] Application config file not found")
         return False
     
     try:
-        with open(APPLICATION_CONFIG_FILE, "r") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "r") as f:
             config = yaml.safe_load(f) or {}
     except Exception as e:
         console.print(f"[bold red]Error reading config file:[/bold red] {e}")
@@ -490,7 +490,7 @@ def _modify_application_config(app_name: str) -> bool:
     
     # Save config
     try:
-        with open(APPLICATION_CONFIG_FILE, "w") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
         return True
     except Exception as e:
@@ -501,12 +501,12 @@ def _modify_application_config(app_name: str) -> bool:
 def _remove_application(app_name: str) -> bool:
     """Remove an application from config and optionally remove credentials/tokens."""
     # Load existing config
-    if not APPLICATION_CONFIG_FILE.exists() or not APPLICATION_CONFIG_FILE.is_file():
+    if not VARIABLE_APPLICATION_CONFIG_FILE.exists() or not VARIABLE_APPLICATION_CONFIG_FILE.is_file():
         console.print("[bold red]Error:[/bold red] Application config file not found")
         return False
     
     try:
-        with open(APPLICATION_CONFIG_FILE, "r") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "r") as f:
             config = yaml.safe_load(f) or {}
     except Exception as e:
         console.print(f"[bold red]Error reading config file:[/bold red] {e}")
@@ -563,7 +563,7 @@ def _remove_application(app_name: str) -> bool:
     
     # Save config
     try:
-        with open(APPLICATION_CONFIG_FILE, "w") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
     except Exception as e:
         console.print(f"[bold red]Error saving config file:[/bold red] {e}")
@@ -628,9 +628,9 @@ def _add_application_to_config():
     
     # Load existing config
     config = {}
-    if APPLICATION_CONFIG_FILE.exists() and APPLICATION_CONFIG_FILE.is_file():
+    if VARIABLE_APPLICATION_CONFIG_FILE.exists() and VARIABLE_APPLICATION_CONFIG_FILE.is_file():
         try:
-            with open(APPLICATION_CONFIG_FILE, "r") as f:
+            with open(VARIABLE_APPLICATION_CONFIG_FILE, "r") as f:
                 config = yaml.safe_load(f) or {}
         except Exception as e:
             console.print(f"[bold red]Error reading config file:[/bold red] {e}")
@@ -748,9 +748,9 @@ def _add_application_to_config():
     
     # Save config
     try:
-        with open(APPLICATION_CONFIG_FILE, "w") as f:
+        with open(VARIABLE_APPLICATION_CONFIG_FILE, "w") as f:
             yaml.safe_dump(config, f, default_flow_style=False, sort_keys=False, indent=2)
-        console.print(f"\n[bold green]✓ Added '{app_name}' to {APPLICATION_CONFIG_FILE.name}[/bold green]")
+        console.print(f"\n[bold green]✓ Added '{app_name}' to {VARIABLE_APPLICATION_CONFIG_FILE.name}[/bold green]")
         auth_type = app_config.get("authentication_type", "credentials")
         return (True, app_name, auth_type)
     except Exception as e:
