@@ -10,7 +10,6 @@ import queue
 import threading
 import traceback
 import inspect
-
 # external
 import lnetatmo
 from paho.mqtt.client import Client as mqttClient
@@ -45,6 +44,10 @@ class SensorApplicationConnection(ABC):
     """
     Abstract base class representing any connection to a sensor application.
     """
+
+    def _preflight(self) -> bool:
+        """Optional preflight checks for any connections to be run on init."""
+        return True
 
     def __init__(
         self,
@@ -196,8 +199,14 @@ class SensorApplicationConnection(ABC):
     ):
         """
         Spin up a thread and run the _loop method.
+        Skips starting if preflight checks fail.
         """
         self.sensor_registry = sensor_registry
+        if not self._preflight():
+            event_logger.warning(
+                f"Preflight check failed for {self.app_name}; not starting connection."
+            )
+            return
         if self._thread is None or not self._thread.is_alive():
             self._thread = threading.Thread(
                 target=self._pull_transform_push_loop,
@@ -326,13 +335,25 @@ class MQTTSensorApplicationConnection(SensorApplicationConnection, ABC):
         def on_message(client, userdata, message):
             self._payload_queue.put(json.loads(message.payload))
 
+        def on_subscribe(client, userdata, mid, reason_code_list, properties):
+            event_logger.info(
+                    f"Subscribed to {self.topic} - rcodes: {reason_code_list}")
+
+        def on_connect(client, userdata, flags, rc, properties):
+            if rc == 0:
+                event_logger.info(f"Connected to {self.host}/{self.app_name}")
+                self._mqtt_client.subscribe(self.topic)
+                self._subscribed = True
+            else:
+                event_logger.warning(f"connection failed with code {rc}")
+
+        self._mqtt_client.on_connect = on_connect
         self._mqtt_client.on_message = on_message
-        self._mqtt_client.connect(self.host, self.port)
-        if self._mqtt_client.is_connected():
-            event_logger.info(f"Connected to {self.host}/{self.app_name}")
-        self._mqtt_client.subscribe(self.topic)
-        self._subscribed = True
+        self._mqtt_client.on_subscribe = on_subscribe
+
         self._mqtt_client.loop_start()
+        self._mqtt_client.connect(self.host, self.port)
+
 
     def _pull_transform_push_loop(self) -> None:
         """
@@ -407,8 +428,19 @@ class TTSConnection(MQTTSensorApplicationConnection):
     """
     MQTT connection to 'TheThingsStack' MQTT servers.
     """
-
+    # TODO: TTS has a default topic: v3/{self.application_name}/devices/+/up
+    # user setting up a TTS should not need to define this themselves.
     application_unpacker = TTSUnpacker()
+
+    def _preflight(self) -> bool:
+        """Preflight checks for TTSConnection."""
+        if "ttn" not in self.topic:
+            event_logger.warning(
+                "TheThingsStack topic should include tenant ID '@ttn'. "
+                f"Got topic: {self.topic} for {self.app_name}."
+            )
+            return False
+        return True
 
     def _auth(self) -> None:
         """Authenticate to TheThingsStack using application name and api key."""
