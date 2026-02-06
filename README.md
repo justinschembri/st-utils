@@ -90,6 +90,16 @@ source .venv/bin/activate
 pip install -e .
 ```
 
+> [!TIP]
+> The application uses many configuration files. If you wish to keep these files
+> separate from the `st-utils` code (for separate version control) this is
+> possible. Add a `.env` file to `/deploy/` and provide the `SENSOR_CONFIG_PATH`
+> and the `APPLICATION_CONFIG_FILE` path variables; e.g.,:
+> 
+> SENSOR_CONFIG_PATH="/Users/johndoe/opt/st-utils-ops/sensor_configs/"
+> APPLICATION_CONFIG_FILE="/Users/johndoe/opt/st-utils-ops/application-configs.yml"
+
+
 ### Step 2: Mandatory Internal Credentials
 
 To quickly set up your instance of `st-utils`, use the inbuilt tooling:
@@ -115,19 +125,19 @@ All credentials are stored in the `deploy/secrets/credentials` directory.
 
 ### Step 3: Configure Applications
 
-After setting up internal credentials, its time to set up the IoT applications
+After setting up internal credentials, it's time to set up the IoT applications
 you have access to. Having 'access' to an IoT application means you have the
 required credentials or tokens to pull data from the IoT application. See
 [Supported Applications](#supported-applications) for the full list. 
 
-Run `stu setup` if its closed and select [1] to set up the IoT applications you
-have access too.  The app will guide you through the set up of (supported) HTTP
+Run `stu setup` if it's closed and select [1] to set up the IoT applications you
+have access to.  The app will guide you through the set up of (supported) HTTP
 and MQTT applications:
 
 ![](./docs/tapes/application.gif)
 
-Application are controlled by the `yaml` found in
-`deploy/application_configs.yaml`. You should not need to manually touch this
+Applications are controlled by the YAML file
+`deploy/application-configs.yml`. You should not need to manually touch this
 file.
 
 ### Step 4: Configure Sensor Configurations
@@ -139,7 +149,7 @@ again be guided through setting up of (supported) sensors:
 
 ![](./docs/tapes/config.gif)
 
-Sensor config are finicky `yaml` files that live in the `deploy/sensor_configs/`
+Sensor configs are finicky YAML files that live in the `deploy/sensor_configs/`
 directory. 
 
 You can check the status of your applications using item [3] in the menu:
@@ -156,7 +166,7 @@ By default, the application starts in a "public" mode that does not implement an
 *read* authentication. *Write* authentication is controlled by the FROST
 credentials you should have set up earlier. If you want to start in a "private"
 mode and have set up Tomcat users, then pass the --private flag: `stu start
---public`.
+--private`.
 
 The application should be connecting, receiving, parsing, transforming and
 storing your data. You can head over to `http://localhost:8080/st-utils` to
