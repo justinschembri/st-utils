@@ -195,7 +195,7 @@ class SensorApplicationConnection(ABC):
 
     # threading methods  #######################################################
     def start_pull_transform_push_thread(
-        self, sensor_registry: dict[SensorID, SupportedSensors]
+        self, sensor_registry: dict[SensorID, SupportedSensors] 
     ):
         """
         Spin up a thread and run the _loop method.
@@ -217,6 +217,18 @@ class SensorApplicationConnection(ABC):
 
     def stop_pull_transform_push_thread(self):
         self._stop_event.set()
+
+    def restart_pull_transform_push_thread(self, join_timeout: int = 15):
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(join_timeout)
+        if not self.sensor_registry:
+            raise AttributeError(
+                    f"Trying to restart {self.app_name} thread with no "
+                    "sensor registry available."
+                    )
+        self._stop_event.clear()
+        self.start_pull_transform_push_thread(self.sensor_registry)
 
 
 class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
@@ -279,7 +291,7 @@ class HTTPSensorApplicationConnection(SensorApplicationConnection, ABC):
                 if failures == self.max_retries:
                     main_logger.critical(
                         f"Exceeded max retries ({self.max_retries}) for "
-                        f"{self.app_name}. Stopping connection."
+                        f"{self.app_name}. Killing thread."
                     )
                     self._stop_event.set()
 
