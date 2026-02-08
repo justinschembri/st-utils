@@ -133,6 +133,8 @@ def push_available(
 
     for connection in sensor_connections:
         connection.start_pull_transform_push_thread(sensor_registry)
+        # network monitor will be responsible for restarting dead threads:
+        netmon.connections.add(connection)
 
     event_logger.info(
         f"Started {threading.active_count()-1} application threads: "
@@ -143,7 +145,7 @@ def push_available(
         while True:
             # TODO: network_monitor should write to a metrics file for eventual
             # integration with monitoring tools.
-            netmon.report(interval=30)
+            netmon.report(interval=5)
     except KeyboardInterrupt:
         for conn in sensor_connections:
             if conn._thread and conn._thread.is_alive():

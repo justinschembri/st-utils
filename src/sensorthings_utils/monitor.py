@@ -8,6 +8,7 @@ import threading
 from collections import defaultdict
 import sys
 
+from sensorthings_utils.connections import SensorApplicationConnection
 from sensorthings_utils.paths import ROOT_DIR
 from sensorthings_utils.transformers.types import SensorID
 
@@ -36,6 +37,7 @@ class _NetworkMonitor:
         self.rejected_payloads: dict[SensorID, int] = defaultdict(int)
         self.sensor_config_fail: int = 0
         self.payloads_received: dict[str, int] = defaultdict(int)
+        self.connections: set["SensorApplicationConnection"] = set()
         self.first_report_issued: bool = False
         self._lock = threading.Lock()
 
@@ -123,16 +125,17 @@ class _NetworkMonitor:
             thread_msg = (
                 f"All original threads alive: {self.starting_application_threads}."
                 if not dead_threads
-                else f"Some threads have died: {dead_threads}. Killing app."
+                else f"Some threads have died: {dead_threads}. Restarting them:"
+
             )
             if not dead_threads:
                 event_logger.info(thread_msg)
             else:
                 main_logger.warning(thread_msg)
-                # TODO: instead of killing the app - restart the dead threads -
-                # furthermore this should NOT be the responsibility of the
-                # network monitor.
-                sys.exit(1)
+                for c in self.connections:
+                    if c._thread is None or not c._thread.is_alive(): 
+                        c.restart_pull_transform_push_thread()
+
             health_report.append(thread_msg)
             # Report succesful pushes:
             uptime = str((datetime.now() - self.start_time))
