@@ -1,6 +1,6 @@
 [project]
 name = "st-utils"
-version = "0.4.2"
+version = "0.4.3"
 description = "Management and representation layer for Fraunhofer FROST Server."
 readme = "README.md"
 requires-python = ">=3.12"

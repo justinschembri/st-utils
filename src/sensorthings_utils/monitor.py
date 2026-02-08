@@ -6,11 +6,12 @@ import time
 import logging
 import threading
 from collections import defaultdict
-import sys
-
-from sensorthings_utils.connections import SensorApplicationConnection
+from typing import TYPE_CHECKING
 from sensorthings_utils.paths import ROOT_DIR
 from sensorthings_utils.transformers.types import SensorID
+
+if TYPE_CHECKING:
+    from sensorthings_utils.connections import SensorApplicationConnection
 
 main_logger = logging.getLogger("network_monitor")
 event_logger = logging.getLogger("events")
