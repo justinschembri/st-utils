@@ -67,6 +67,7 @@ from ..exceptions import (
         UnpackError,
         UnregisteredSensorError
         )
+from ..frost.errors import FrostRequestError
 
 from ..transformers.types import SensorRegistry, SensorUUID, SupportedSensors
 
@@ -353,8 +354,13 @@ class SensorTransport(ABC):
                     if flush is None:
                         continue
 
-                    self._upload_buffered_observation(flush, sensor_model)
-                except FrostUploadFailure as e:
+                    try:
+                        self._upload_buffered_observation(flush, sensor_model)
+                    except (FrostUploadFailure, FrostRequestError) as e:
+                        # Clear pending flush so later samples are not blocked.
+                        self._buffer_store.commit_flush(flush.key)
+                        self._exception_handler(e, sensor_id=sensor_uuid)
+                except (FrostUploadFailure, FrostRequestError) as e:
                     self._exception_handler(e, sensor_id=sensor_uuid)
 
     def _upload_buffered_observation(
