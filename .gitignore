@@ -4,6 +4,7 @@ downloads/*
 *.csv
 # Logs
 *logs/
+dev/
 # Local secret used for integration tests
 deploy/secrets/tokens/netatmo-test-application.json
 # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< RIME repo-specific
