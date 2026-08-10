@@ -44,6 +44,8 @@ services:
       - ${TOKENS_PATH:-./secrets/tokens}:/app/runtime/secrets/tokens
       - ${SENSOR_CONFIG_PATH:-./sensor_configs}:/app/runtime/sensor_configs
       - ${APPLICATION_CONFIG_FILE:-./application-configs.yml}:/app/runtime/application-configs.yml
+      - ${ELTEK_DATA_PATH:-../dev/K02212-12943.csv}:/data/eltek/K02212-12943.csv:ro
+      - ${OTT_HYDRAS_DATA_PATH:-../dev/ott-hydra3/Done}:/data/ott/hydras:ro
     restart: unless-stopped
     secrets:
       - application_credentials

@@ -7,6 +7,7 @@ and framing come from the provider envelope when present.
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from ...exceptions import UnpackError
@@ -19,12 +20,16 @@ NO_DATA_KEYS = {
     "no_data",
     "no data",
 }
+# OTT MIS quality / gap markers, e.g. "[10]", "---[15]"
+_OTT_FLAG_RE = re.compile(r"\[\d+\]")
 
 
 def _coerce_probe_value(raw: Any) -> float | None:
     """Return a float reading, or ``None`` for known no-data sentinels."""
-    if isinstance(raw, str) and raw.strip().lower() in NO_DATA_KEYS:
-        return None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if s.lower() in NO_DATA_KEYS or _OTT_FLAG_RE.search(s):
+            return None
     try:
         return float(raw)
     except (TypeError, ValueError) as e:
@@ -76,3 +81,14 @@ class ThermocoupleKParser(Parser):
         envelope: EnvelopeMetadata | None,
     ) -> ObservationRecord:
         return _parse_scalar(identified, envelope, field="temperature")
+
+
+class OttRlsParser(Parser):
+    """Parse an OTT RLS radar level sample (single number → ``water_level``)."""
+
+    @staticmethod
+    def parse(
+        identified: IdentifiedPayload,
+        envelope: EnvelopeMetadata | None,
+    ) -> ObservationRecord:
+        return _parse_scalar(identified, envelope, field="water_level")
