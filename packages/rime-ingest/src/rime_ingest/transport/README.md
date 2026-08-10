@@ -18,7 +18,7 @@ transport/
 ├── base.py                  # SensorTransport (ABC) -- protocol-agnostic core
 ├── poll/                    # caller drives the rhythm; stateless requests
 │   ├── http.py              # HTTPTransport (ABC)
-│   └── fs.py                # FileWatcher (single path); DirectoryWatcher (stub)
+│   └── fs.py                # EOF* append watchers; DiffDirectoryWatcher (snapshot diff)
 └── subscription/            # source pushes to caller; persistent connection
     ├── mqtt.py              # MQTTTransport (ABC)
     └── seedlink.py          # SeedLinkTransport (ABC, ObsPy SeedLink TCP)

@@ -5,7 +5,7 @@ Windows utility shipped with GenII receiver loggers (SRV250 / SRV450 and
 related). Loggers push readings over mobile data to a host running the
 Gateway; the software writes one Windows CSV (or Eltek DAT) file per logger
 under a configured directory. This provider does not talk to the logger or
-the Gateway process — it polls those CSV files via :class:`FileWatcher`.
+the Gateway process — it polls those CSV files via :class:`EOFFileWatcher`.
 
 The Gateway’s CSV layout is stable but not formally versioned; treat timezone,
 channel headers, and sentinel “no data” strings as deployment-specific.
@@ -27,13 +27,13 @@ from rime_ingest.transformers.messages import (
 )
 from rime_ingest.transformers.types import SensorUUID
 
-from ..transport.poll.fs import FileWatcher
+from ..transport.poll.fs import EOFFileWatcher
 
 _TS = "%d/%m/%Y %H:%M:%S"
 _HEADER_KEYS = frozenset({"chan", "unit", "ID", "TX Serial Number", "TX Channel"})
 
 
-class EltekGPRSServerProvider(FileWatcher):
+class EltekGPRSServerProvider(EOFFileWatcher):
     """Poll Eltek GPRS Server CSV output → one time-series message per channel Sensor.
 
     `channel_sensor_map` maps vendor channel ids (e.g. ``Ch-013``) to STA Sensor
@@ -70,7 +70,7 @@ class EltekGPRSServerProvider(FileWatcher):
             ) from e
 
     def _decode_wire(self, raw: bytes) -> str:
-        """Parent Filewatcher returns UTF-8 encoded bytes."""
+        """Parent EOFFileWatcher returns UTF-8 encoded bytes."""
         return raw.decode()
 
     def _deserialize_wire(self, decoded: str) -> list[list[str]]:
