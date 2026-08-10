@@ -18,6 +18,7 @@ dependencies = [
 
 [project.scripts]
 rime = "rime_ingest.cli:main"
+rime-ingest = "rime_ingest.ingest_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

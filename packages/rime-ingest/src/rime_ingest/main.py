@@ -98,20 +98,25 @@ def _setup_sensor_arrangements(
     )
 
 def push_available(
-    sensor_config_paths: List[Path] = generate_sensor_config_files(),
+    sensor_config_paths: Optional[List[Path]] = None,
     exclude: Optional[List[SensorUUID]] = None,
-    frost_endpoints: str = os.getenv("FROST_ENDPOINT", FROST_ENDPOINT_DEFAULT),
+    frost_endpoints: Optional[str] = None,
     start_delay: int = 10,
 ) -> None:
     """Start app threads and begin collecting data, pushing to FROST server.
 
     Args:
         sensor_config_paths: List of sensor configuration file paths.
+            Resolved from ``SENSOR_CONFIG_PATH`` when omitted.
         exclude: Sensor UUIDs to skip.
-        frost_endpoints (str): One or more FROST endpoints to push too, defaults to 
-            FROST_ENDPOINT_DEFAULT. 
+        frost_endpoints (str): One or more FROST endpoints to push too, defaults to
+            ``FROST_ENDPOINT`` env or FROST_ENDPOINT_DEFAULT.
         start_delay: Seconds to wait before starting the collection loop.
     """
+    if sensor_config_paths is None:
+        sensor_config_paths = generate_sensor_config_files()
+    if frost_endpoints is None:
+        frost_endpoints = os.getenv("FROST_ENDPOINT", FROST_ENDPOINT_DEFAULT)
     endpoints = [e.strip() for e in frost_endpoints.split(",")]
     event_logger.info(
         f"Streaming starting in {start_delay}s, pushing to {len(endpoints)} target/s: {endpoints}."

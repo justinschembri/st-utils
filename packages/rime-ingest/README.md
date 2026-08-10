@@ -14,8 +14,47 @@ layout inside the container.
 cd packages/rime-ingest
 uv sync
 rime setup
-rime   # start ingest (or: python -m rime_ingest.main)
+rime-ingest run   # start ingest on the host (or: python -m rime_ingest.main)
 ```
+
+## Host deploy (`rime-ingest run`)
+
+Use this when running ingest outside Docker (e.g. Windows). It starts the same
+process as the container `CMD`, with path overrides written into the environment
+before boot.
+
+```bash
+# Explicit flags (paths mirror deploy/ compose mounts)
+rime-ingest run \
+  --applications ./application-configs.yml \
+  --sensors ./sensor_configs \
+  --credentials ./secrets/credentials \
+  --tokens ./secrets/tokens \
+  --logs ./logs \
+  --frost-endpoint http://frost-host:8080/FROST-Server \
+  --frost-version v1.1
+
+# Or load a dotenv file (CLI flags still override)
+rime-ingest run --env-file C:\rime\ingest.env
+```
+
+Example `ingest.env`:
+
+```env
+APPLICATION_CONFIG_FILE=C:\rime\application-configs.yml
+SENSOR_CONFIG_PATH=C:\rime\sensor_configs
+RIME_CREDENTIALS_DIR=C:\rime\secrets\credentials
+RIME_TOKENS_DIR=C:\rime\secrets\tokens
+RIME_LOGS_DIR=C:\rime\logs
+FROST_ENDPOINT=http://frost-host:8080/FROST-Server
+FROST_VERSION=v1.1
+```
+
+Precedence: process environment → `--env-file` → CLI flags. Without flags or an
+env file, monorepo checkouts still default to `deploy/` paths.
+
+The older `rime` CLI (`setup`, `validate`, `generate-config`, compose
+`start`/`stop`) is unchanged and separate from `rime-ingest run`.
 
 ## Docker
 
