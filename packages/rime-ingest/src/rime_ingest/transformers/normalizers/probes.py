@@ -26,3 +26,11 @@ class ThermocoupleKNormalizer(Normalizer):
     NAME_TRANSFORM: dict[str, CanonicalDatastreams] = {
         "temperature": CanonicalDatastreams.TEMPERATURE,
     }
+
+
+class OttRlsNormalizer(Normalizer):
+    water_level: float | None = None
+
+    NAME_TRANSFORM: dict[str, CanonicalDatastreams] = {
+        "water_level": CanonicalDatastreams.WATER_LEVEL,
+    }

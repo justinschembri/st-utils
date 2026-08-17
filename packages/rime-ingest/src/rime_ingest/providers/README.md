@@ -17,7 +17,8 @@ possible.
 | `GenericHTTPProvider` | `HTTPTransport` (poll)         | Config headers  | Generic JSON HTTP pull + field-mapped decapsulation. |
 | `NetatmoProvider` | `HTTPTransport` (poll)             | OAuth tokens    | Polls `WeatherStationData.rawData` via lnetatmo. |
 | `TTSProvider`     | `MQTTTransport` (subscription)     | API key         | Subscribes to `v3/<app>/devices/+/up` topics.    |
-| `EltekGPRSServerProvider` | `FileWatcher` (poll)       | none            | Watches CSV written by Eltek Gateway GPRS Server; channel → Sensor UUIDs. |
+| `EltekGPRSServerProvider` | `EOFFileWatcher` (poll)    | none            | Watches CSV written by Eltek Gateway GPRS Server; channel → Sensor UUIDs. |
+| `OTTHydra3Provider` | `DiffDirectoryWatcher` (poll) | none         | Sectioned `.MIS` snapshots under dated dirs; sensor id → Sensor UUIDs. |
 
 ## What a provider owns
 
@@ -165,6 +166,18 @@ The logger id in the CSV header is the **Thing**; each mapped channel is a
 
 Quantity routing is model-tier (each channel Sensor’s ``SupportedSensors``
 parser / normalizer). SensorConfig still links Datastreams for STA provisioning.
+
+### `ott-hydra3` provider config
+
+Ingests sectioned OTT MIS snapshots written under dated directories by **OTT
+Hydras 3**. Uses `DiffDirectoryWatcher` (line-set diff of rewrite files).
+`<STATION>` is the Thing; each mapped `<SENSOR>` id is a Sensor UUID.
+
+Required keys:
+
+- `root_dir`, `file_glob`, `iana_timezone`
+- `channel_sensor_map`: Hydras sensor id → Sensor `name` (e.g. `0010` → `MULTIC_001-0010`)
+
 ## See also
 
 - [`../transport/`](../transport/README.md) — abstract transports that

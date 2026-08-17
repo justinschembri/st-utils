@@ -1,0 +1,82 @@
+# TEMPLATE: OTT RLS (Radar Level Sensor)
+# STA API version: 1.1
+# Product: https://www.ott.com/products/6310900192s
+# Model key: ott.rls — single-quantity probe (water_level).
+#
+# Placeholders:
+# - <SENSOR_UUID>  STA Sensor name / registry key
+# - <THING_NAME>   station / logger Thing (often Hydras STATION id)
+# - Location fields and coordinates
+
+Sensors:
+  ott.rls:
+    name: <SENSOR_UUID>
+    description: OTT RLS non-contact pulse radar water level sensor (probe)
+    metadata: https://www.ott.com/products/6310900192s
+    encodingType: application/pdf
+    properties:
+      manufacturer: OTT HydroMet
+      product_number: 6310900192S
+      operating_frequency: 25.3 GHz
+      measurement_range: 0.4–35 m
+      interface: SDI-12 / RS-485 / 4–20 mA
+      protection_class: IP67
+    iot_links:
+      Datastreams: &datastreams
+        - water_level
+
+Things:
+  <THING_NAME>:
+    name: <THING_NAME>
+    description: Hydrometric station hosting an OTT RLS radar level probe
+    properties:
+      sensor_product: OTT RLS
+    iot_links:
+      Datastreams: *datastreams
+      Locations:
+        - <LOCATION_NAME>
+
+Locations:
+  <LOCATION_NAME>:
+    name: <LOCATION_NAME>
+    description: <LOCATION_DESCRIPTION>
+    properties: null
+    encodingType: application/geo+json
+    location:
+      type: Point
+      coordinates: [<LONGITUDE>, <LATITUDE>]
+    iot_links:
+      Things:
+        - <THING_NAME>
+
+Datastreams:
+  water_level:
+    name: water_level
+    description: Water level from OTT RLS radar (unit as configured in Hydras / logger)
+    observationType: http://www.opengis.net/def/observationType/OGC-OM/2.0/OM_Measurement
+    unitOfMeasurement:
+      # MULTIC sample values (~-303) look like centimetres relative to a local datum.
+      # Change to metre if the station exports SI metres.
+      name: centimetre
+      symbol: cm
+      definition: https://unitsofmeasure.org/ucum.html#para-28
+    observedArea: &observedArea
+      type: Polygon
+      coordinates: null
+    phenomenon_time: null
+    result_time: null
+    properties: null
+    iot_links:
+      ObservedProperties:
+        - water_level
+      Sensors:
+        - <SENSOR_UUID>
+      Things:
+        - <THING_NAME>
+
+ObservedProperties:
+  water_level:
+    name: water_level
+    definition: http://vocab.nerc.ac.uk/collection/P01/current/AASLEV01/
+    description: Water surface level / stage
+    properties: null

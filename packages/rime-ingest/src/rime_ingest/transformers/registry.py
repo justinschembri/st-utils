@@ -20,4 +20,5 @@ NORMALIZER_MAP: dict[SupportedSensors, Type[Normalizer]] = {
     SupportedSensors.HEAT_FLUX_PLATE: probes.HeatFluxPlateNormalizer,
     SupportedSensors.THERMOCOUPLE_T: probes.ThermocoupleTNormalizer,
     SupportedSensors.THERMOCOUPLE_K: probes.ThermocoupleKNormalizer,
+    SupportedSensors.OTT_RLS: probes.OttRlsNormalizer,
 }

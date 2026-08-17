@@ -35,9 +35,15 @@ from .normalizers.kinemetrics import KinemetricsEtna2
 from .normalizers.netatmo import NetatmoNWS03
 from .parsers import MilesightAm103lParser, MilesightAm308lParser, NetatmoNWS03Parser, Parser
 from .parsers.kinemetrics import KinemetricsEtna2Parser
-from .parsers.probes import HeatFluxPlateParser, ThermocoupleKParser, ThermocoupleTParser
+from .parsers.probes import (
+    HeatFluxPlateParser,
+    OttRlsParser,
+    ThermocoupleKParser,
+    ThermocoupleTParser,
+)
 from .normalizers.probes import (
     HeatFluxPlateNormalizer,
+    OttRlsNormalizer,
     ThermocoupleKNormalizer,
     ThermocoupleTNormalizer,
 )
@@ -88,6 +94,10 @@ INGEST_COMPONENT_MAP: dict[SupportedSensors, IngestModelComponents] = {
     SupportedSensors.THERMOCOUPLE_K: IngestModelComponents(
         parser=ThermocoupleKParser,
         normalizer=ThermocoupleKNormalizer,
+    ),
+    SupportedSensors.OTT_RLS: IngestModelComponents(
+        parser=OttRlsParser,
+        normalizer=OttRlsNormalizer,
     ),
 }
 

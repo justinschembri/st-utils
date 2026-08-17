@@ -47,6 +47,7 @@ class CanonicalDatastreams(Enum):
     HNN = "HNN"
     HNZ = "HNZ"
     HEAT_FLUX = "heat_flux"
+    WATER_LEVEL = "water_level"
 
 class SupportedSensors(Enum):
     MILESIGHT_AM103L = "milesight.am103l"
@@ -58,6 +59,7 @@ class SupportedSensors(Enum):
     HEAT_FLUX_PLATE = "heat_flux.plate"
     THERMOCOUPLE_T = "thermocouple.t"
     THERMOCOUPLE_K = "thermocouple.k"
+    OTT_RLS = "ott.rls"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,3 +82,4 @@ class SupportedProviders(Enum):
     THE_THINGS_NETWORK = "ttn"
     RIME_HTTP = "rime-http"
     ELTEK_GPRS_SERVER = "eltek-gprs-server"
+    OTT_HYDRA3 = "ott-hydra3"
