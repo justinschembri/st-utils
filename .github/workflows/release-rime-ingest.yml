@@ -1,5 +1,5 @@
 # Build and push rime-ingest to GHCR when a package version tag is pushed.
-# Git tag is the source of truth: rime-ingest-vX.Y.Z → image :vX.Y.Z
+# Git tag is the source of truth: rime-ingest-vX.Y.Z → image :X.Y.Z
 # Publish only runs after tests pass on the tagged commit.
 name: Release rime-ingest
 
@@ -78,6 +78,6 @@ jobs:
           context: packages/rime-ingest
           file: packages/rime-ingest/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.name }}:${{ steps.version.outputs.semver }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.version.outputs.version }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}

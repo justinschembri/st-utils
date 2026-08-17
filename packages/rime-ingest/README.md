@@ -72,7 +72,7 @@ Compose mounts host paths into the container runtime directories below.
 `rime-ingest` versions independently of other monorepo packages.
 
 **Git tags are the source of truth.** Pushing `rime-ingest-vX.Y.Z` runs tests,
-then builds and pushes `ghcr.io/<owner>/rime-ingest:vX.Y.Z` and stamps
+then builds and pushes `ghcr.io/<owner>/rime-ingest:X.Y.Z` and stamps
 `RIME_INGEST_VERSION` into the image (see Dockerfile `ARG VERSION`).
 
 `pyproject.toml` `version` is a placeholder (`0.0.0`) for local installs — it
@@ -82,7 +82,7 @@ does not track releases (images are not published as PyPI libraries).
 |------|--------|
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 | Git tag | `rime-ingest-vX.Y.Z` |
-| Image | `ghcr.io/<owner>/rime-ingest:vX.Y.Z` |
+| Image | `ghcr.io/<owner>/rime-ingest:X.Y.Z` |
 | Runtime | `RIME_INGEST_VERSION` (e.g. `0.8.2`; `dev` for local builds) |
 
 ### Cut a release
@@ -96,7 +96,7 @@ does not track releases (images are not published as PyPI libraries).
 ### Run a pinned image
 
 ```bash
-docker run --rm ghcr.io/<owner>/rime-ingest:v0.8.2
+docker run --rm ghcr.io/<owner>/rime-ingest:0.10.0
 ```
 
 Local `deploy/docker-compose.base.yml` still builds from source (`VERSION=dev`).

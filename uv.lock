@@ -1036,7 +1036,7 @@ dev = [{ name = "pytest", specifier = ">=8.3.4" }]
 
 [[package]]
 name = "rime-ingest"
-version = "0.9.0"
+version = "0.10.0"
 source = { editable = "packages/rime-ingest" }
 dependencies = [
     { name = "lnetatmo" },

@@ -12,6 +12,5 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Legacy shared git tags (`v0.3` … `v0.8.2`) have been retired in favour of
-`rime-ingest-vX.Y.Z` and `rime-client-vX.Y.Z`. Image tags follow the SemVer
-suffix (`:vX.Y.Z`); container env vars carry the same version without the
-leading `v`.
+`rime-ingest-vX.Y.Z` and `rime-client-vX.Y.Z`. Image tags use the SemVer
+without a leading `v` (`:X.Y.Z`); container env vars carry the same version.

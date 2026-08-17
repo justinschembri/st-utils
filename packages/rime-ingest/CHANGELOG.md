@@ -5,9 +5,35 @@ All notable changes to **rime-ingest** are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Git tags: `rime-ingest-vX.Y.Z` → image `ghcr.io/<owner>/rime-ingest:vX.Y.Z`.
+Git tags: `rime-ingest-vX.Y.Z` → image `ghcr.io/<owner>/rime-ingest:X.Y.Z`.
 
 ## [Unreleased]
+
+## [0.10.0]
+
+### Added
+
+- Standalone `rime-ingest` run CLI for host deploys: point at application,
+  sensor, and credential paths (or a dotenv file) and start ingest in-process
+  without Docker.
+- OTT Hydras 3 provider (`ott-hydras3`) and `ott.rls` ingest path for sectioned
+  `.MIS` snapshots, including water-level parsing/normalization and an RLS
+  probe sensor-config template.
+- `DiffDirectoryWatcher` for rewritten snapshot files, alongside EOF watchers
+  for append-only logs.
+
+### Changed
+
+- Split filesystem poll watchers into EOF and Diff variants
+  (`FileWatcher` / `DirectoryWatcher` → `EOFFileWatcher` / `EOFDirectoryWatcher`).
+- GHCR image tags no longer include a leading `v`. Git tags remain
+  `rime-ingest-vX.Y.Z`; images are `ghcr.io/<owner>/rime-ingest:X.Y.Z`.
+- Improved timezone resolution on Windows.
+
+### Fixed
+
+- Clear pending FROST flush after upload failures so a failed flush does not
+  block later buffered observations for the same sensor.
 
 ## [0.8.2]
 

@@ -1,5 +1,5 @@
 # Build and push rime-client to GHCR when a package version tag is pushed.
-# Git tag is the source of truth: rime-client-vX.Y.Z → image :vX.Y.Z
+# Git tag is the source of truth: rime-client-vX.Y.Z → image :X.Y.Z
 name: Release rime-client
 
 on:
@@ -55,6 +55,6 @@ jobs:
           context: packages/rime-client
           file: packages/rime-client/Dockerfile
           push: true
-          tags: ${{ steps.image.outputs.name }}:${{ steps.version.outputs.semver }}
+          tags: ${{ steps.image.outputs.name }}:${{ steps.version.outputs.version }}
           build-args: |
             VERSION=${{ steps.version.outputs.version }}

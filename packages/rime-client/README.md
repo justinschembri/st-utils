@@ -144,14 +144,14 @@ docker build -t rime-client packages/rime-client
 `rime-client` versions independently of other monorepo packages.
 
 **Git tags are the source of truth.** Pushing `rime-client-vX.Y.Z` builds and
-pushes `ghcr.io/<owner>/rime-client:vX.Y.Z` and stamps `RIME_CLIENT_VERSION`
+pushes `ghcr.io/<owner>/rime-client:X.Y.Z` and stamps `RIME_CLIENT_VERSION`
 into the image (see Dockerfile `ARG VERSION`).
 
 | Item | Value |
 |------|--------|
 | Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
 | Git tag | `rime-client-vX.Y.Z` |
-| Image | `ghcr.io/<owner>/rime-client:vX.Y.Z` |
+| Image | `ghcr.io/<owner>/rime-client:X.Y.Z` |
 | Runtime | `RIME_CLIENT_VERSION` (e.g. `0.1.0`; `dev` for local builds) |
 
 SemVer tracks the **image contract**: major for breaking env/query/behaviour
@@ -168,7 +168,7 @@ unversioned; `Cache-Control: no-cache` handles cache busting.
 ### Run a pinned image
 
 ```bash
-docker run --rm -p 8081:80 ghcr.io/<owner>/rime-client:v0.1.0
+docker run --rm -p 8081:80 ghcr.io/<owner>/rime-client:0.1.0
 ```
 
 Local `deploy/docker-compose.base.yml` still builds from source (`VERSION=dev`).
