@@ -177,8 +177,23 @@ function destroyChartInstance() {
     }
 }
 
-// Maximum points to fetch and cache (matches highest UI limit button).
-const CHART_MAX_POINTS = 2500;
+// Maximum points to fetch and cache (matches the highest UI limit button).
+//
+// Sized against wire cost, not screen resolution. An STA observation is ~392
+// bytes on the dev stack, so 10k ≈ 3.7MB per datastream selection — noticeable
+// but tolerable, including cross-origin to a remote server. 25k would be ~9.4MB
+// for every click, which is not.
+//
+// Raising this does *not* make the trace more detailed: there is no chart zoom,
+// and Chart.js decimates to 600 LTTB samples for rendering anyway. What it buys
+// is a longer window (10k at a 5-minute cadence is ~35 days, against ~9 days at
+// 2.5k) and statistics computed over more of the series. Explicit date-range
+// selection is the real answer and supersedes this knob.
+const CHART_MAX_POINTS = 10000;
+
+// Array-result observations unpack into many points each and are paged one
+// entity at a time, so the same ceiling would mean thousands of round trips.
+const CHART_MAX_POINTS_ARRAY = 2500;
 
 async function loadChartData(datastreamId) {
     updateStatus('Loading chart data...', '');
@@ -192,8 +207,15 @@ async function loadChartData(datastreamId) {
         const unitSymbol = frostUnitSymbol(dsData);
         const datastreamName = formatDatastreamName(dsData.name || 'Unknown');
 
-        const allPoints = await fetchChartPoints(datastreamId, CHART_MAX_POINTS);
-        state.chartPointCache = { datastreamId, points: allPoints, unitSymbol, datastreamName };
+        const { points: allPoints, observationTotal } =
+            await fetchChartPoints(datastreamId, CHART_MAX_POINTS);
+        state.chartPointCache = {
+            datastreamId,
+            points: allPoints,
+            observationTotal,
+            unitSymbol,
+            datastreamName,
+        };
 
         renderFromCache();
     } catch (error) {
@@ -228,10 +250,21 @@ function renderFromCache() {
     const cadenceMs = estimateCadenceMs(points);
     const segments = splitTraceSegments(points, cadenceMs);
     const stats = calculateChartStats(points, segments.length, cache.unitSymbol, cadenceMs);
+    stats.observationTotal = cache.observationTotal;
 
     renderOrUpdateChart(points, cadenceMs, cache.unitSymbol, cache.datastreamName, stats);
     hideChartOverlay();
-    updateStatus(`Loaded ${stats.totalPoints} observations`, 'success');
+
+    // Say plainly when this is the newest slice rather than the whole series —
+    // every statistic on screen is computed over the shown points only.
+    const total = cache.observationTotal;
+    updateStatus(
+        Number.isFinite(total) && total > stats.totalPoints
+            ? `Showing newest ${stats.totalPoints.toLocaleString()} of `
+              + `${total.toLocaleString()} observations`
+            : `Loaded ${stats.totalPoints.toLocaleString()} observations`,
+        'success',
+    );
 }
 
 // Array observations can unpack into thousands of points each, so page them
@@ -247,9 +280,13 @@ function finalizeChartPoints(collected, pointLimit) {
 }
 
 function observationsUrl(datastreamId, top) {
+    // $count=true rides along on a request we already make — FROST returns the
+    // datastream's full observation total next to the page, at no extra cost.
+    // Without it the chart cannot tell whether it is showing everything or a
+    // truncated tail, which is the difference between a reading and a guess.
     return (
         `${state.frostRoot}/Datastreams(${datastreamId})/Observations` +
-        `?$top=${top}&$orderby=phenomenonTime%20desc`
+        `?$top=${top}&$count=true&$orderby=phenomenonTime%20desc`
     );
 }
 
@@ -260,17 +297,22 @@ async function fetchObservationsPage(url) {
 }
 
 // Probe the newest observation: array result → careful paging; scalar → one shot.
+// Returns the points plus the datastream's total observation count, so callers
+// can tell a complete trace from a truncated tail.
 async function fetchChartPoints(datastreamId, pointLimit) {
     const probeUrl = observationsUrl(datastreamId, 1);
     const probeData = await fetchObservationsPage(probeUrl);
     const probePage = probeData.value || [];
-    if (probePage.length === 0) return [];
+    const observationTotal = frostCount(probeData, state.frostVersion);
+    if (probePage.length === 0) return { points: [], observationTotal: 0 };
 
     const newest = probePage[0];
-    if (isArrayResult(newest.result)) {
-        return fetchArrayChartPoints(pointLimit, newest, probeData, probeUrl);
-    }
-    return fetchScalarChartPoints(datastreamId, pointLimit);
+    const points = isArrayResult(newest.result)
+        ? await fetchArrayChartPoints(
+            Math.min(pointLimit, CHART_MAX_POINTS_ARRAY), newest, probeData, probeUrl)
+        : await fetchScalarChartPoints(datastreamId, pointLimit);
+
+    return { points, observationTotal };
 }
 
 async function fetchScalarChartPoints(datastreamId, pointLimit) {

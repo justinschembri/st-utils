@@ -16,6 +16,8 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   `$orderby` / `$top` / `$skip` / `$count`, copyable request URL, and `nextLink`
   paging. Filter operators are chosen per STA version in `js/odata.js` (v1.1
   `substringof`, v2.0 `contains`) rather than hard-coded.
+- Chart states how much of a series it is showing ("newest 100 of 328") instead
+  of silently truncating, and the point limit now goes up to 10k.
 
 ### Changed
 
