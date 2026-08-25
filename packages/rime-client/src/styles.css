@@ -429,12 +429,18 @@ body {
   margin-top: 3px;
 }
 
+/* Command-bar children must be allowed to shrink. Without min-width:0 a flex
+   item never goes below its content width, which is how fixed-size controls
+   ended up overflowing the bar entirely. */
+.command-bar > * { min-width: 0; }
+
 /* Search */
 .search-box {
   position: relative;
-  flex: 1;
+  /* Grow into spare space, but give it up before the legend or the controls. */
+  flex: 1 1 220px;
   max-width: 420px;
-  min-width: 120px;
+  min-width: 92px;
 }
 
 .search-icon {
@@ -475,9 +481,23 @@ body {
 .status-legend {
   display: flex;
   gap: 0.4rem;
-  flex-shrink: 0;
+  /* Shrink and scroll instead of pushing the trailing controls off the bar.
+     This is the widest item in the command bar (~730px with labels shown), so
+     with flex-shrink:0 it forced ~1430px of content into a 1250px bar and the
+     endpoint switcher and doc links ended up outside the viewport. */
+  flex: 0 1 auto;
+  min-width: 0;
   margin-left: auto;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* legacy Edge */
 }
+
+.status-legend::-webkit-scrollbar { display: none; }
+
+/* Chips keep their size inside the scroller rather than squashing. */
+.status-legend > .legend-chip { flex: 0 0 auto; }
 
 .legend-chip {
   display: flex;
@@ -1738,8 +1758,22 @@ body {
 .roster-mobile-count  { display: none; }
 .chart-trace-toggle-btn { display: none; }
 
-@media (max-width: 1100px) {
+/* Drop the chip word labels well before the bar runs out of room. At full size
+   the labelled legend is ~730px on its own; 1100px was far too late and the bar
+   overflowed for every width between roughly 1100px and 1500px. */
+@media (max-width: 1500px) {
   .legend-label { display: none; }
+}
+
+/* Trailing controls shed their text before anything is pushed off the bar. */
+@media (max-width: 1180px) {
+  .health-check-btn > span,
+  .query-builder-link > span,
+  .virtual-exit-btn > span { display: none; }
+}
+
+@media (max-width: 1020px) {
+  #endpointLabel { display: none; }
 }
 
 @media (max-width: 880px) {
@@ -2008,3 +2042,22 @@ body {
 
   /* ---- Map controls ---- */
   .map-controls {
+
+/* Link from the map to the query builder page */
+.query-builder-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  background: var(--glass);
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+.query-builder-link:hover {
+  color: var(--accent);
+  border-color: var(--glass-line-hi);
+}

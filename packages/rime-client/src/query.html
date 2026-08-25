@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rime — Query Builder</title>
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b16'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2322d3ee'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='%2322d3ee' stroke-opacity='0.6' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%2322d3ee' stroke-opacity='0.25' stroke-width='1.5'/%3E%3C/svg%3E"
+    >
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/query.css">
+  </head>
+
+  <body class="query-body">
+
+    <!-- Deliberately NOT .command-bar: that class is absolutely positioned with
+         a fixed height for the map stage, which breaks a sticky wrapping bar. -->
+    <header class="query-bar">
+      <div class="brand">
+        <span class="brand-orb" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h1>RIME</h1>
+          <p>Query Builder</p>
+        </div>
+      </div>
+
+      <div class="query-endpoint">
+        <label for="qbServerPreset">Server</label>
+        <!-- Options rendered from STA_KNOWN_SERVERS (js/config.js) -->
+        <select id="qbServerPreset" class="qb-select qb-select-preset" title="Known servers"></select>
+        <input
+          type="text"
+          id="qbEndpoint"
+          class="endpoint-input"
+          placeholder="https://sta.example.org"
+          autocomplete="off"
+          spellcheck="false"
+          aria-label="Server URL"
+        >
+        <select id="qbVersion" class="qb-select qb-select-version" aria-label="API version">
+          <option value="v1.0">v1.0</option>
+          <option value="v1.1" selected>v1.1</option>
+          <option value="v2.0">v2.0</option>
+        </select>
+      </div>
+
+      <a class="qb-link" href="index.html">← Map</a>
+    </header>
+
+    <main class="qb-main">
+
+      <!-- ── Builder ────────────────────────────────────────────────── -->
+      <section class="qb-panel" aria-labelledby="qbBuildHeading">
+        <h2 id="qbBuildHeading" class="qb-heading">Build</h2>
+
+        <div class="qb-field">
+          <label for="qbEntity">Entity</label>
+          <select id="qbEntity" class="qb-select"></select>
+        </div>
+
+        <div class="qb-field">
+          <div class="qb-field-head">
+            <label>Filter <span class="qb-hint" id="qbFilterHint"></span></label>
+            <div class="qb-join" id="qbJoin" role="group" aria-label="Combine filters with">
+              <button type="button" class="qb-join-btn active" data-join="and">and</button>
+              <button type="button" class="qb-join-btn" data-join="or">or</button>
+            </div>
+          </div>
+          <div id="qbFilterRows" class="qb-filter-rows"></div>
+          <button type="button" class="qb-add" id="qbAddFilter">+ Add condition</button>
+        </div>
+
+        <div class="qb-grid-2">
+          <div class="qb-field">
+            <label for="qbSelect">$select <span class="qb-hint">comma separated</span></label>
+            <input type="text" id="qbSelect" class="qb-input" placeholder="name,description" spellcheck="false">
+          </div>
+          <div class="qb-field">
+            <label for="qbExpand">$expand</label>
+            <input type="text" id="qbExpand" class="qb-input" placeholder="Datastreams" spellcheck="false">
+            <div class="qb-chips" id="qbExpandChips"></div>
+          </div>
+        </div>
+
+        <div class="qb-grid-3">
+          <div class="qb-field">
+            <label for="qbOrderBy">$orderby</label>
+            <input type="text" id="qbOrderBy" class="qb-input" placeholder="name asc" spellcheck="false">
+          </div>
+          <div class="qb-field">
+            <label for="qbTop">$top</label>
+            <input type="number" id="qbTop" class="qb-input" min="1" placeholder="100">
+          </div>
+          <div class="qb-field">
+            <label for="qbSkip">$skip</label>
+            <input type="number" id="qbSkip" class="qb-input" min="0" placeholder="0">
+          </div>
+        </div>
+
+        <label class="qb-check">
+          <input type="checkbox" id="qbCount"> include $count
+        </label>
+      </section>
+
+      <!-- ── Request + response ─────────────────────────────────────── -->
+      <section class="qb-panel qb-panel-wide" aria-labelledby="qbRunHeading">
+        <h2 id="qbRunHeading" class="qb-heading">Request</h2>
+
+        <div class="qb-url-row">
+          <code class="qb-url" id="qbUrl" tabindex="0"></code>
+          <button type="button" class="qb-icon-btn" id="qbCopy" title="Copy URL">Copy</button>
+          <button type="button" class="qb-run" id="qbRun">Run</button>
+        </div>
+
+        <div class="qb-status" id="qbStatus" hidden></div>
+
+        <div class="qb-result-head">
+          <h2 class="qb-heading">Response</h2>
+          <div class="qb-result-meta" id="qbMeta"></div>
+          <button type="button" class="qb-icon-btn" id="qbNext" hidden>Next page →</button>
+        </div>
+
+        <pre class="qb-output" id="qbOutput"><span class="qb-placeholder">Run a query to see results.</span></pre>
+      </section>
+
+    </main>
+
+    <script src="js/runtime-config.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/frost-fields.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/odata.js"></script>
+    <script src="js/query-builder.js"></script>
+  </body>
+
+</html>

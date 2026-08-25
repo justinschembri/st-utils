@@ -184,6 +184,21 @@ function initializeEndpointSwitcher() {
         syncVersionButtons();
     });
 
+    // Quick-picks come from STA_KNOWN_SERVERS (config.js) so the map and the
+    // query builder always offer the same list.
+    const quickpicks = document.getElementById('endpointQuickpicks');
+    if (quickpicks && !quickpicks.children.length) {
+        STA_KNOWN_SERVERS.forEach(server => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'endpoint-quickpick';
+            btn.dataset.base = server.base;
+            btn.textContent = server.label;
+            btn.title = server.base;
+            quickpicks.appendChild(btn);
+        });
+    }
+
     popover.querySelectorAll('.endpoint-quickpick').forEach(btn => {
         btn.addEventListener('click', () => {
             input.value = btn.dataset.base;

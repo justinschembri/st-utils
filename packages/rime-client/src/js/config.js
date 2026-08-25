@@ -1,5 +1,16 @@
 // Configuration and constants
 
+// ── Known STA servers ──────────────────────────────────────────────────────
+// Single source for the quick-pick lists on both the map (endpoint switcher)
+// and the query builder. Both pages render from this, so adding a server here
+// adds it everywhere.
+const STA_KNOWN_SERVERS = [
+    { label: 'localhost',           base: 'http://localhost:8080/FROST-Server' },
+    { label: 'sta.wbd-rd.nl',       base: 'https://sta.wbd-rd.nl/FROST-Server' },
+    { label: 'multicare.tudelft.nl', base: 'https://multicare.bk.tudelft.nl/FROST-Server' },
+    { label: 'iosb.fraunhofer.de',  base: 'https://airquality-frost.k8s.ilt-dmz.iosb.fraunhofer.de' },
+];
+
 // ── Pagination ─────────────────────────────────────────────────────────────
 // FROST defaults to $top=100, forcing one round-trip per 100 entities. On a
 // dense network (e.g. iosb ~5600 nodes) that's ~57 sequential requests. We

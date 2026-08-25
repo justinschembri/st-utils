@@ -1,0 +1,346 @@
+/* Query builder page — reuses the observatory tokens from styles.css. */
+
+.query-body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(34, 211, 238, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(129, 140, 248, 0.08), transparent 55%),
+    var(--obs-bg);
+  color: var(--txt);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  overflow-y: auto;
+}
+
+.query-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;          /* the bar has no fixed height, so wrapping is free */
+  gap: 0.6rem 1rem;
+  padding: 0.7rem 1.1rem;
+  background: var(--glass-2);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-bottom: 1px solid var(--glass-line);
+}
+
+.query-bar .qb-link { flex: 0 0 auto; margin-left: auto; }
+
+.query-bar > * { min-width: 0; }
+.query-bar .brand { flex: 0 0 auto; }
+
+.query-endpoint {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  /* Take the remaining space, and drop to its own row before squashing. */
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.query-endpoint label {
+  font-size: 0.7rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+  flex: 0 0 auto;
+}
+
+.query-endpoint .endpoint-input { flex: 1 1 140px; min-width: 0; }
+
+.qb-select-preset { flex: 0 0 auto; max-width: 40vw; }
+
+@media (max-width: 560px) {
+  .query-bar .brand-text p { display: none; }
+  .query-endpoint label { display: none; }
+}
+
+.qb-link {
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-size: 0.85rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  white-space: nowrap;
+}
+.qb-link:hover { color: var(--accent); border-color: var(--glass-line-hi); }
+
+/* ── layout ──────────────────────────────────────────────────────────────── */
+.qb-main {
+  display: grid;
+  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  gap: 1rem;
+  padding: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 900px) {
+  .qb-main { grid-template-columns: 1fr; }
+}
+
+.qb-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  padding: 1rem;
+}
+
+.qb-panel-wide { min-width: 0; }
+
+.qb-heading {
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+/* ── fields ──────────────────────────────────────────────────────────────── */
+.qb-field { margin-bottom: 0.9rem; }
+
+.qb-field > label,
+.qb-field-head label {
+  display: block;
+  font-size: 0.75rem;
+  color: var(--txt-dim);
+  margin-bottom: 0.35rem;
+}
+
+.qb-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.qb-hint {
+  color: var(--txt-mute);
+  font-size: 0.68rem;
+  font-weight: 400;
+}
+
+/* Auto-fit rather than fixed columns: these collapse to one column on their own
+   when the panel is narrow, with no breakpoint needed. */
+.qb-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.qb-grid-3 {
+  display: grid;
+  grid-template-columns: minmax(120px, 2fr) minmax(64px, 1fr) minmax(64px, 1fr);
+  gap: 0.75rem;
+}
+
+@media (max-width: 420px) {
+  .qb-grid-3 { grid-template-columns: 1fr 1fr; }
+}
+
+.qb-input,
+.qb-select {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: rgba(5, 10, 22, 0.75);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.8rem;
+}
+
+.qb-input:focus,
+.qb-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15);
+}
+
+.qb-select-version { width: auto; }
+
+.qb-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  color: var(--txt-dim);
+}
+
+/* ── filter rows ─────────────────────────────────────────────────────────── */
+.qb-filter-rows { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.qb-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+/* Below this the three inputs are unusably narrow — stack them instead. */
+@media (max-width: 480px) {
+  .qb-filter-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "field remove"
+      "op    op"
+      "value value";
+  }
+  .qb-filter-row .qb-input-field { grid-area: field; }
+  .qb-filter-row .qb-select { grid-area: op; }
+  .qb-filter-row .qb-input-value { grid-area: value; }
+  .qb-filter-row .qb-remove { grid-area: remove; }
+}
+
+.qb-url-row { flex-wrap: wrap; }
+
+.qb-remove {
+  background: none;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-mute);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  font-size: 1rem;
+  line-height: 1;
+}
+.qb-remove:hover { color: var(--bad); border-color: var(--bad); }
+
+.qb-add {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px dashed var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-dim);
+  padding: 0.4rem 0.7rem;
+  font-size: 0.76rem;
+  cursor: pointer;
+  width: 100%;
+}
+.qb-add:hover { color: var(--accent); border-color: var(--accent); }
+
+.qb-join { display: inline-flex; gap: 0.2rem; }
+
+.qb-join-btn {
+  background: rgba(5, 10, 22, 0.7);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-mute);
+  font-size: 0.7rem;
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.qb-join-btn.active {
+  color: var(--obs-bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── expand chips ────────────────────────────────────────────────────────── */
+.qb-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+
+.qb-chip {
+  background: rgba(129, 140, 248, 0.12);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: 0.68rem;
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.qb-chip:hover { background: rgba(129, 140, 248, 0.22); }
+
+/* ── request ─────────────────────────────────────────────────────────────── */
+.qb-url-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-bottom: 0.6rem;
+}
+
+.qb-url {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 0.5rem 0.65rem;
+  background: rgba(5, 10, 22, 0.85);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.76rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+.qb-url-empty { color: var(--txt-mute); }
+
+.qb-icon-btn,
+.qb-run {
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.76rem;
+  padding: 0.45rem 0.8rem;
+  white-space: nowrap;
+}
+
+.qb-icon-btn {
+  background: rgba(5, 10, 22, 0.7);
+  border: 1px solid var(--glass-line);
+  color: var(--txt-dim);
+}
+.qb-icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.qb-run {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: var(--obs-bg);
+  font-weight: 600;
+}
+.qb-run:disabled { opacity: 0.55; cursor: default; }
+
+/* ── status + output ─────────────────────────────────────────────────────── */
+.qb-status {
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.76rem;
+  margin-bottom: 0.6rem;
+}
+.qb-status-info { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+.qb-status-error { background: rgba(251, 113, 133, 0.12); color: var(--bad); }
+
+.qb-result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.qb-result-head .qb-heading { margin: 0; }
+
+.qb-result-meta {
+  flex: 1;
+  font-size: 0.72rem;
+  color: var(--txt-mute);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.qb-output {
+  margin: 0;
+  padding: 0.75rem;
+  background: rgba(3, 6, 14, 0.9);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.74rem;
+  line-height: 1.5;
+  max-height: 62vh;
+  overflow: auto;
+  white-space: pre;
+}
+
+.qb-placeholder { color: var(--txt-mute); }

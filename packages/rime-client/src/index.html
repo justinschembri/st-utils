@@ -119,6 +119,14 @@
           <span>Exit virtual</span>
         </button>
 
+        <!-- OData query builder (separate page, shares the endpoint) -->
+        <a class="query-builder-link" href="query.html" title="OData query builder">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V15a1 1 0 01-.553.894l-3 1.5A1 1 0 017 16.5v-6.086L3.293 5.707A1 1 0 013 5V3z" clip-rule="evenodd"/>
+          </svg>
+          <span>Query</span>
+        </a>
+
         <!-- FROST endpoint switcher -->
         <div class="endpoint-switcher" id="endpointSwitcher">
           <button class="endpoint-display" id="endpointDisplay" title="Change FROST endpoint">
@@ -143,11 +151,8 @@
             </div>
 
             <!-- Quick-picks -->
-            <div class="endpoint-quickpicks">
-              <button class="endpoint-quickpick" data-base="http://localhost:8080/FROST-Server"                           type="button">localhost</button>
-              <button class="endpoint-quickpick" data-base="https://sta.wbd-rd.nl/FROST-Server"                          type="button">sta.wbd-rd.nl</button>
-              <button class="endpoint-quickpick" data-base="https://multicare.bk.tudelft.nl/FROST-Server"                type="button">multicare.tudelft.nl</button>
-              <button class="endpoint-quickpick" data-base="https://airquality-frost.k8s.ilt-dmz.iosb.fraunhofer.de"     type="button">iosb.fraunhofer.de</button>
+            <!-- Rendered from STA_KNOWN_SERVERS (js/config.js) by ui.js -->
+            <div class="endpoint-quickpicks" id="endpointQuickpicks">
             </div>
 
             <!-- API version -->
