@@ -24,9 +24,11 @@
   backdrop-filter: blur(22px) saturate(140%);
   -webkit-backdrop-filter: blur(22px) saturate(140%);
   border-bottom: 1px solid var(--glass-line);
+  container-type: inline-size;
+  container-name: querybar;
 }
 
-.query-bar .qb-link { flex: 0 0 auto; margin-left: auto; }
+.query-bar .qb-link { flex: 0 0 auto; margin-left: auto; align-self: center; }
 
 .query-bar > * { min-width: 0; }
 .query-bar .brand { flex: 0 0 auto; }
@@ -34,8 +36,12 @@
 .query-endpoint {
   display: flex;
   align-items: center;
+  /* Wraps internally: with four children (label, preset, URL, version) sharing
+     one flex line, the URL field was the only one that could shrink and
+     collapsed to nothing. Letting this group wrap means a piece drops to the
+     next line instead of any single control being crushed. */
+  flex-wrap: wrap;
   gap: 0.5rem;
-  /* Take the remaining space, and drop to its own row before squashing. */
   flex: 1 1 320px;
   min-width: 0;
 }
@@ -48,11 +54,14 @@
   flex: 0 0 auto;
 }
 
-.query-endpoint .endpoint-input { flex: 1 1 140px; min-width: 0; }
+/* Never let the URL field vanish — it is the point of the control. */
+.query-endpoint .endpoint-input { flex: 1 1 200px; min-width: 160px; }
 
-.qb-select-preset { flex: 0 0 auto; max-width: 40vw; }
+.qb-select-preset { flex: 0 1 auto; max-width: 220px; }
 
-@media (max-width: 560px) {
+/* Density based on the bar's own width, not the viewport — same reasoning as
+   the map's command bar. */
+@container querybar (max-width: 560px) {
   .query-bar .brand-text p { display: none; }
   .query-endpoint label { display: none; }
 }
@@ -69,26 +78,33 @@
 .qb-link:hover { color: var(--accent); border-color: var(--glass-line-hi); }
 
 /* ── layout ──────────────────────────────────────────────────────────────── */
+/* Flex rather than grid: the builder and the response pane want *different*
+   widths, and flex-wrap drops them onto separate full-width rows on its own
+   when their preferred sizes no longer fit side by side. No breakpoint decides
+   that — their flex-basis values and the available width do. */
 .qb-main {
-  display: grid;
-  grid-template-columns: minmax(320px, 420px) minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   padding: 1rem;
-  align-items: start;
+  align-items: flex-start;
 }
 
-@media (max-width: 900px) {
-  .qb-main { grid-template-columns: 1fr; }
-}
+/* No breakpoint needed: auto-fit collapses to one column when the columns can
+   no longer hold their minimums. */
 
 .qb-panel {
   background: var(--glass);
   border: 1px solid var(--glass-line);
   border-radius: var(--radius);
   padding: 1rem;
+  container-type: inline-size;
+  container-name: qbpanel;
 }
 
-.qb-panel-wide { min-width: 0; }
+/* Builder: modest, capped. Response: takes the lion's share of any extra. */
+.qb-panel { flex: 1 1 320px; max-width: 460px; }
+.qb-panel-wide { flex: 3 1 520px; max-width: none; min-width: 0; }
 
 .qb-heading {
   font-size: 0.72rem;
@@ -133,12 +149,8 @@
 
 .qb-grid-3 {
   display: grid;
-  grid-template-columns: minmax(120px, 2fr) minmax(64px, 1fr) minmax(64px, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 72px), 1fr));
   gap: 0.75rem;
-}
-
-@media (max-width: 420px) {
-  .qb-grid-3 { grid-template-columns: 1fr 1fr; }
 }
 
 .qb-input,
@@ -180,8 +192,10 @@
   align-items: center;
 }
 
-/* Below this the three inputs are unusably narrow — stack them instead. */
-@media (max-width: 480px) {
+/* Below this the three inputs are unusably narrow — stack them instead.
+   Queries the panel, so it also stacks when the panel is narrow on a wide
+   screen (e.g. the two-column layout on a mid-size window). */
+@container qbpanel (max-width: 440px) {
   .qb-filter-row {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:

@@ -156,6 +156,7 @@ function initializeEventListeners() {
     }
 
     initializeEndpointSwitcher();
+    observeCommandBarHeight();
     initChartPanel();
 
     const appShell = document.querySelector('.app-shell');

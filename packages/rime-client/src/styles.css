@@ -55,6 +55,11 @@
 
   --roster-w: 304px;
   --inspector-w: 388px;
+  /* --bar-min-h is the floor the command bar will not go below.
+     --bar-h is the bar's MEASURED height, republished by a ResizeObserver in
+     ui.js; the value here is only a sensible pre-measurement fallback. Layout
+     offsets read --bar-h, never --bar-min-h. */
+  --bar-min-h: 56px;
   --bar-h: 66px;
   --dock-h: 72px;
   --dock-inset: 14px;
@@ -352,7 +357,6 @@ body {
 /* Shared glass surface treatment */
 .command-bar,
 .roster,
-.dock-column,
 .thing-metadata-sidebar,
 .chart-panel,
 .map-control-btn,
@@ -364,6 +368,18 @@ body {
   border: 1px solid var(--glass-line);
 }
 
+/* .dock-column is a clipping/positioning container, not a surface: .roster and
+   .roster-foot fill it exactly in both the expanded and collapsed states, so
+   its own background and backdrop-filter never show. Painting them anyway was
+   harmless on desktop and a real bug on mobile, where the dock becomes
+   `position: fixed; bottom: 0; height: auto` and the mobile rules reset
+   background/border/shadow but not backdrop-filter — leaving an invisible
+   612px-tall element blurring ~72% of the map behind the bottom sheet.
+   It keeps only the border, which is what draws its outline. */
+.dock-column {
+  border: 1px solid var(--glass-line);
+}
+
 /* ------------------------------------------------------------------ */
 /* Command bar                                                         */
 /* ------------------------------------------------------------------ */
@@ -372,14 +388,27 @@ body {
   top: var(--dock-inset);
   left: var(--dock-inset);
   right: var(--dock-inset);
-  height: var(--bar-h);
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0 0.9rem 0 1.1rem;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  padding: 0.5rem 0.9rem 0.5rem 1.1rem;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+
+  /* The bar sizes itself from its content. Its height is then *published* into
+     --bar-h by a ResizeObserver (ui.js) so the roster, chart panel and map
+     insets follow automatically.
+
+     It must NOT read --bar-h for its own height: that would make the observer
+     feed its own input and oscillate. --bar-h is output only. */
+  min-height: var(--bar-min-h);
+
+  /* Density rules below query THIS element's width, not the viewport, so the
+     bar adapts to the space it actually has under any zoom or font size. */
+  container-type: inline-size;
+  container-name: commandbar;
 }
 
 .brand {
@@ -434,12 +463,29 @@ body {
    ended up overflowing the bar entirely. */
 .command-bar > * { min-width: 0; }
 
+/* Trailing controls travel together. Previously each was a direct child with
+   flex-shrink:0, so when space ran out they were pushed past the bar's right
+   edge one at a time (measured at 1280px: switcher ending at x=1466, doc links
+   at x=1520 and x=1574, all off-screen). As one group they wrap to a second
+   row instead, and the bar grows to fit — see the ResizeObserver in ui.js. */
+.bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  /* Never shrink: these are the controls, and a half-width endpoint switcher is
+     worse than a scrolling legend. The legend absorbs the pressure instead. */
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 /* Search */
 .search-box {
   position: relative;
-  /* Grow into spare space, but give it up before the legend or the controls. */
-  flex: 1 1 220px;
-  max-width: 420px;
+  /* No flex-grow: the legend also grows, and with both at grow:1 they split the
+     free space — search would hit its max width while the legend went 14px
+     short and started scrolling, hiding health tiers. A search box has no use
+     for extra width; the legend does. Shrinks normally when space is tight. */
+  flex: 0 1 320px;
   min-width: 92px;
 }
 
@@ -485,9 +531,14 @@ body {
      This is the widest item in the command bar (~730px with labels shown), so
      with flex-shrink:0 it forced ~1430px of content into a 1250px bar and the
      endpoint switcher and doc links ended up outside the viewport. */
-  flex: 0 1 auto;
+  /* flex-basis 0 is the important part. With flex-wrap on, wrapping is decided
+     from each item's *base* size — an `auto` basis meant the legend claimed its
+     full ~730px, could not fit, and pushed the controls onto a second row. With
+     a 0 basis it never triggers a wrap: it grows into whatever space is left
+     over and scrolls internally when its chips exceed that. No breakpoint
+     decides this; the available space does. */
+  flex: 1 1 0;
   min-width: 0;
-  margin-left: auto;
   overflow-x: auto;
   overscroll-behavior-x: contain;
   scrollbar-width: none;          /* Firefox */
@@ -1758,21 +1809,32 @@ body {
 .roster-mobile-count  { display: none; }
 .chart-trace-toggle-btn { display: none; }
 
-/* Drop the chip word labels well before the bar runs out of room. At full size
-   the labelled legend is ~730px on its own; 1100px was far too late and the bar
-   overflowed for every width between roughly 1100px and 1500px. */
-@media (max-width: 1500px) {
+/* ------------------------------------------------------------------ */
+/* Command bar density — CONTAINER queries, not viewport queries.       */
+/* ------------------------------------------------------------------ */
+/* These react to the width of the bar itself, so they behave the same
+   whatever the viewport, zoom level or font size. A viewport breakpoint
+   is a guess about available space; this is a measurement of it.
+   Shedding order, widest first: chip words → button words → endpoint
+   host. Past that the legend scrolls and the control group wraps. */
+
+/* Threshold derived from measured content, not guessed: the non-legend items
+   need ~734px (brand 145 + controls 507 + gaps/padding 82) plus the search
+   box's 220px flex basis, and the legend needs ~730px to show its labels.
+   Below ~1690px of *bar* width the labels cannot fit, and keeping them would
+   make the legend scroll — which hides whole health tiers. Dropping the words
+   keeps every dot and count visible, which is the information that matters. */
+@container commandbar (max-width: 1690px) {
   .legend-label { display: none; }
 }
 
-/* Trailing controls shed their text before anything is pushed off the bar. */
-@media (max-width: 1180px) {
+@container commandbar (max-width: 900px) {
   .health-check-btn > span,
   .query-builder-link > span,
   .virtual-exit-btn > span { display: none; }
 }
 
-@media (max-width: 1020px) {
+@container commandbar (max-width: 720px) {
   #endpointLabel { display: none; }
 }
 

@@ -11,42 +11,24 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
 
 ### Added
 
-- **OData query builder** (`query.html`) — a read-only page for composing and
-  running STA queries against the configured server. Pick an entity type, add
-  filter conditions, and set `$select` / `$expand` / `$orderby` / `$top` /
-  `$skip` / `$count`; the request URL is shown live, copyable, and valid to paste
-  into `curl`. Responses are pretty-printed with row count, total and timing, and
-  `@iot.nextLink` is followed with a "Next page" control.
-  - **Version-aware operators.** The filter operator list comes from the selected
-    STA version rather than being hard-coded: v1.1 offers `substringof`, v2.0
-    offers `contains` (OData 4.01 dropped `substringof`). Measured against FROST
-    2.6 on v1.1: `substringof('Room', name)` → 200, `contains(name, 'Room')` →
-    400. Switching version resets any condition whose operator does not exist in
-    the newly selected version. New module `js/odata.js` owns this vocabulary,
-    following the pattern `js/frost-fields.js` uses for annotation field names.
-  - Shares the endpoint with the map page through the same `localStorage` keys,
-    so switching server on either page carries over.
-  - Server quick-pick dropdown, and a free-text field for anything else.
-  - Nothing on this page writes to the STA server.
+- **OData query builder** (`query.html`) — read-only page for composing and
+  running STA queries: entity picker, filter conditions, `$select` / `$expand` /
+  `$orderby` / `$top` / `$skip` / `$count`, copyable request URL, and `nextLink`
+  paging. Filter operators are chosen per STA version in `js/odata.js` (v1.1
+  `substringof`, v2.0 `contains`) rather than hard-coded.
 
 ### Changed
 
-- **Known STA servers come from one list.** `STA_KNOWN_SERVERS` in `js/config.js`
-  now feeds both the map's endpoint quick-picks and the query builder's server
-  dropdown, so the two cannot drift apart.
+- Known STA servers come from one list (`STA_KNOWN_SERVERS` in `js/config.js`),
+  shared by the map's quick-picks and the query builder's dropdown.
 
 ### Fixed
 
-- **Command bar overflowed at common desktop widths.** `.status-legend` was
-  `flex-shrink: 0` at ~730px wide, forcing ~1430px of content into a 1250px bar:
-  at 1280px the endpoint switcher and both doc links were pushed outside the
-  viewport entirely. The legend now shrinks and scrolls, command-bar children
-  get `min-width: 0` so they can shrink at all, and the chip labels drop at
-  1500px rather than 1100px (they were hidden too late to help). Verified with no
-  overflow at 1600 / 1280 / 1150 / 960 / 600 / 375 px.
-- **Query builder bar overlapped the page on narrow viewports** — it reused the
-  `.command-bar` class, which is absolutely positioned with a fixed height for
-  the map stage. It is now styled standalone and wraps cleanly.
+- Command bar no longer overflows: it sizes itself, publishes its measured
+  height into `--bar-h`, and uses container queries instead of viewport
+  breakpoints so it adapts to its own available space.
+- Bottom sheet no longer blurs the map on phones — `.dock-column` carried a
+  `backdrop-filter` it never needed.
 
 ## [0.1.0]
 

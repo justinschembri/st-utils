@@ -2,6 +2,48 @@
 
 const isMobileView = () => window.matchMedia('(max-width: 640px)').matches;
 
+/**
+ * Publish the command bar's measured height as the `--bar-h` custom property.
+ *
+ * The bar sizes itself from its content and wraps when it runs out of room, so
+ * its height is not knowable up front — it depends on viewport width, zoom,
+ * font size and how many controls are present. Eleven rules in styles.css
+ * offset the roster, chart panel and map stage from `--bar-h`, so publishing
+ * the real value keeps all of them correct without a single hard-coded number.
+ *
+ * `.command-bar` must never derive its own height from `--bar-h`; it uses
+ * `--bar-min-h` as a floor instead. Reading the value it writes would make this
+ * observer feed its own input.
+ */
+function observeCommandBarHeight() {
+    const bar = document.querySelector('.command-bar');
+    if (!bar) return;
+
+    const publish = () => {
+        // ceil, not round: this value reserves space below the bar, and rounding
+        // down by a fraction of a pixel lets the bar overlap what sits under it.
+        const px = Math.ceil(bar.getBoundingClientRect().height);
+        if (px > 0) {
+            document.documentElement.style.setProperty('--bar-h', `${px}px`);
+        }
+    };
+
+    // Publish straight away and on resize. Deliberately not relying on
+    // ResizeObserver alone: it does not fire in every embedded/automated
+    // browser context, and if it silently never runs, every layout offset keeps
+    // the stale fallback while the bar is a different height.
+    publish();
+    requestAnimationFrame(publish);   // again after first layout/fonts settle
+    window.addEventListener('resize', publish);
+
+    // ResizeObserver additionally catches height changes that no resize event
+    // accompanies — legend chips being built after the Things fetch, the
+    // "Exit virtual" button appearing, a control shedding its label.
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(publish).observe(bar);
+    }
+}
+
 function mobileCollapseRoster() {
     if (!isMobileView()) return;
     document.getElementById('roster')?.classList.remove('sheet-expanded');
