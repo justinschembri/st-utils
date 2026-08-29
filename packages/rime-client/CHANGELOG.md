@@ -18,6 +18,8 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   `substringof`, v2.0 `contains`) rather than hard-coded.
 - Chart states how much of a series it is showing ("newest 100 of 328") instead
   of silently truncating, and the point limit now goes up to 10k.
+- Chart time-range filter: 24h / 7d / 30d / All presets plus a custom from–to
+  window, applied server-side as an OData `$filter` on `phenomenonTime`.
 
 ### Changed
 
@@ -29,6 +31,8 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
 - Command bar no longer overflows: it sizes itself, publishes its measured
   height into `--bar-h`, and uses container queries instead of viewport
   breakpoints so it adapts to its own available space.
+- Roster and inspector widths scale with the viewport instead of being pinned at
+  304/388px, which left the chart panel ~300px wide when both were open.
 - Bottom sheet no longer blurs the map on phones — `.dock-column` carried a
   `backdrop-filter` it never needed.
 

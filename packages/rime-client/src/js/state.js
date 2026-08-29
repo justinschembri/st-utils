@@ -61,7 +61,11 @@ const state = {
     currentDatastream: null,
     currentChart: null,
     currentLimit: 1000,
-    chartPointCache: null,       // { datastreamId, points, unitSymbol, datastreamName }
+    // Time window the chart requests, applied server-side as an OData $filter on
+    // phenomenonTime. preset is one of 'all' | '24h' | '7d' | '30d' | 'custom';
+    // from/to are Date objects and only used when preset is 'custom'.
+    chartRange: { preset: 'all', from: null, to: null },
+    chartPointCache: null,       // { datastreamId, rangeKey, points, observationTotal, ... }
     map: null,
     markerCluster: null,
     maxClusterSize: 1,

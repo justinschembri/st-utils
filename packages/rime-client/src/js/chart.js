@@ -43,6 +43,53 @@ function initChartPanel() {
         });
     });
 
+    document.querySelectorAll('.chart-panel-btn[data-range]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setChartRange(btn.dataset.range);
+        });
+    });
+
+    const customBtn = document.getElementById('chartRangeCustomBtn');
+    const popover = document.getElementById('chartRangePopover');
+    if (customBtn && popover) {
+        customBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            setChartRangePopover(popover.hidden);
+        });
+
+        popover.addEventListener('click', e => e.stopPropagation());
+
+        document.getElementById('chartRangeApply')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (applyCustomChartRange()) setChartRangePopover(false);
+        });
+
+        document.getElementById('chartRangeClear')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            document.getElementById('chartRangeFrom').value = '';
+            document.getElementById('chartRangeTo').value = '';
+            setChartRange('all');
+            setChartRangePopover(false);
+        });
+
+        ['chartRangeFrom', 'chartRangeTo'].forEach(id => {
+            document.getElementById(id)?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && applyCustomChartRange()) setChartRangePopover(false);
+                if (e.key === 'Escape') setChartRangePopover(false);
+            });
+        });
+
+        // Click anywhere else closes it, matching the endpoint switcher.
+        document.addEventListener('click', (e) => {
+            if (!popover.hidden && !e.target.closest('#chartRangeGroup')) {
+                setChartRangePopover(false);
+            }
+        });
+    }
+
     const chartNextDatastreamBtn = document.getElementById('chartNextDatastreamBtn');
     if (chartNextDatastreamBtn) {
         chartNextDatastreamBtn.addEventListener('click', (e) => {
@@ -211,6 +258,7 @@ async function loadChartData(datastreamId) {
             await fetchChartPoints(datastreamId, CHART_MAX_POINTS);
         state.chartPointCache = {
             datastreamId,
+            rangeKey: chartRangeKey(),
             points: allPoints,
             observationTotal,
             unitSymbol,
@@ -234,12 +282,22 @@ function renderFromCache() {
     const cache = state.chartPointCache;
     if (!cache || cache.points.length === 0) {
         destroyChartInstance();
-        document.getElementById('chartPanelContent').innerHTML = `
-            <div class="no-data-message">
+        // Distinguish "this datastream is empty" from "your window is empty" —
+        // otherwise picking 24h on a stale sensor looks like missing data.
+        const windowed = chartRangeFilter() !== '';
+        document.getElementById('chartPanelContent').innerHTML = windowed
+            ? `<div class="no-data-message">
+                <h3>No observations in this range</h3>
+                <p>Nothing recorded in the selected window. Try a wider range, or All.</p>
+            </div>`
+            : `<div class="no-data-message">
                 <h3>No observations found</h3>
                 <p>This datastream has no observation data available.</p>
             </div>`;
-        updateStatus('No data available', 'warning');
+        updateStatus(
+            windowed ? 'No observations in the selected range' : 'No data available',
+            'warning',
+        );
         return;
     }
 
@@ -279,14 +337,71 @@ function finalizeChartPoints(collected, pointLimit) {
     return collected;
 }
 
+// ── Time range ─────────────────────────────────────────────────────────────
+// Rolling presets, in milliseconds. 'all' and 'custom' are handled separately.
+const CHART_RANGE_PRESETS = {
+    '24h': 24 * 60 * 60 * 1000,
+    '7d': 7 * 24 * 60 * 60 * 1000,
+    '30d': 30 * 24 * 60 * 60 * 1000,
+};
+
+/** Resolve state.chartRange to concrete {from, to} Dates; null means unbounded. */
+function chartRangeBounds(range = state.chartRange) {
+    if (!range || range.preset === 'all') return { from: null, to: null };
+    if (range.preset === 'custom') {
+        return { from: range.from || null, to: range.to || null };
+    }
+    const span = CHART_RANGE_PRESETS[range.preset];
+    if (!span) return { from: null, to: null };
+    return { from: new Date(Date.now() - span), to: null };
+}
+
+/**
+ * OData predicate for the active range, or '' when unbounded.
+ *
+ * Always emits a full RFC3339 instant via toISOString(). A date-only literal
+ * (`phenomenonTime ge 2026-08-01`) makes FROST 2.6 answer 500, not 400, so this
+ * is worth keeping deliberate. The OData 3 `datetime'...'` form is rejected too;
+ * STA 1.1 wants the bare literal.
+ */
+function chartRangeFilter(range = state.chartRange) {
+    const { from, to } = chartRangeBounds(range);
+    const clauses = [];
+    if (from instanceof Date && !Number.isNaN(from.getTime())) {
+        clauses.push(`phenomenonTime ge ${from.toISOString()}`);
+    }
+    if (to instanceof Date && !Number.isNaN(to.getTime())) {
+        clauses.push(`phenomenonTime le ${to.toISOString()}`);
+    }
+    return clauses.join(' and ');
+}
+
+/**
+ * Cache identity for a range. The cached points are whatever the *server*
+ * returned for a given window, so a window change is a different dataset, not a
+ * different view of the same one — without this in the key, switching range
+ * would redraw stale points.
+ */
+function chartRangeKey(range = state.chartRange) {
+    const { from, to } = chartRangeBounds(range);
+    if (range?.preset && range.preset !== 'custom' && range.preset !== 'all') {
+        // Rolling presets move with the clock; key on the preset, not the
+        // computed instant, or every render would look like a new range.
+        return range.preset;
+    }
+    return `${from ? from.toISOString() : '*'}..${to ? to.toISOString() : '*'}`;
+}
+
 function observationsUrl(datastreamId, top) {
     // $count=true rides along on a request we already make — FROST returns the
     // datastream's full observation total next to the page, at no extra cost.
     // Without it the chart cannot tell whether it is showing everything or a
     // truncated tail, which is the difference between a reading and a guess.
+    const filter = chartRangeFilter();
     return (
         `${state.frostRoot}/Datastreams(${datastreamId})/Observations` +
-        `?$top=${top}&$count=true&$orderby=phenomenonTime%20desc`
+        `?$top=${top}&$count=true&$orderby=phenomenonTime%20desc` +
+        (filter ? `&$filter=${encodeURIComponent(filter)}` : '')
     );
 }
 
@@ -691,11 +806,106 @@ function setChartLimit(limit) {
         btn.classList.toggle('active', parseInt(btn.dataset.limit, 10) === limit);
     });
 
-    if (state.chartPointCache && state.chartPointCache.datastreamId === state.currentDatastream) {
+    if (chartCacheIsCurrent()) {
         renderFromCache();
     } else if (state.currentDatastream) {
         loadChartData(state.currentDatastream);
     }
+}
+
+/** True when the cached points are for the datastream *and* window on screen. */
+function chartCacheIsCurrent() {
+    const cache = state.chartPointCache;
+    return !!cache
+        && cache.datastreamId === state.currentDatastream
+        && cache.rangeKey === chartRangeKey();
+}
+
+/**
+ * Apply a time window and reload.
+ *
+ * Always refetches: the window is a server-side $filter, so a different window
+ * is a different set of observations — not a subset of what is already cached.
+ * (The point *limit* is the opposite: it slices the cache and needs no request.)
+ */
+function setChartRange(preset, from = null, to = null) {
+    state.chartRange = { preset, from, to };
+
+    document.querySelectorAll('.chart-panel-btn[data-range]').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.range === preset);
+    });
+    // The Custom button carries the active state when no preset does.
+    document.getElementById('chartRangeCustomBtn')
+        ?.classList.toggle('active', preset === 'custom');
+    syncChartRangeInputs();
+
+    if (state.currentDatastream) {
+        loadChartData(state.currentDatastream);
+    }
+}
+
+/** Mirror the active window into the custom from/to inputs. */
+function syncChartRangeInputs() {
+    const fromInput = document.getElementById('chartRangeFrom');
+    const toInput = document.getElementById('chartRangeTo');
+    if (!fromInput || !toInput) return;
+
+    // datetime-local wants local wall-clock 'YYYY-MM-DDTHH:mm' with no zone.
+    const toLocalInput = (date) => {
+        if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
+        const pad = n => String(n).padStart(2, '0');
+        return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
+            + `T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    };
+
+    const { from, to } = chartRangeBounds();
+    fromInput.value = toLocalInput(from);
+    toInput.value = toLocalInput(to);
+}
+
+/** Open or close the custom-range popover. */
+function setChartRangePopover(open) {
+    const popover = document.getElementById('chartRangePopover');
+    const btn = document.getElementById('chartRangeCustomBtn');
+    if (!popover || !btn) return;
+    popover.hidden = !open;
+    btn.setAttribute('aria-expanded', String(open));
+    if (open) {
+        syncChartRangeInputs();
+        document.getElementById('chartRangeFrom')?.focus();
+    }
+}
+
+/**
+ * Read the custom inputs and apply them as the window.
+ * Returns true when a window was applied, false when the input was rejected.
+ */
+function applyCustomChartRange() {
+    const fromInput = document.getElementById('chartRangeFrom');
+    const toInput = document.getElementById('chartRangeTo');
+    if (!fromInput || !toInput) return false;
+
+    // A datetime-local value has no zone, so `new Date(...)` reads it as local
+    // time — which is what the user meant. toISOString() converts to UTC later.
+    const parse = (value) => {
+        if (!value) return null;
+        const date = new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const from = parse(fromInput.value);
+    const to = parse(toInput.value);
+
+    if (from && to && from > to) {
+        updateStatus('Range start is after its end', 'error');
+        return false;
+    }
+    if (!from && !to) {
+        setChartRange('all');
+        return true;
+    }
+    setChartRange('custom', from, to);
+    return true;
 }
 
 function toggleChartPanel() {

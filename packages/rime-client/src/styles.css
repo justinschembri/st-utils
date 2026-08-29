@@ -53,8 +53,14 @@
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --roster-w: 304px;
-  --inspector-w: 388px;
+  /* Fluid, not fixed. These were 304px and 388px flat, so with both panels open
+     they claimed 692px regardless of screen size — 69% of a 1000px viewport,
+     leaving the chart panel ~300px and forcing its controls onto three rows.
+     clamp() scales them continuously between a usable minimum and today's
+     desktop size, so the middle column keeps a fair share at every width
+     without a breakpoint deciding when. */
+  --roster-w: clamp(240px, 22vw, 304px);
+  --inspector-w: clamp(300px, 28vw, 388px);
   /* --bar-min-h is the floor the command bar will not go below.
      --bar-h is the bar's MEASURED height, republished by a ResizeObserver in
      ui.js; the value here is only a sensible pre-measurement fallback. Layout

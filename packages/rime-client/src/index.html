@@ -406,6 +406,40 @@
               <span class="trace-label">Trace</span>
             </button>
 
+            <!-- Time window: applied server-side as a $filter on phenomenonTime.
+                 The custom from/to pair lives in a popover so the always-visible
+                 row stays compact — the panel narrows a lot when the roster and
+                 inspector are both open. -->
+            <div class="chart-range-group" id="chartRangeGroup">
+              <button class="chart-panel-btn" data-range="24h">24h</button>
+              <button class="chart-panel-btn" data-range="7d">7d</button>
+              <button class="chart-panel-btn" data-range="30d">30d</button>
+              <button class="chart-panel-btn active" data-range="all">All</button>
+              <button
+                class="chart-panel-btn chart-range-custom-btn"
+                id="chartRangeCustomBtn"
+                title="Custom range"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >Custom</button>
+
+              <div class="chart-range-popover" id="chartRangePopover" hidden>
+                <label class="chart-range-field">
+                  <span>From</span>
+                  <input type="datetime-local" id="chartRangeFrom">
+                </label>
+                <label class="chart-range-field">
+                  <span>To</span>
+                  <input type="datetime-local" id="chartRangeTo">
+                </label>
+                <p class="chart-range-hint">Local time. Leave a field empty for an open end.</p>
+                <div class="chart-range-actions">
+                  <button class="chart-range-clear" id="chartRangeClear" type="button">Clear</button>
+                  <button class="chart-range-apply" id="chartRangeApply" type="button">Apply</button>
+                </div>
+              </div>
+            </div>
+
             <div class="chart-limit-group">
               <button
                 class="chart-panel-btn"

@@ -13,6 +13,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  /* Density rules query this element: the panel's width changes whenever the
+     roster or inspector opens, independently of the viewport, so viewport
+     breakpoints would be measuring the wrong thing entirely. */
+  container-type: inline-size;
+  container-name: chartpanel;
   transition: max-height 0.42s var(--ease), left 0.42s var(--ease), right 0.42s var(--ease), box-shadow 0.42s var(--ease);
 }
 
@@ -179,7 +184,12 @@
   display: flex;
   gap: 0.55rem;
   align-items: center;
-  flex-shrink: 0;
+  /* Wraps rather than overflowing: the range group, the custom from/to pair and
+     the limit group together need ~820px, more than the panel has on a narrow
+     window. The header is min-height, not height, so a second row is free. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  min-width: 0;
 }
 
 .chart-limit-group {
@@ -422,4 +432,126 @@
 
   .chart-panel-content { padding: 0.8rem; }
   .chart-container { height: 220px; }
+}
+
+/* ── Time-window control ──────────────────────────────────────────────── */
+/* Mirrors .chart-limit-group. The custom from/to pair sits in a popover rather
+   than inline: the chart panel's width swings a lot (roster open, inspector
+   open, both), and two always-visible datetime inputs squeezed to unusable
+   widths and forced the control row onto three lines. */
+.chart-range-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+  background: rgba(5, 9, 18, 0.5);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  padding: 3px;
+  gap: 2px;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.chart-range-custom-btn.active {
+  color: var(--obs-bg);
+  background: var(--accent);
+}
+
+/* `hidden` alone loses to `display: flex` below, exactly as .endpoint-popover
+   handles it in styles.css. Without this the popover is open on page load. */
+.chart-range-popover[hidden] { display: none; }
+
+.chart-range-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: min(19rem, 80vw);
+  background: var(--glass-2);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid var(--glass-line-hi);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 0.95rem;
+  box-shadow: var(--shadow);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.chart-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.chart-range-field > span {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+}
+
+.chart-range-field input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(5, 9, 18, 0.6);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.75rem;
+  padding: 0.35rem 0.45rem;
+  color-scheme: dark;   /* native picker follows the dark theme */
+}
+
+.chart-range-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chart-range-hint {
+  font-size: 0.66rem;
+  color: var(--txt-mute);
+  margin: 0;
+}
+
+.chart-range-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.chart-range-clear,
+.chart-range-apply {
+  border-radius: var(--radius-sm);
+  font-size: 0.72rem;
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chart-range-clear {
+  background: none;
+  border: 1px solid var(--glass-line);
+  color: var(--txt-dim);
+}
+.chart-range-clear:hover { color: var(--accent); border-color: var(--accent); }
+
+.chart-range-apply {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: var(--obs-bg);
+  font-weight: 600;
+}
+
+/* Density follows the PANEL's width, not the viewport: the panel narrows
+   whenever the roster or inspector opens, at any viewport size. Buttons get
+   tighter rather than disappearing — a control you cannot find is worse than a
+   small one, and "Custom" is short enough to keep its word. */
+@container chartpanel (max-width: 620px) {
+  .chart-panel-btn { padding: 0.28rem 0.42rem; font-size: 0.68rem; }
+  .chart-range-group,
+  .chart-limit-group { gap: 1px; padding: 2px; }
 }
