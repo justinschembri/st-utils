@@ -1172,9 +1172,12 @@ body {
 /* ------------------------------------------------------------------ */
 .thing-metadata-sidebar {
   position: absolute;
-  right: 14px;
+  /* Same insets as .dock-column and .chart-panel — these three float over the
+     map as one set, and the hard-coded 56px bottom left the inspector sitting
+     42px above the other two. */
+  right: var(--dock-inset);
   top: calc(var(--bar-h) + 26px);
-  bottom: 56px;
+  bottom: var(--dock-inset);
   width: var(--inspector-w);
   max-width: calc(100vw - 28px);
   z-index: 35;
