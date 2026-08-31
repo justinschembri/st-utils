@@ -16,7 +16,24 @@ const isMobileView = () => window.matchMedia('(max-width: 640px)').matches;
  * observer feed its own input.
  */
 function observeCommandBarHeight() {
-    const bar = document.querySelector('.command-bar');
+    observeMeasuredHeight('.command-bar', '--bar-h');
+}
+
+/**
+ * Publish the chart dock header's measured height as `--chart-hdr-h`.
+ *
+ * Same reasoning as the command bar: the header wraps its controls onto a
+ * second row when they no longer fit, so the collapsed panel's height is not a
+ * constant. Clipping it to a fixed `--dock-h` cut the wrapped row off and let
+ * the header's contents paint over each other.
+ */
+function observeChartHeaderHeight() {
+    observeMeasuredHeight('.chart-panel-header', '--chart-hdr-h');
+}
+
+/** Publish an element's measured height into a custom property on :root. */
+function observeMeasuredHeight(selector, property) {
+    const bar = document.querySelector(selector);
     if (!bar) return;
 
     const publish = () => {
@@ -24,7 +41,7 @@ function observeCommandBarHeight() {
         // down by a fraction of a pixel lets the bar overlap what sits under it.
         const px = Math.ceil(bar.getBoundingClientRect().height);
         if (px > 0) {
-            document.documentElement.style.setProperty('--bar-h', `${px}px`);
+            document.documentElement.style.setProperty(property, `${px}px`);
         }
     };
 

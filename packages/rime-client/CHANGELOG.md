@@ -16,6 +16,9 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   `$orderby` / `$top` / `$skip` / `$count`, copyable request URL, and `nextLink`
   paging. Filter operators are chosen per STA version in `js/odata.js` (v1.1
   `substringof`, v2.0 `contains`) rather than hard-coded.
+- **Compare datastreams on one chart** — a Compare toggle turns the datastream
+  pills into multi-select. Series sharing a unit share an axis, a second unit
+  gets the right-hand axis, and a third is refused rather than mis-scaled.
 - Chart states how much of a series it is showing ("newest 100 of 328") instead
   of silently truncating, and the point limit now goes up to 10k.
 - Chart time-range filter: 24h / 7d / 30d / All presets plus a custom from–to

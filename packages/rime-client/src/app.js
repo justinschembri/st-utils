@@ -207,6 +207,7 @@ function initializeEventListeners() {
 
     mountConnectionControl(document.getElementById('connectionControl'), resetAndReload);
     observeCommandBarHeight();
+    observeChartHeaderHeight();
     initChartPanel();
 
     const appShell = document.querySelector('.app-shell');

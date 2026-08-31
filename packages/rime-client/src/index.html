@@ -311,6 +311,12 @@
               <span class="trace-label">Trace</span>
             </button>
 
+            <!-- Comparison mode: makes the datastream pills toggle membership
+                 instead of switching. Off by default, so the pills behave
+                 exactly as before until it is turned on. -->
+            <button class="chart-panel-btn chart-compare-btn" id="chartCompareBtn"
+                    title="Compare several datastreams">Compare</button>
+
             <!-- Time window: applied server-side as a $filter on phenomenonTime.
                  The custom from/to pair lives in a popover so the always-visible
                  row stays compact — the panel narrows a lot when the roster and

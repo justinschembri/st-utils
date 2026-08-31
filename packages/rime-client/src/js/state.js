@@ -66,6 +66,12 @@ const state = {
     // from/to are Date objects and only used when preset is 'custom'.
     chartRange: { preset: 'all', from: null, to: null },
     chartPointCache: null,       // { datastreamId, rangeKey, points, observationTotal, ... }
+    // Comparison mode. compareMode makes the datastream pills toggle membership
+    // instead of switching; comparedIds are the extra series drawn alongside
+    // state.currentDatastream. Empty means the chart behaves exactly as before.
+    compareMode: false,
+    comparedIds: [],
+    chartSeries: [],             // [{ datastreamId, name, unitSymbol, points, observationTotal }]
     map: null,
     markerCluster: null,
     maxClusterSize: 1,

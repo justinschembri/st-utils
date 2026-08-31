@@ -1,6 +1,43 @@
 // Oscilloscope chart panel — time-series trace rendering and navigation.
 
 const CHART_TRACE_COLOR = '#22d3ee';
+
+// Palette for comparison series, drawn from the theme accents so a multi-series
+// chart still looks like the rest of the app. First entry matches the
+// single-series colour, so turning comparison on does not recolour what is
+// already on screen.
+const CHART_SERIES_COLORS = [
+    '#22d3ee',  // accent (cyan)
+    '#f472b6',  // accent-3 (magenta)
+    '#34d399',  // ok (green)
+    '#fbbf24',  // warn (amber)
+    '#818cf8',  // accent-2 (indigo)
+    '#fb7185',  // bad (rose)
+];
+
+/**
+ * Group series by unit of measure.
+ *
+ * Plotting °C against ppm on one axis is meaningless — CO2 in the hundreds
+ * flattens temperature into a line along the bottom. Series sharing a unit
+ * share an axis; a second unit gets the right-hand axis. A third would need a
+ * third scale, which is unreadable, so it is refused rather than drawn wrong.
+ */
+const CHART_MAX_UNIT_AXES = 2;
+
+function groupSeriesByUnit(series) {
+    const groups = [];
+    for (const s of series) {
+        const unit = s.unitSymbol || '';
+        let group = groups.find(g => g.unit === unit);
+        if (!group) {
+            group = { unit, axisId: groups.length === 0 ? 'y' : 'y2', series: [] };
+            groups.push(group);
+        }
+        group.series.push(s);
+    }
+    return groups;
+}
 // Break the trace when an interval exceeds this multiple of the estimated cadence.
 const GAP_CADENCE_FACTOR = 2.5;
 const CHART_ANIMATION_MS = 420;
@@ -90,6 +127,12 @@ function initChartPanel() {
         });
     }
 
+    document.getElementById('chartCompareBtn')?.addEventListener('click', (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        setCompareMode(!state.compareMode);
+    });
+
     const chartNextDatastreamBtn = document.getElementById('chartNextDatastreamBtn');
     if (chartNextDatastreamBtn) {
         chartNextDatastreamBtn.addEventListener('click', (e) => {
@@ -159,19 +202,32 @@ function renderDatastreamPills(activeId) {
 
     container.innerHTML = '';
     const fragment = document.createDocumentFragment();
+    const active = activeDatastreamIds();
 
     datastreams.forEach(ds => {
         const id = frostEntityId(ds);
         const displayName = formatDatastreamName(ds.name);
+        const selected = active.includes(id);
         const pill = document.createElement('button');
         pill.type = 'button';
-        pill.className = 'chart-ds-pill' + (id === activeId ? ' active' : '');
+        pill.className = 'chart-ds-pill' + (selected ? ' active' : '');
+
+        if (state.compareMode && selected) {
+            // Colour the pill to match its trace so the legend, the stats rows
+            // and the pills all agree on which series is which.
+            const color = CHART_SERIES_COLORS[active.indexOf(id) % CHART_SERIES_COLORS.length];
+            pill.style.borderColor = color;
+            pill.style.color = color;
+        }
+
         pill.dataset.datastreamId = id;
         pill.textContent = displayName;
         pill.title = displayName;
         pill.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (id !== state.currentDatastream) {
+            if (state.compareMode) {
+                toggleComparedDatastream(id, displayName);
+            } else if (id !== state.currentDatastream) {
                 selectDatastream(id, displayName);
             }
         });
@@ -180,6 +236,61 @@ function renderDatastreamPills(activeId) {
 
     container.appendChild(fragment);
     container.hidden = false;
+}
+
+/** Add or remove a series from the comparison. */
+function toggleComparedDatastream(datastreamId, displayName) {
+    const active = activeDatastreamIds();
+
+    if (!active.includes(datastreamId)) {
+        state.comparedIds = [...state.comparedIds, datastreamId];
+    } else if (datastreamId === state.currentDatastream) {
+        // Removing the primary: promote the first comparison series so the
+        // panel title and the prev/next navigation still refer to something.
+        const [next, ...rest] = state.comparedIds;
+        if (next === undefined) return;      // never leave the chart empty
+        state.currentDatastream = next;
+        state.comparedIds = rest;
+    } else {
+        state.comparedIds = state.comparedIds.filter(id => id !== datastreamId);
+    }
+
+    renderDatastreamPills(state.currentDatastream);
+    loadChartData(state.currentDatastream);
+}
+
+/** Panel heading reflects one series or a comparison. */
+function syncChartTitle() {
+    const count = activeDatastreamIds().length;
+    const title = document.getElementById('chartTitle');
+    const subtitle = document.getElementById('chartSubtitle');
+    if (!title || !subtitle) return;
+
+    if (count > 1) {
+        title.textContent = `${count} datastreams`;
+        subtitle.textContent = 'Comparing';
+        return;
+    }
+    const primary = (state.chartSeries || [])[0];
+    if (primary) {
+        title.textContent = primary.name;
+        subtitle.textContent = `Datastream ID: ${primary.datastreamId}`;
+    }
+}
+
+/** Turn comparison on or off; leaving it drops the extra series. */
+function setCompareMode(on) {
+    state.compareMode = on;
+    document.getElementById('chartCompareBtn')?.classList.toggle('active', on);
+    document.getElementById('chartDatastreamPills')?.classList.toggle('is-comparing', on);
+
+    if (!on && state.comparedIds.length) {
+        state.comparedIds = [];
+        renderDatastreamPills(state.currentDatastream);
+        loadChartData(state.currentDatastream);
+        return;
+    }
+    renderDatastreamPills(state.currentDatastream);
 }
 
 function ensureChartShell() {
@@ -242,28 +353,58 @@ const CHART_MAX_POINTS = 10000;
 // entity at a time, so the same ceiling would mean thousands of round trips.
 const CHART_MAX_POINTS_ARRAY = 2500;
 
+/** Ids currently on the chart: the primary plus any comparison series. */
+function activeDatastreamIds() {
+    const ids = [];
+    if (state.currentDatastream != null) ids.push(state.currentDatastream);
+    for (const id of state.comparedIds) {
+        if (!ids.includes(id)) ids.push(id);
+    }
+    return ids;
+}
+
+/** Fetch one datastream's metadata and points. */
+async function loadSeries(datastreamId) {
+    const dsResponse = await frostFetch(`${state.frostRoot}/Datastreams(${datastreamId})`);
+    if (!dsResponse.ok) throw new Error(`HTTP error! Status: ${dsResponse.status}`);
+    const dsData = await dsResponse.json();
+
+    const { points, observationTotal } = await fetchChartPoints(datastreamId, CHART_MAX_POINTS);
+    return {
+        datastreamId,
+        name: formatDatastreamName(dsData.name || 'Unknown'),
+        unitSymbol: frostUnitSymbol(dsData),
+        points,
+        observationTotal,
+    };
+}
+
 async function loadChartData(datastreamId) {
     updateStatus('Loading chart data...', '');
     showChartOverlay('<div class="no-data-message"><div class="loading"></div> Loading trace…</div>');
 
     try {
-        const dsResponse = await frostFetch(`${state.frostRoot}/Datastreams(${datastreamId})`);
-        if (!dsResponse.ok) throw new Error(`HTTP error! Status: ${dsResponse.status}`);
+        const ids = activeDatastreamIds();
+        // Fetched in parallel: comparison is only useful if adding a series is
+        // cheap, and these are independent requests.
+        const series = await Promise.all(ids.map(loadSeries));
 
-        const dsData = await dsResponse.json();
-        const unitSymbol = frostUnitSymbol(dsData);
-        const datastreamName = formatDatastreamName(dsData.name || 'Unknown');
-
-        const { points: allPoints, observationTotal } =
-            await fetchChartPoints(datastreamId, CHART_MAX_POINTS);
-        state.chartPointCache = {
-            datastreamId,
+        state.chartSeries = series;
+        // Derived from the series that actually loaded, so a promoted primary
+        // names itself correctly; syncing before the fetch reads the previous
+        // selection and leaves a stale name in the header.
+        syncChartTitle();
+        // Keep the single-series cache in step — setChartLimit and the range
+        // controls still read it to decide whether a refetch is needed.
+        const primary = series[0];
+        state.chartPointCache = primary ? {
+            datastreamId: primary.datastreamId,
             rangeKey: chartRangeKey(),
-            points: allPoints,
-            observationTotal,
-            unitSymbol,
-            datastreamName,
-        };
+            points: primary.points,
+            observationTotal: primary.observationTotal,
+            unitSymbol: primary.unitSymbol,
+            datastreamName: primary.name,
+        } : null;
 
         renderFromCache();
     } catch (error) {
@@ -271,7 +412,7 @@ async function loadChartData(datastreamId) {
         destroyChartInstance();
         document.getElementById('chartPanelContent').innerHTML = `
             <div class="no-data-message">
-                <h3>Error loading data</h3>
+                <h3>Could not load this datastream</h3>
                 <p>${error.message}</p>
             </div>`;
         updateStatus(`Error: ${error.message}`, 'error');
@@ -279,8 +420,10 @@ async function loadChartData(datastreamId) {
 }
 
 function renderFromCache() {
-    const cache = state.chartPointCache;
-    if (!cache || cache.points.length === 0) {
+    const series = state.chartSeries || [];
+    const withData = series.filter(s => s.points.length);
+
+    if (!withData.length) {
         destroyChartInstance();
         // Distinguish "this datastream is empty" from "your window is empty" —
         // otherwise picking 24h on a stale sensor looks like missing data.
@@ -301,28 +444,37 @@ function renderFromCache() {
         return;
     }
 
-    const points = cache.points.length > state.currentLimit
-        ? cache.points.slice(-state.currentLimit)
-        : cache.points;
+    // Slice each series to the point limit independently: they may have very
+    // different cadences, and "last N points" means N of *that* series.
+    const shown = withData.map(s => ({
+        ...s,
+        shownPoints: s.points.length > state.currentLimit
+            ? s.points.slice(-state.currentLimit)
+            : s.points,
+    }));
 
-    const cadenceMs = estimateCadenceMs(points);
-    const segments = splitTraceSegments(points, cadenceMs);
-    const stats = calculateChartStats(points, segments.length, cache.unitSymbol, cadenceMs);
-    stats.observationTotal = cache.observationTotal;
-
-    renderOrUpdateChart(points, cadenceMs, cache.unitSymbol, cache.datastreamName, stats);
+    renderOrUpdateChart(shown);
     hideChartOverlay();
 
-    // Say plainly when this is the newest slice rather than the whole series —
-    // every statistic on screen is computed over the shown points only.
-    const total = cache.observationTotal;
-    updateStatus(
-        Number.isFinite(total) && total > stats.totalPoints
-            ? `Showing newest ${stats.totalPoints.toLocaleString()} of `
-              + `${total.toLocaleString()} observations`
-            : `Loaded ${stats.totalPoints.toLocaleString()} observations`,
-        'success',
-    );
+    const primary = shown[0];
+    if (shown.length === 1) {
+        // Say plainly when this is the newest slice rather than the whole series
+        // — every statistic on screen is computed over the shown points only.
+        const total = primary.observationTotal;
+        updateStatus(
+            Number.isFinite(total) && total > primary.shownPoints.length
+                ? `Showing newest ${primary.shownPoints.length.toLocaleString()} of `
+                  + `${total.toLocaleString()} observations`
+                : `Loaded ${primary.shownPoints.length.toLocaleString()} observations`,
+            'success',
+        );
+    } else {
+        const totalPoints = shown.reduce((n, s) => n + s.shownPoints.length, 0);
+        updateStatus(
+            `Comparing ${shown.length} datastreams · ${totalPoints.toLocaleString()} points`,
+            'success',
+        );
+    }
 }
 
 // Array observations can unpack into thousands of points each, so page them
@@ -623,7 +775,8 @@ function renderChartStats(stats) {
         </div>` : ''}`;
 }
 
-function buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradient) {
+function buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradient,
+                           color = CHART_TRACE_COLOR, axisId = 'y', filled = true) {
     const gapMs = gapThresholdMs(cadenceMs);
 
     function intervalBefore(index) {
@@ -636,14 +789,17 @@ function buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradie
     }
 
     return {
-        label: datastreamName,
+        label: unitSymbol ? `${datastreamName} (${unitSymbol})` : datastreamName,
         unitSymbol,
+        yAxisID: axisId,
         data: points,
         parsing: false,
-        borderColor: CHART_TRACE_COLOR,
+        borderColor: color,
         backgroundColor: gradient,
         borderWidth: 2,
-        fill: 'origin',
+        // Only a lone series is filled: overlapping translucent fills muddy
+        // every trace underneath and make a comparison harder to read.
+        fill: filled ? 'origin' : false,
         tension: 0.22,
         cubicInterpolationMode: 'monotone',
         pointRadius: 0,
@@ -653,7 +809,7 @@ function buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradie
         // datasets (which caused post-gap traces to drop out).
         segment: {
             borderColor(ctx) {
-                return isGapBoundary(ctx.p1DataIndex) ? 'transparent' : CHART_TRACE_COLOR;
+                return isGapBoundary(ctx.p1DataIndex) ? 'transparent' : color;
             },
             backgroundColor(ctx) {
                 return isGapBoundary(ctx.p1DataIndex) ? 'transparent' : gradient;
@@ -662,7 +818,7 @@ function buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradie
     };
 }
 
-function buildChartOptions(points) {
+function buildChartOptions(points, unitGroups = []) {
     const xTimes = points.map(p => p.x.getTime());
     const xMin = xTimes.length ? Math.min(...xTimes) : undefined;
     const xMax = xTimes.length ? Math.max(...xTimes) : undefined;
@@ -687,7 +843,17 @@ function buildChartOptions(points) {
             },
         },
         plugins: {
-            legend: { display: false },
+            legend: {
+                // Only worth the vertical space when there is more than one
+                // trace to tell apart.
+                display: unitGroups.reduce((n, g) => n + g.series.length, 0) > 1,
+                position: 'top',
+                align: 'end',
+                labels: {
+                    boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'line',
+                    color: '#9fb0c3', font: { size: 11 },
+                },
+            },
             decimation: {
                 enabled: points.length > 600,
                 algorithm: 'lttb',
@@ -738,6 +904,11 @@ function buildChartOptions(points) {
             },
             y: {
                 beginAtZero: false,
+                position: 'left',
+                title: unitGroups[0]?.unit
+                    ? { display: true, text: unitGroups[0].unit, color: '#6b7c93',
+                        font: { family: "'JetBrains Mono', monospace", size: 10 } }
+                    : { display: false },
                 border: { display: false },
                 ticks: {
                     color: '#6b7c93',
@@ -749,48 +920,147 @@ function buildChartOptions(points) {
                     drawTicks: false,
                 },
             },
+            // Second unit gets the right-hand axis. Its gridlines are off so
+            // two sets of horizontal lines do not overlay each other.
+            ...(unitGroups.length > 1 ? {
+                y2: {
+                    beginAtZero: false,
+                    position: 'right',
+                    title: { display: true, text: unitGroups[1].unit, color: '#6b7c93',
+                             font: { family: "'JetBrains Mono', monospace", size: 10 } },
+                    border: { display: false },
+                    ticks: {
+                        color: '#6b7c93',
+                        font: { family: "'JetBrains Mono', monospace", size: 10 },
+                        padding: 8,
+                    },
+                    grid: { drawOnChartArea: false },
+                },
+            } : {}),
         },
     };
 }
 
-function renderOrUpdateChart(points, cadenceMs, unitSymbol, datastreamName, stats) {
+/**
+ * Draw every series in `shown` (each with a `shownPoints` array).
+ *
+ * Series are grouped by unit so a second unit lands on the right-hand axis;
+ * beyond two units the chart says so rather than plotting values that cannot
+ * share a scale.
+ */
+function renderOrUpdateChart(shown) {
     ensureChartShell();
 
+    const unitGroups = groupSeriesByUnit(shown);
+    const overflow = unitGroups.slice(CHART_MAX_UNIT_AXES);
+    const drawable = unitGroups.slice(0, CHART_MAX_UNIT_AXES);
+    const drawnSeries = drawable.flatMap(g => g.series);
+
     const statsEl = document.getElementById('chartStats');
-    if (statsEl) statsEl.innerHTML = renderChartStats(stats);
+    if (statsEl) {
+        statsEl.innerHTML = shown.length === 1
+            ? renderChartStats(singleSeriesStats(shown[0]))
+            : renderComparisonStats(drawnSeries, shown);
+    }
 
     const canvas = document.getElementById('timeSeriesChart');
     if (!canvas) return;
-
     const ctx = canvas.getContext('2d');
-    const gradient = ctx.createLinearGradient(0, 0, 0, 340);
-    gradient.addColorStop(0, 'rgba(34, 211, 238, 0.35)');
-    gradient.addColorStop(0.55, 'rgba(34, 211, 238, 0.08)');
-    gradient.addColorStop(1, 'rgba(34, 211, 238, 0)');
 
-    const dataset = buildTraceDataset(points, cadenceMs, datastreamName, unitSymbol, gradient);
-    const options = buildChartOptions(points);
+    const allPoints = drawnSeries.flatMap(s => s.shownPoints);
+    const options = buildChartOptions(allPoints, drawable);
+
+    const datasets = [];
+    drawable.forEach(group => {
+        group.series.forEach(series => {
+            const index = drawnSeries.indexOf(series);
+            const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
+
+            let gradient = color;
+            if (drawnSeries.length === 1) {
+                gradient = ctx.createLinearGradient(0, 0, 0, 340);
+                gradient.addColorStop(0, 'rgba(34, 211, 238, 0.35)');
+                gradient.addColorStop(0.55, 'rgba(34, 211, 238, 0.08)');
+                gradient.addColorStop(1, 'rgba(34, 211, 238, 0)');
+            }
+
+            datasets.push(buildTraceDataset(
+                series.shownPoints,
+                estimateCadenceMs(series.shownPoints),
+                series.name,
+                series.unitSymbol,
+                gradient,
+                color,
+                group.axisId,
+                drawnSeries.length === 1,
+            ));
+        });
+    });
+
+    if (overflow.length) {
+        const units = overflow.map(g => g.unit || 'unitless').join(', ');
+        updateStatus(`Not shown: ${units} — only two units can share a chart`, 'warning');
+    }
 
     Chart.defaults.font.family = "'Space Grotesk', sans-serif";
     Chart.defaults.color = '#9fb0c3';
 
+    // A changed axis set means a different chart shape; rebuild rather than
+    // patch, or Chart.js keeps the stale scale around.
+    const axesChanged = state.currentChart
+        && !!state.currentChart.options.scales.y2 !== (drawable.length > 1);
+    if (axesChanged) destroyChartInstance();
+
     if (state.currentChart) {
-        state.currentChart.data.datasets = [dataset];
-        state.currentChart.options.scales.x.min = options.scales.x.min;
-        state.currentChart.options.scales.x.max = options.scales.x.max;
-        state.currentChart.options.elements = options.elements;
-        state.currentChart.options.plugins.decimation = options.plugins.decimation;
+        state.currentChart.data.datasets = datasets;
+        state.currentChart.options = options;
         state.currentChart.update('active');
         scheduleChartResize();
         return;
     }
 
-    state.currentChart = new Chart(ctx, {
-        type: 'line',
-        data: { datasets: [dataset] },
-        options,
-    });
+    state.currentChart = new Chart(ctx, { type: 'line', data: { datasets }, options });
     scheduleChartResize();
+}
+
+/** Stats for the single-series case, unchanged in appearance. */
+function singleSeriesStats(series) {
+    const cadenceMs = estimateCadenceMs(series.shownPoints);
+    const segments = splitTraceSegments(series.shownPoints, cadenceMs);
+    const stats = calculateChartStats(series.shownPoints, segments.length, series.unitSymbol, cadenceMs);
+    stats.observationTotal = series.observationTotal;
+    return stats;
+}
+
+/**
+ * Compact per-series readout when comparing.
+ *
+ * The single-series pills (LATEST / MIN / MAX / AVG) become ambiguous with more
+ * than one trace — whose latest? — so each series gets its own row instead,
+ * colour-matched to its line.
+ */
+function renderComparisonStats(drawnSeries, allSeries) {
+    const hidden = allSeries.length - drawnSeries.length;
+    const rows = drawnSeries.map((series, index) => {
+        const values = series.shownPoints.map(p => p.y);
+        const color = CHART_SERIES_COLORS[index % CHART_SERIES_COLORS.length];
+        const unit = series.unitSymbol ? ` ${series.unitSymbol}` : '';
+        const latest = values[values.length - 1];
+        return `
+            <div class="chart-compare-row">
+                <span class="chart-compare-swatch" style="background:${color}"></span>
+                <span class="chart-compare-name">${series.name}</span>
+                <span class="chart-compare-stat">last <b>${latest.toFixed(2)}${unit}</b></span>
+                <span class="chart-compare-stat">min <b>${Math.min(...values).toFixed(2)}</b></span>
+                <span class="chart-compare-stat">max <b>${Math.max(...values).toFixed(2)}</b></span>
+                <span class="chart-compare-stat">${values.length.toLocaleString()} pts</span>
+            </div>`;
+    }).join('');
+
+    const note = hidden
+        ? `<p class="chart-compare-note">${hidden} series hidden — a chart can only carry two units.</p>`
+        : '';
+    return `<div class="chart-compare-stats">${rows}${note}</div>`;
 }
 
 function scheduleChartResize() {
