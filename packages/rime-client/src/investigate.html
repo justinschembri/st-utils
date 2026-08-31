@@ -25,7 +25,9 @@
 
   <body class="query-body">
 
-    <header class="command-bar query-bar">
+    <!-- Deliberately NOT .command-bar: that class is absolutely positioned with
+         a fixed height for the map stage, which overlaps a sticky page header. -->
+    <header class="query-bar">
       <div class="brand">
         <span class="brand-orb" aria-hidden="true"></span>
         <div class="brand-text">
@@ -34,9 +36,9 @@
         </div>
       </div>
 
-      <div id="connectionControl" class="page-connection"></div>
-
-      <div class="inv-bar-links">
+      <!-- Connection + page links travel as one right-aligned group. -->
+      <div class="bar-actions">
+        <div id="connectionControl" class="page-connection"></div>
         <a class="qb-link" href="query.html">Query</a>
         <a class="qb-link" href="index.html">← Map</a>
       </div>

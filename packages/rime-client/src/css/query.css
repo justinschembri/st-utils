@@ -28,7 +28,7 @@
   container-name: querybar;
 }
 
-.query-bar .qb-link { flex: 0 0 auto; margin-left: auto; align-self: center; }
+.query-bar .qb-link { flex: 0 0 auto; align-self: center; }
 
 .query-bar > * { min-width: 0; }
 .query-bar .brand { flex: 0 0 auto; }
@@ -359,13 +359,26 @@
 
 .qb-placeholder { color: var(--txt-mute); }
 
+/* Connection control and page links as one right-aligned group.
+   They were separate flex children each carrying `margin-left: auto`, so the
+   free space was split *between* them and they drifted apart. One auto margin
+   on the group keeps them together at the right edge. */
+.bar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
 /* Shared connection control (js/connection.js) on the query/investigate bars.
    The map places it in the command bar; here it sits in the page header. */
 .page-connection {
   position: relative;
   flex: 0 1 auto;
   min-width: 0;
-  margin-left: auto;
 }
 
 /* The popover opens downward from a sticky top bar on these pages. */
