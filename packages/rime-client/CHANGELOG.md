@@ -20,6 +20,12 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   of silently truncating, and the point limit now goes up to 10k.
 - Chart time-range filter: 24h / 7d / 30d / All presets plus a custom from–to
   window, applied server-side as an OData `$filter` on `phenomenonTime`.
+- **Investigate page** (`investigate.html`) — browse any entity type, expand rows
+  in place to see full properties, and walk the STA graph by following
+  `@iot.navigationLink` (Thing → Datastreams → Sensor → …) with a breadcrumb
+  trail that collapses cycles. Name search, paging, session-only read
+  credentials, and "Chart this datastream" / "Show on map" links back to the map.
+- Map accepts `?datastream=<id>` and `?thing=<id>` deep links.
 
 ### Changed
 

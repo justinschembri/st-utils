@@ -23,6 +23,55 @@ document.addEventListener('DOMContentLoaded', () => {
 // only runs from the endpoint switcher. See the catch block in fetchThings().
 let isInitialLoad = true;
 
+/**
+ * Open whatever `?thing=` or `?datastream=` asked for, once Things are loaded.
+ *
+ * These links come from the investigate page, so the entity may not be on the
+ * map at all — a Thing with no Location has no marker. Fetch the datastream's
+ * own name rather than assuming it is one of the selected Thing's, and say so
+ * plainly when the target cannot be shown, instead of failing silently.
+ */
+async function applyDeepLink() {
+    const params = new URLSearchParams(window.location.search);
+    const thingId = params.get('thing');
+    const datastreamId = params.get('datastream');
+    if (!thingId && !datastreamId) return;
+
+    try {
+        if (datastreamId) {
+            const response = await frostFetch(`${state.frostRoot}/Datastreams(${datastreamId})?$expand=Thing`);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const datastream = await response.json();
+
+            // Load the parent Thing's datastreams first so the datastream pills
+            // and prev/next navigation work, exactly as clicking through the
+            // map would. selectDatastream() reads state.currentThingDatastreams.
+            const parentId = frostEntityId(datastream.Thing, state.frostVersion);
+            if (parentId != null && state.things[parentId]) {
+                showThingMetadata(parentId);
+                await loadDatastreamsForThing(parentId);
+            }
+
+            await selectDatastream(datastreamId, formatDatastreamName(datastream.name || 'Unknown'));
+            return;
+        }
+
+        const thing = state.things[thingId];
+        if (!thing) {
+            updateStatus(`Thing ${thingId} is not on the map (it may have no Location)`, 'warning');
+            return;
+        }
+        // Same sequence the roster uses when a Thing is clicked (roster.js).
+        if (!thing.virtual && thing.coordinates) {
+            state.map.setView(thing.coordinates, 15, { animate: true, duration: 0.8 });
+        }
+        showThingMetadata(thingId);
+        await loadDatastreamsForThing(thingId);
+    } catch (error) {
+        console.error('Deep link failed:', error);
+        updateStatus(`Could not open the requested entity: ${error.message}`, 'error');
+    }
+}
 
 // Initialize Leaflet map
 function initializeMap() {
@@ -665,6 +714,10 @@ async function fetchThings() {
 
         // A server answered — drop any "could not reach ..." message.
         clearEndpointHint();
+
+        // Deep link from the investigate page. Runs after the fetch because
+        // both handlers need the Things and Datastreams to exist first.
+        await applyDeepLink();
 
     } catch (error) {
         if (stale()) return;
