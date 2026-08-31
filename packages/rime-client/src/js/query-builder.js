@@ -18,25 +18,18 @@ const el = {};
 
 function cacheElements() {
     [
-        'qbEndpoint', 'qbServerPreset', 'qbVersion', 'qbEntity', 'qbFilterRows',
-        'qbAddFilter', 'qbJoin', 'qbFilterHint', 'qbSelect', 'qbExpand',
-        'qbExpandChips', 'qbOrderBy', 'qbTop', 'qbSkip', 'qbCount', 'qbUrl',
-        'qbCopy', 'qbRun', 'qbStatus', 'qbOutput', 'qbMeta', 'qbNext',
+        'qbEntity', 'qbFilterRows', 'qbAddFilter', 'qbJoin', 'qbFilterHint',
+        'qbSelect', 'qbExpand', 'qbExpandChips', 'qbOrderBy', 'qbTop', 'qbSkip',
+        'qbCount', 'qbUrl', 'qbCopy', 'qbRun', 'qbStatus', 'qbOutput', 'qbMeta',
+        'qbNext',
     ].forEach(id => { el[id] = document.getElementById(id); });
 }
 
 // ── endpoint ───────────────────────────────────────────────────────────────
+// The connection (server, version, credentials) is owned by js/connection.js
+// and shared with the map and investigate pages; state.frostRoot is the result.
 function currentRoot() {
-    const base = el.qbEndpoint.value.trim().replace(/\/+$/, '');
-    if (!base) return '';
-    return `${base}/${el.qbVersion.value}`;
-}
-
-function persistEndpoint() {
-    const base = el.qbEndpoint.value.trim().replace(/\/+$/, '');
-    // storeEndpoint() lives in state.js and owns the localStorage keys, so the
-    // map page picks up whatever is chosen here.
-    storeEndpoint(base, el.qbVersion.value);
+    return state.isConfigured ? state.frostRoot : '';
 }
 
 // ── filter rows ────────────────────────────────────────────────────────────
@@ -58,7 +51,7 @@ function removeFilterRow(id) {
 }
 
 function renderFilterRows() {
-    const operators = odataFilterOperators(el.qbVersion.value);
+    const operators = odataFilterOperators(state.frostVersion);
     const fields = STA_COMMON_FIELDS[el.qbEntity.value] || [];
 
     el.qbFilterRows.innerHTML = '';
@@ -145,7 +138,7 @@ function buildUrl() {
         root,
         entity: el.qbEntity.value,
         params: {
-            $filter: odataCombineFilters(qb.filterRows, qb.join, el.qbVersion.value),
+            $filter: odataCombineFilters(qb.filterRows, qb.join, state.frostVersion),
             $select: el.qbSelect.value,
             $expand: el.qbExpand.value,
             $orderby: el.qbOrderBy.value,
@@ -203,7 +196,7 @@ async function runQuery(url) {
         }
 
         // Result count and paging, both version-aware.
-        const version = el.qbVersion.value;
+        const version = state.frostVersion;
         const rows = Array.isArray(parsed?.value) ? parsed.value.length : (parsed ? 1 : 0);
         const total = parsed ? (parsed[frostFields(version).count] ?? parsed['@iot.count'] ?? parsed['@count']) : undefined;
         el.qbMeta.textContent = [
@@ -245,54 +238,31 @@ function initQueryBuilder() {
         el.qbEntity.appendChild(option);
     });
 
-    // Known-server dropdown, from the same list the map's quick-picks use.
-    const custom = document.createElement('option');
-    custom.value = '';
-    custom.textContent = 'Custom…';
-    el.qbServerPreset.appendChild(custom);
-    STA_KNOWN_SERVERS.forEach(server => {
-        const option = document.createElement('option');
-        option.value = server.base;
-        option.textContent = server.label;
-        option.title = server.base;
-        el.qbServerPreset.appendChild(option);
-    });
-
-    el.qbEndpoint.value = state.frostBase || '';
-    el.qbVersion.value = state.frostVersion || 'v1.1';
-
-    /** Show the preset whose URL matches what is typed, else "Custom…". */
-    function syncPreset() {
-        const current = el.qbEndpoint.value.trim().replace(/\/+$/, '');
-        const match = STA_KNOWN_SERVERS.find(s => s.base === current);
-        el.qbServerPreset.value = match ? match.base : '';
-    }
-    syncPreset();
-
-    el.qbServerPreset.addEventListener('change', () => {
-        if (!el.qbServerPreset.value) return;   // "Custom…" — leave the field alone
-        el.qbEndpoint.value = el.qbServerPreset.value;
-        persistEndpoint();
-        updateUrl();
-    });
-
+    /**
+     * Re-render anything that depends on the STA version.
+     *
+     * v1.1 has `substringof` and v2.0 replaces it with `contains`, so a filter
+     * row built under one version can hold an operator the other rejects; reset
+     * those rather than emitting a request the server will 400.
+     */
     const rerenderForVersion = () => {
-        // v1.1 has substringof, v2.0 replaces it with contains — reset any row
-        // whose operator does not exist in the newly selected version.
-        const valid = new Set(odataFilterOperators(el.qbVersion.value).map(o => o.value));
+        const valid = new Set(odataFilterOperators(state.frostVersion).map(o => o.value));
         qb.filterRows.forEach(row => {
             if (!valid.has(row.operator)) row.operator = 'eq';
         });
-        el.qbFilterHint.textContent = isFrostV2(el.qbVersion.value)
+        el.qbFilterHint.textContent = isFrostV2(state.frostVersion)
             ? 'v2.0 — OData 4.01 operators'
             : 'v1.1 — substringof, not contains';
         renderFilterRows();
         updateUrl();
     };
 
-    el.qbEndpoint.addEventListener('input', () => { syncPreset(); updateUrl(); });
-    el.qbEndpoint.addEventListener('change', persistEndpoint);
-    el.qbVersion.addEventListener('change', () => { persistEndpoint(); rerenderForVersion(); });
+    // Server, version and credentials are the shared control (js/connection.js).
+    // Re-running the query on apply keeps the result in step with the endpoint.
+    mountConnectionControl(document.getElementById('connectionControl'), () => {
+        rerenderForVersion();
+        updateUrl();
+    });
 
     el.qbEntity.addEventListener('change', () => {
         renderFilterRows();

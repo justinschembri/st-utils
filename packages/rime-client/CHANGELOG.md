@@ -23,11 +23,19 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
 
 ### Changed
 
+- **One connection control on every page** (`js/connection.js`) — server, API
+  version and read credentials, replacing three separate implementations. The
+  connection now carries across the map, query builder and investigate pages:
+  the endpoint in `localStorage`, credentials in `sessionStorage` (per tab,
+  never written to disk).
 - Known STA servers come from one list (`STA_KNOWN_SERVERS` in `js/config.js`),
-  shared by the map's quick-picks and the query builder's dropdown.
+  used by the shared control.
 
 ### Fixed
 
+- A `401` no longer reports "Invalid credentials" when none were sent. It now
+  distinguishes "this server requires credentials" from "those credentials were
+  rejected", and opens the connection panel.
 - Command bar no longer overflows: it sizes itself, publishes its measured
   height into `--bar-h`, and uses container queries instead of viewport
   breakpoints so it adapts to its own available space.

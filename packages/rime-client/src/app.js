@@ -23,6 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // only runs from the endpoint switcher. See the catch block in fetchThings().
 let isInitialLoad = true;
 
+
 // Initialize Leaflet map
 function initializeMap() {
     state.map = L.map('map', {
@@ -155,7 +156,7 @@ function initializeEventListeners() {
         healthCheckBtn.addEventListener('click', runHealthCheck);
     }
 
-    initializeEndpointSwitcher();
+    mountConnectionControl(document.getElementById('connectionControl'), resetAndReload);
     observeCommandBarHeight();
     initChartPanel();
 
@@ -578,7 +579,12 @@ async function fetchThings() {
 
             if (!response.ok) {
                 if (response.status === 401) {
-                    showErrorOverlay('Unauthorized', 'Invalid credentials for this server');
+                    showErrorOverlay(
+                        'Unauthorized',
+                        state.frostReadAuth
+                            ? 'Those credentials were rejected by this server'
+                            : 'This server requires credentials — open the connection panel',
+                    );
                 }
                 throw new Error(`HTTP error! Status: ${response.status}`);
             }
@@ -668,9 +674,19 @@ async function fetchThings() {
         // belong to a different deployment. Fall back to the connect prompt.
         if (isInitialLoad) {
             const host = state.frostBase.replace(/^https?:\/\//, '');
+            // A 401 is not "unreachable" — the server answered, it just wants
+            // credentials. This is the common case in a fresh tab, where the
+            // endpoint comes back from localStorage but credentials do not
+            // (they are per-tab; see js/connection.js). Saying "could not
+            // reach" there sends people to check the wrong thing.
+            const unauthorized = /Status:\s*401/.test(error.message || '');
             hideLoadingOverlay(true);
-            updateStatus('No server connected', 'error');
-            promptForEndpoint(`Could not reach ${host} — choose a server.`);
+            updateStatus(unauthorized ? 'Server requires credentials' : 'No server connected', 'error');
+            promptForEndpoint(
+                unauthorized
+                    ? `${host} requires credentials — enter them below.`
+                    : `Could not reach ${host} — choose a server.`,
+            );
             console.error('Error fetching things:', error);
             return;
         }

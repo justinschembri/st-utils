@@ -84,7 +84,12 @@ const state = {
     frostVersion: initialEndpoint.version,
     get frostRoot() { return `${this.frostBase}/${this.frostVersion}`; },
     get isConfigured() { return !!this.frostBase; },
-    frostReadAuth: null,   // Base64-encoded "user:pass" for read access, or null for anonymous
+    // Base64 "user:pass" for read access, or null for anonymous. Restored from
+    // sessionStorage so it survives navigating between the map, query builder
+    // and investigate pages, but not the browser session. See js/connection.js.
+    frostReadAuth: (() => {
+        try { return sessionStorage.getItem('rime.staAuth') || null; } catch (_) { return null; }
+    })(),
     fetchGeneration: 0,    // Incremented on every new fetch; stale generations discard their results
 };
 

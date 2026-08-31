@@ -35,25 +35,7 @@
         </div>
       </div>
 
-      <div class="query-endpoint">
-        <label for="qbServerPreset">Server</label>
-        <!-- Options rendered from STA_KNOWN_SERVERS (js/config.js) -->
-        <select id="qbServerPreset" class="qb-select qb-select-preset" title="Known servers"></select>
-        <input
-          type="text"
-          id="qbEndpoint"
-          class="endpoint-input"
-          placeholder="https://sta.example.org"
-          autocomplete="off"
-          spellcheck="false"
-          aria-label="Server URL"
-        >
-        <select id="qbVersion" class="qb-select qb-select-version" aria-label="API version">
-          <option value="v1.0">v1.0</option>
-          <option value="v1.1" selected>v1.1</option>
-          <option value="v2.0">v2.0</option>
-        </select>
-      </div>
+      <div id="connectionControl" class="page-connection"></div>
 
       <a class="qb-link" href="index.html">← Map</a>
     </header>
@@ -141,6 +123,7 @@
     <script src="js/state.js"></script>
     <script src="js/frost-fields.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/connection.js"></script>
     <script src="js/odata.js"></script>
     <script src="js/query-builder.js"></script>
   </body>
