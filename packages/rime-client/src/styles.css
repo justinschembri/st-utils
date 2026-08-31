@@ -2108,10 +2108,17 @@ body {
     margin-top: calc(var(--bar-h) + 18px) !important;
   }
 
-  /* ---- Map controls ---- */
-  .map-controls {
+}
+/* ^ closes @media (max-width: 640px).
 
-/* Link from the map to the query builder page */
+   styles.css was truncated on main: it ended mid-rule at an empty
+   an empty .map-controls rule, leaving both that rule and the 640px media
+   query unclosed. Everything appended after it was therefore parsed as part of the
+   mobile block and never applied on desktop — which is why the Query and
+   Investigate links fell back to the browser's default link blue/purple.
+   The incomplete `.map-controls` rule had no declarations to preserve. */
+
+/* Links from the map to the query builder and investigate pages */
 .query-builder-link {
   display: inline-flex;
   align-items: center;

@@ -26,6 +26,9 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   trail that collapses cycles. Name search, paging, session-only read
   credentials, and "Chart this datastream" / "Show on map" links back to the map.
 - Map accepts `?datastream=<id>` and `?thing=<id>` deep links.
+- **CSV export where you find the data** (`js/export.js`) — download a single
+  datastream from the investigate page, or a whole query result from the query
+  builder. Both follow `nextLink` to completion and cap at 100k rows.
 
 ### Changed
 
@@ -49,6 +52,9 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   304/388px, which left the chart panel ~300px wide when both were open.
 - Bottom sheet no longer blurs the map on phones — `.dock-column` carried a
   `backdrop-filter` it never needed.
+- `styles.css` was truncated mid-rule, leaving a media query unclosed so every
+  rule after it only applied below 640px. The Query and Investigate links fell
+  back to the browser's default link colour as a result.
 
 ## [0.1.0]
 

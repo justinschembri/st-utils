@@ -100,13 +100,52 @@ function entityActions(entity, entityType) {
 
     if (entityType === 'Datastreams') {
         params.set('datastream', id);
-        return [{ label: '📈 Chart this datastream', href: `index.html?${params}` }];
+        return [
+            { label: '📈 Chart this datastream', href: `index.html?${params}` },
+            { label: '⤓ Download CSV', onClick: (btn) => downloadDatastreamCsv(entity, btn) },
+        ];
     }
     if (entityType === 'Things') {
         params.set('thing', id);
         return [{ label: '📍 Show on map', href: `index.html?${params}` }];
     }
     return [];
+}
+
+/**
+ * Export every observation of a datastream as CSV.
+ *
+ * Feedback goes on the button rather than the page status line: the row may be
+ * scrolled far from the top, and a large datastream takes several pages to
+ * fetch, so the progress needs to be where the user is looking.
+ */
+async function downloadDatastreamCsv(entity, button) {
+    const id = frostEntityId(entity, state.frostVersion);
+    const label = button.textContent;
+    button.disabled = true;
+
+    try {
+        const { csv, count, truncated } = await datastreamObservationsCsv(id, {
+            onProgress: n => { button.textContent = `⤓ ${n.toLocaleString()} rows…`; },
+        });
+
+        if (!count) {
+            button.textContent = 'No observations';
+            setTimeout(() => { button.textContent = label; button.disabled = false; }, 2000);
+            return;
+        }
+
+        const name = sanitizeDownloadFilename(entity.name || `datastream_${id}`);
+        triggerFileDownload(csv, `${name}.csv`);
+        button.textContent = truncated
+            ? `⤓ ${count.toLocaleString()} rows (capped)`
+            : `⤓ ${count.toLocaleString()} rows`;
+    } catch (err) {
+        button.textContent = 'Download failed';
+        setStatus(`Download failed: ${err.message}`, 'error');
+    } finally {
+        setTimeout(() => { button.textContent = label; button.disabled = false; }, 2500);
+    }
 }
 
 function formatValue(value) {
@@ -315,12 +354,17 @@ function buildRowBody(body, entity, entityType) {
     if (actions.length) {
         const bar = document.createElement('div');
         bar.className = 'inv-actions';
-        actions.forEach(({ label, href }) => {
-            const link = document.createElement('a');
-            link.className = 'inv-action';
-            link.href = href;
-            link.textContent = label;
-            bar.appendChild(link);
+        actions.forEach(({ label, href, onClick }) => {
+            const node = document.createElement(href ? 'a' : 'button');
+            node.className = 'inv-action';
+            node.textContent = label;
+            if (href) {
+                node.href = href;
+            } else {
+                node.type = 'button';
+                node.addEventListener('click', (e) => { e.stopPropagation(); onClick(node); });
+            }
+            bar.appendChild(node);
         });
         body.appendChild(bar);
     }

@@ -20,7 +20,8 @@ function cacheElements() {
     [
         'qbEntity', 'qbFilterRows', 'qbAddFilter', 'qbJoin', 'qbFilterHint',
         'qbSelect', 'qbExpand', 'qbExpandChips', 'qbOrderBy', 'qbTop', 'qbSkip',
-        'qbCount', 'qbUrl', 'qbCopy', 'qbRun', 'qbStatus', 'qbOutput', 'qbMeta',
+        'qbCount', 'qbUrl', 'qbCopy', 'qbDownload', 'qbRun', 'qbStatus',
+        'qbOutput', 'qbMeta',
         'qbNext',
     ].forEach(id => { el[id] = document.getElementById(id); });
 }
@@ -157,6 +158,50 @@ function updateUrl() {
     el.qbNext.hidden = true;
 }
 
+/**
+ * Export the query's full result set as CSV.
+ *
+ * Follows `nextLink` to completion rather than exporting the single page on
+ * screen: `$top` is a display convenience, and someone exporting wants the rows
+ * their filter actually matches. Capped, and says so when the cap is hit.
+ */
+async function downloadResultsCsv() {
+    const url = buildUrl();
+    if (!url) {
+        setStatus('Set a server URL first.', 'error');
+        return;
+    }
+
+    el.qbDownload.disabled = true;
+    const label = el.qbDownload.textContent;
+    setStatus('Collecting rows…', 'info');
+
+    try {
+        const { rows, truncated } = await fetchAllRows(url, {
+            onProgress: n => setStatus(`Collecting rows… ${n.toLocaleString()}`, 'info'),
+        });
+
+        if (!rows.length) {
+            setStatus('Nothing to export — the query returned no rows.', 'error');
+            return;
+        }
+
+        const name = sanitizeDownloadFilename(`${el.qbEntity.value}_${new Date().toISOString().slice(0, 10)}`);
+        triggerFileDownload(rowsToCsv(rows), `${name}.csv`);
+        setStatus(
+            truncated
+                ? `Exported ${rows.length.toLocaleString()} rows (capped — narrow the query for the rest).`
+                : `Exported ${rows.length.toLocaleString()} rows.`,
+            'info',
+        );
+    } catch (err) {
+        setStatus(`Export failed: ${err.message}`, 'error');
+    } finally {
+        el.qbDownload.disabled = false;
+        el.qbDownload.textContent = label;
+    }
+}
+
 // ── run ────────────────────────────────────────────────────────────────────
 function setStatus(message, kind) {
     if (!message) {
@@ -287,6 +332,7 @@ function initQueryBuilder() {
         updateUrl();
     });
 
+    el.qbDownload.addEventListener('click', downloadResultsCsv);
     el.qbRun.addEventListener('click', () => runQuery());
     el.qbNext.addEventListener('click', () => runQuery(qb.nextLink));
 
