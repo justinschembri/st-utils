@@ -96,7 +96,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
@@ -117,7 +117,7 @@
 }
 
 .chart-panel-title h2 {
-  font-size: 1.05rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -126,7 +126,7 @@
 }
 
 .chart-panel-title p {
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   color: var(--txt-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -142,7 +142,7 @@
   cursor: pointer;
   padding: 0.42rem 0.85rem;
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-family: inherit;
   display: flex;
   align-items: center;
@@ -167,8 +167,6 @@
   flex-shrink: 0;
 }
 
-.chart-ds-pills[hidden] { display: none; }
-
 .chart-ds-pills::-webkit-scrollbar { height: 6px; }
 .chart-ds-pills::-webkit-scrollbar-thumb {
   background: rgba(140, 170, 210, 0.25);
@@ -183,7 +181,7 @@
   background: rgba(5, 9, 18, 0.4);
   color: var(--txt-dim);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -234,7 +232,7 @@
   border-radius: 9px;
   color: var(--txt-mute);
   cursor: pointer;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   transition: all 0.15s var(--ease);
@@ -297,10 +295,6 @@
   z-index: 2;
 }
 
-.chart-overlay[hidden] {
-  display: none !important;
-}
-
 /* Stat readouts — compact pills aligned with command-bar legend chips */
 .chart-stats {
   display: flex;
@@ -342,7 +336,7 @@
 }
 
 .stat-label {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -351,7 +345,7 @@
 }
 
 .stat-value {
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: -0.01em;
@@ -360,7 +354,7 @@
 }
 
 .stat-unit {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--txt-dim);
   margin-left: 0.15rem;
@@ -374,7 +368,7 @@
   padding: 0.12rem 0.42rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: 0.01em;
@@ -437,7 +431,7 @@
     border: 1px solid rgba(34, 211, 238, 0.35);
     border-radius: 999px;
     color: var(--accent);
-    font-size: 0.74rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -485,7 +479,6 @@
 
 /* `hidden` alone loses to `display: flex` below, exactly as .endpoint-popover
    handles it in styles.css. Without this the popover is open on page load. */
-.chart-range-popover[hidden] { display: none; }
 
 .chart-range-popover {
   position: absolute;
@@ -513,7 +506,7 @@
 }
 
 .chart-range-field > span {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--txt-mute);
@@ -527,7 +520,7 @@
   border-radius: var(--radius-sm);
   color: var(--txt);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   padding: 0.35rem 0.45rem;
   color-scheme: dark;   /* native picker follows the dark theme */
 }
@@ -538,7 +531,7 @@
 }
 
 .chart-range-hint {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   margin: 0;
 }
@@ -552,7 +545,7 @@
 .chart-range-clear,
 .chart-range-apply {
   border-radius: var(--radius-sm);
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   padding: 0.35rem 0.7rem;
   cursor: pointer;
   font-family: inherit;
@@ -577,7 +570,7 @@
    tighter rather than disappearing — a control you cannot find is worse than a
    small one, and "Custom" is short enough to keep its word. */
 @container chartpanel (max-width: 620px) {
-  .chart-panel-btn { padding: 0.28rem 0.42rem; font-size: 0.68rem; }
+  .chart-panel-btn { padding: 0.28rem 0.42rem; font-size: var(--fs-xs); }
   .chart-range-group,
   .chart-limit-group { gap: 1px; padding: 2px; }
 
@@ -636,7 +629,7 @@
   border: 1px solid var(--glass-line);
   border-radius: var(--radius);
   background: rgba(5, 9, 18, 0.4);
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
 }
 
 .chart-compare-swatch {
@@ -665,11 +658,37 @@
 
 .chart-compare-note {
   margin: 0.2rem 0 0;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--warn);
 }
 
 
 @container chartpanel (max-width: 420px) {
   .chart-panel-title .chart-eyebrow { display: none; }
+}
+
+/* Folded time-range control ------------------------------------------------
+   The presets inside the popover are the narrow-dock form of the inline row.
+   They are hidden while the row itself fits. */
+.chart-range-presets {
+  display: none;
+  gap: 2px;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--glass-line);
+}
+
+/* Below this the dock cannot carry five preset buttons plus the limit group
+   without a third row. Rather than wrap further, the presets fold into the
+   popover they already sit next to, and the trigger names the active window
+   so nothing is hidden from view — it reads "24h" or "All" instead of
+   "Custom" while folded. */
+@container chartpanel (max-width: 460px) {
+  .chart-range-group > .chart-panel-btn[data-range] { display: none; }
+  .chart-range-presets { display: flex; }
+  .chart-range-custom-btn { font-size: 0; }
+  .chart-range-custom-btn::after {
+    content: attr(data-active-range);
+    font-size: var(--fs-xs);
+  }
 }

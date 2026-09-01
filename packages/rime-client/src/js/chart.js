@@ -54,6 +54,9 @@ const CHART_IDLE_HTML = `
     </div>`;
 
 function initChartPanel() {
+    // Correct on first paint, before any range has been chosen.
+    syncRangeTriggerLabel();
+
     const chartPanelTitle = document.querySelector('.chart-panel-title > div:not(.chart-panel-nav)');
     if (chartPanelTitle) {
         chartPanelTitle.addEventListener('click', (e) => {
@@ -1107,11 +1110,31 @@ function setChartRange(preset, from = null, to = null) {
     // The Custom button carries the active state when no preset does.
     document.getElementById('chartRangeCustomBtn')
         ?.classList.toggle('active', preset === 'custom');
+    syncRangeTriggerLabel();
     syncChartRangeInputs();
 
     if (state.currentDatastream) {
         loadChartData(state.currentDatastream);
     }
+}
+
+/**
+ * Publish the active range onto the trigger button.
+ *
+ * When the dock is too narrow for the inline presets they fold into the
+ * popover, leaving this button as the only range control on screen — so it has
+ * to say which window is active. CSS reads the attribute with attr(); on a
+ * dock wide enough for the presets the label stays "Custom".
+ *
+ * Called at init as well as on change: the attribute has to be right on first
+ * paint, or a dock that starts narrow shows a button with no label at all.
+ */
+function syncRangeTriggerLabel() {
+    const trigger = document.getElementById('chartRangeCustomBtn');
+    if (!trigger) return;
+    const preset = state.chartRange.preset;
+    trigger.dataset.activeRange =
+        preset === 'custom' ? 'Custom' : preset === 'all' ? 'All' : preset;
 }
 
 /** Mirror the active window into the custom from/to inputs. */

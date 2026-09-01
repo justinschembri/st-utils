@@ -4,7 +4,7 @@
 /* ── layout ──────────────────────────────────────────────────────────────── */
 .inv-main {
   padding: 1rem;
-  max-width: 68rem;
+  max-width: var(--page-max-narrow);
   margin: 0 auto;
   container-type: inline-size;
   container-name: invmain;
@@ -25,7 +25,7 @@
   border: none;
   color: var(--txt-dim);
   font-family: inherit;
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
   padding: 0.2rem 0.35rem;
   border-radius: var(--radius-sm);
   cursor: pointer;
@@ -33,7 +33,7 @@
 
 .inv-crumb:hover { color: var(--accent); background: rgba(34, 211, 238, 0.08); }
 .inv-crumb.is-current { color: var(--txt); cursor: default; }
-.inv-crumb-sep { color: var(--txt-mute); font-size: 0.8rem; }
+.inv-crumb-sep { color: var(--txt-mute); font-size: var(--fs-md); }
 
 /* ── toolbar ─────────────────────────────────────────────────────────────── */
 .inv-toolbar {
@@ -48,7 +48,7 @@
 .inv-search { flex: 1 1 12rem; min-width: 0; }
 
 .inv-meta {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
   flex: 0 0 auto;
@@ -58,7 +58,7 @@
 .inv-status {
   padding: 0.45rem 0.65rem;
   border-radius: var(--radius-sm);
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   margin-bottom: 0.6rem;
 }
 .inv-status-info { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
@@ -115,7 +115,7 @@
 }
 
 .inv-row-name {
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -123,7 +123,7 @@
 }
 
 .inv-row-sub {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -132,7 +132,7 @@
 
 .inv-row-id {
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   flex: 0 0 auto;
 }
@@ -142,15 +142,13 @@
   border-top: 1px solid var(--glass-line);
 }
 
-.inv-row-body[hidden] { display: none; }
-
 /* ── properties ──────────────────────────────────────────────────────────── */
 .inv-props {
   display: grid;
   grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
   gap: 0.25rem 0.9rem;
   margin: 0.7rem 0;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
 }
 
 /* Below this the two columns are unusably narrow — stack them. Queries the
@@ -179,7 +177,7 @@
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-sm);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   overflow-x: auto;
   white-space: pre;
 }
@@ -194,19 +192,19 @@
 }
 
 .inv-relations-label {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--txt-mute);
   margin-right: 0.2rem;
 }
 
-.inv-rel-chip { font-size: 0.72rem; padding: 0.22rem 0.6rem; }
+.inv-rel-chip { font-size: var(--fs-sm); padding: 0.22rem 0.6rem; }
 
 .inv-selflink {
   display: inline-block;
   margin-top: 0.6rem;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   text-decoration: none;
 }
@@ -217,13 +215,12 @@
   padding: 1.2rem;
   text-align: center;
   color: var(--txt-mute);
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   border: 1px dashed var(--glass-line);
   border-radius: var(--radius);
 }
 
 .inv-more { width: 100%; margin-top: 0.6rem; }
-.inv-more[hidden] { display: none; }
 
 /* ── hand-off actions ────────────────────────────────────────────────────── */
 /* Links back to the map. Without these the page dead-ends: you can find a
@@ -244,7 +241,7 @@
   border: 1px solid rgba(34, 211, 238, 0.35);
   background: rgba(34, 211, 238, 0.1);
   color: var(--accent);
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   text-decoration: none;
 }

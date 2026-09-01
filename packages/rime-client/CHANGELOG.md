@@ -16,6 +16,11 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   `$orderby` / `$top` / `$skip` / `$count`, copyable request URL, and `nextLink`
   paging. Filter operators are chosen per STA version in `js/odata.js` (v1.1
   `substringof`, v2.0 `contains`) rather than hard-coded.
+- **One design system across the three pages** — shared type scale, spacing and
+  control tokens, so the map, query builder and investigate pages use the same
+  control sizes, shapes and typography instead of each having their own.
+- Keyboard focus is now visible on every control; `[hidden]` is enforced once
+  globally rather than patched per component.
 - **Compare datastreams on one chart** — a Compare toggle turns the datastream
   pills into multi-select. Series sharing a unit share an axis, a second unit
   gets the right-hand axis, and a third is refused rather than mis-scaled.

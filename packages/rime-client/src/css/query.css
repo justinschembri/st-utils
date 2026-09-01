@@ -47,7 +47,7 @@
 }
 
 .query-endpoint label {
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--txt-mute);
@@ -66,16 +66,8 @@
   .query-endpoint label { display: none; }
 }
 
-.qb-link {
-  color: var(--txt-dim);
-  text-decoration: none;
-  font-size: 0.85rem;
-  padding: 0.4rem 0.7rem;
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius-sm);
-  white-space: nowrap;
-}
-.qb-link:hover { color: var(--accent); border-color: var(--glass-line-hi); }
+/* .qb-link's appearance is the shared bar-control family in styles.css —
+   the same control as the map page's nav links, so it is defined once. */
 
 /* ── layout ──────────────────────────────────────────────────────────────── */
 /* Flex rather than grid: the builder and the response pane want *different*
@@ -88,6 +80,10 @@
   gap: 1rem;
   padding: 1rem;
   align-items: flex-start;
+  /* Capped and centred like the investigate page: unbounded, the builder
+     stretched a form across the full width of a large monitor. */
+  max-width: var(--page-max);
+  margin: 0 auto;
 }
 
 /* No breakpoint needed: auto-fit collapses to one column when the columns can
@@ -96,7 +92,7 @@
 .qb-panel {
   background: var(--glass);
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius);
+  border-radius: var(--radius-lg);
   padding: 1rem;
   container-type: inline-size;
   container-name: qbpanel;
@@ -107,7 +103,7 @@
 .qb-panel-wide { flex: 3 1 520px; max-width: none; min-width: 0; }
 
 .qb-heading {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--txt-mute);
@@ -121,7 +117,7 @@
 .qb-field > label,
 .qb-field-head label {
   display: block;
-  font-size: 0.75rem;
+  font-size: var(--fs-sm);
   color: var(--txt-dim);
   margin-bottom: 0.35rem;
 }
@@ -135,7 +131,7 @@
 
 .qb-hint {
   color: var(--txt-mute);
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   font-weight: 400;
 }
 
@@ -162,7 +158,7 @@
   border-radius: var(--radius-sm);
   color: var(--txt);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
 }
 
 .qb-input:focus,
@@ -178,7 +174,7 @@
   display: flex;
   align-items: center;
   gap: 0.45rem;
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   color: var(--txt-dim);
 }
 
@@ -219,7 +215,7 @@
   cursor: pointer;
   width: 28px;
   height: 28px;
-  font-size: 1rem;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 .qb-remove:hover { color: var(--bad); border-color: var(--bad); }
@@ -231,7 +227,7 @@
   border-radius: var(--radius-sm);
   color: var(--txt-dim);
   padding: 0.4rem 0.7rem;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   cursor: pointer;
   width: 100%;
 }
@@ -244,7 +240,7 @@
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-sm);
   color: var(--txt-mute);
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   padding: 0.2rem 0.5rem;
   cursor: pointer;
   font-family: 'JetBrains Mono', ui-monospace, monospace;
@@ -263,7 +259,7 @@
   border: 1px solid rgba(129, 140, 248, 0.3);
   border-radius: 999px;
   color: var(--accent-2);
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   padding: 0.15rem 0.5rem;
   cursor: pointer;
 }
@@ -287,7 +283,7 @@
   border-radius: var(--radius-sm);
   color: var(--accent);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   overflow-x: auto;
   white-space: pre;
 }
@@ -297,7 +293,7 @@
 .qb-run {
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   padding: 0.45rem 0.8rem;
   white-space: nowrap;
 }
@@ -321,7 +317,7 @@
 .qb-status {
   padding: 0.45rem 0.65rem;
   border-radius: var(--radius-sm);
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   margin-bottom: 0.6rem;
 }
 .qb-status-info { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
@@ -337,7 +333,7 @@
 
 .qb-result-meta {
   flex: 1;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
 }
@@ -350,7 +346,7 @@
   border-radius: var(--radius-sm);
   color: var(--txt);
   font-family: 'JetBrains Mono', ui-monospace, monospace;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   max-height: 62vh;
   overflow: auto;

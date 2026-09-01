@@ -69,6 +69,70 @@
   --bar-h: 66px;
   --dock-h: 72px;
   --dock-inset: 14px;
+  /* Page width caps. The investigate list is reading-width; the query builder
+     needs room for JSON but should still stop somewhere. */
+  --page-max: 96rem;
+  --page-max-narrow: 68rem;
+
+  /* --- Type scale ---------------------------------------------------------
+     Seven steps, and every size in the client maps onto one of them. Before
+     this there were 29 distinct font-sizes between 0.58 and 1.15rem doing the
+     same handful of jobs, which is what made the pages read as separate
+     projects rather than one product. */
+  --fs-2xs: 0.62rem;   /* eyebrows and uppercase micro-labels */
+  --fs-xs: 0.68rem;    /* dense control text, table meta */
+  --fs-sm: 0.74rem;    /* default control text */
+  --fs-md: 0.8rem;     /* body copy */
+  --fs-lg: 0.88rem;    /* emphasis, list item titles */
+  --fs-xl: 1rem;       /* section headings */
+  --fs-2xl: 1.12rem;   /* panel titles */
+
+  /* --- Spacing scale --- */
+  --space-1: 0.25rem;
+  --space-2: 0.4rem;
+  --space-3: 0.6rem;
+  --space-4: 0.85rem;
+  --space-5: 1.1rem;
+  --space-6: 1.5rem;
+
+  /* --- Controls ---------------------------------------------------------
+     Bar-level controls are pills: the search box, legend chips and health
+     button already were, so the nav links were the odd ones out at
+     --radius-sm. One height keeps a row of mixed controls on a single
+     baseline however they wrap. */
+  --control-h: 34px;
+  --control-h-sm: 30px;   /* in-panel actions, one step down from bar controls */
+  --control-pad-x: 0.75rem;
+  --control-radius: 999px;
+
+  /* Single focus treatment for every interactive element. The inner ring is
+     the page colour so the outer one reads on any surface. */
+  --focus-ring: 0 0 0 2px var(--obs-bg), 0 0 0 4px rgba(34, 211, 238, 0.6);
+}
+
+/* ------------------------------------------------------------------ */
+/* Focus — one visible ring for everything keyboard-reachable.         */
+/* Nothing in the client had a :focus-visible style, so tabbing through */
+/* it showed no ring at all on any button, link or chip.               */
+/* ------------------------------------------------------------------ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  /* Keep the ring clear of clipping ancestors like the pills scroller. */
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* [hidden] must actually hide.                                        */
+/* The attribute's UA rule is a plain `display: none`, so ANY author    */
+/* `display` on the same element beats it and the element stays on      */
+/* screen. That had been patched twelve times, component by component,  */
+/* and still caught the query builder's "Next page" button. One rule    */
+/* here retires all of them.                                            */
+/* ------------------------------------------------------------------ */
+[hidden] {
+  display: none !important;
 }
 
 * {
@@ -277,7 +341,7 @@ body {
 }
 
 .virtual-node-prompt {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: #4ade80;
   flex-shrink: 0;
@@ -286,7 +350,7 @@ body {
 }
 
 .virtual-node-name {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: #86efac;
   white-space: nowrap;
@@ -297,7 +361,7 @@ body {
 }
 
 .virtual-node-id {
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   color: rgba(74, 222, 128, 0.5);
   margin-bottom: 4px;
   letter-spacing: 0.04em;
@@ -319,7 +383,7 @@ body {
 }
 
 .virtual-node-status {
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   color: rgba(134, 239, 172, 0.6);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -448,7 +512,7 @@ body {
 }
 
 .brand-text h1 {
-  font-size: 1.12rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0.22em;
   line-height: 1;
@@ -456,7 +520,7 @@ body {
 }
 
 .brand-text p {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.34em;
   text-transform: uppercase;
@@ -508,10 +572,11 @@ body {
 
 .search-box input {
   width: 100%;
-  padding: 0.6rem 0.9rem 0.6rem 2.5rem;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4) 0 2.5rem;
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  font-size: 0.88rem;
+  border-radius: var(--control-radius);
+  font-size: var(--fs-md);
   font-family: inherit;
   background: rgba(5, 9, 18, 0.55);
   color: var(--txt);
@@ -559,10 +624,12 @@ body {
 .legend-chip {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
-  padding: 0.4rem 0.7rem;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
+  font-size: var(--fs-sm);
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: rgba(5, 9, 18, 0.4);
   cursor: pointer;
   font-family: inherit;
@@ -594,12 +661,12 @@ body {
 .legend-count {
   font-family: "JetBrains Mono", monospace;
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   color: #fff;
 }
 
 .legend-label {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -615,17 +682,21 @@ body {
 .endpoint-display {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.85rem;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: rgba(5, 9, 18, 0.4);
   color: var(--txt-dim);
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
+  /* Monospace on purpose: it shows a URL, and this is the one bar control
+     whose content is machine text rather than a label. */
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
-  transition: all 0.18s var(--ease);
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
   white-space: nowrap;
   max-width: 200px;
 }
@@ -662,12 +733,8 @@ body {
   gap: 0.6rem;
 }
 
-.endpoint-popover[hidden] {
-  display: none;
-}
-
 .endpoint-popover-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -685,7 +752,7 @@ body {
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius);
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-family: "JetBrains Mono", monospace;
   background: rgba(5, 9, 18, 0.6);
   color: var(--txt);
@@ -713,7 +780,7 @@ body {
   border-radius: 999px;
   background: rgba(34, 211, 238, 0.07);
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
@@ -738,7 +805,7 @@ body {
   border-radius: var(--radius);
   background: rgba(5, 9, 18, 0.5);
   color: var(--txt-dim);
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
@@ -765,7 +832,7 @@ body {
   background: none;
   border: none;
   padding: 0.3rem 0;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--txt-dim);
   cursor: pointer;
@@ -785,10 +852,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-
-.endpoint-auth-fields[hidden] {
-  display: none;
 }
 
 .endpoint-auth-row {
@@ -818,7 +881,7 @@ body {
   border: none;
   border-radius: var(--radius);
   color: #03121a;
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -858,7 +921,7 @@ body {
 }
 
 .endpoint-hint {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   line-height: 1.4;
   flex: 1;
@@ -886,29 +949,7 @@ body {
 }
 
 /* On-demand health-check button */
-.health-check-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  background: rgba(5, 9, 18, 0.4);
-  color: var(--txt-dim);
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.18s var(--ease);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.health-check-btn:hover:not(:disabled) {
-  border-color: rgba(34, 211, 238, 0.5);
-  background: rgba(34, 211, 238, 0.1);
-  color: #fff;
-}
+/* Appearance comes from the bar-control family above. */
 
 .health-check-btn:disabled {
   opacity: 0.45;
@@ -929,25 +970,8 @@ body {
 }
 
 /* Exit virtual mode — lives in the command bar so it never covers map nodes */
-.virtual-exit-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid rgba(74, 222, 128, 0.45);
-  border-radius: 999px;
-  background: rgba(74, 222, 128, 0.1);
-  color: #86efac;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.18s var(--ease);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
+/* Shape comes from the bar-control family; its green is a variant below. */
 
-.virtual-exit-btn[hidden] { display: none; }
 
 .virtual-exit-btn:hover {
   border-color: rgba(74, 222, 128, 0.7);
@@ -1057,7 +1081,7 @@ body {
   padding: 0.6rem 0.85rem !important;
   color: var(--txt) !important;
   font-family: "Space Grotesk", sans-serif !important;
-  font-size: 0.82rem !important;
+  font-size: var(--fs-md) !important;
 }
 
 .leaflet-control-layers-expanded label {
@@ -1075,7 +1099,7 @@ body {
   background: rgba(5, 9, 18, 0.6) !important;
   backdrop-filter: blur(8px);
   border-radius: 8px 0 0 0 !important;
-  font-size: 0.66rem !important;
+  font-size: var(--fs-xs) !important;
   color: var(--txt-mute) !important;
   padding: 2px 8px !important;
 }
@@ -1206,7 +1230,7 @@ body {
 }
 
 .inspector-eyebrow {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent);
@@ -1215,7 +1239,7 @@ body {
 
 .thing-metadata-header h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   padding-right: 2rem;
@@ -1253,7 +1277,7 @@ body {
 }
 
 .metadata-section h3 {
-  font-size: 0.64rem;
+  font-size: var(--fs-2xs);
   color: var(--txt-mute);
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -1264,13 +1288,13 @@ body {
 .metadata-item { margin-bottom: 0.65rem; }
 
 .metadata-label {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   margin-bottom: 0.2rem;
 }
 
 .metadata-value {
-  font-size: 0.92rem;
+  font-size: var(--fs-xl);
   color: var(--txt);
   font-weight: 500;
   word-break: break-word;
@@ -1305,13 +1329,13 @@ body {
 
 .metadata-datastream-name {
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--fs-lg);
   color: var(--txt);
   margin-bottom: 0.25rem;
 }
 
 .metadata-datastream-meta {
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   display: flex;
   justify-content: space-between;
@@ -1329,7 +1353,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   font-weight: 600;
@@ -1354,7 +1378,7 @@ body {
   color: #03121a;
   border: none;
   border-radius: var(--radius);
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -1389,12 +1413,11 @@ body {
   border-radius: var(--radius-sm);
   background: rgba(34, 211, 238, 0.08);
   border: 1px solid rgba(34, 211, 238, 0.2);
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   line-height: 1.45;
   color: var(--accent);
 }
 
-.download-status[hidden] { display: none; }
 
 .download-status-spinner {
   width: 14px;
@@ -1421,7 +1444,7 @@ body {
 }
 
 .date-input-group label {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   font-weight: 600;
 }
@@ -1430,7 +1453,7 @@ body {
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-family: "JetBrains Mono", monospace;
   background: rgba(5, 9, 18, 0.5);
   color: var(--txt);
@@ -1457,7 +1480,7 @@ body {
   justify-content: center;
   gap: 0.45rem;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--txt-dim);
   padding: 0.55rem 0.5rem;
@@ -1503,13 +1526,13 @@ body {
 .no-data-icon svg { width: 80px; height: 40px; }
 
 .no-data-message h3 {
-  font-size: 1rem;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--txt);
 }
 
 .no-data-message p {
-  font-size: 0.85rem;
+  font-size: var(--fs-lg);
   max-width: 320px;
 }
 
@@ -1555,7 +1578,7 @@ body {
 
 #statusDetails {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
 }
 
@@ -1598,8 +1621,10 @@ body {
   -webkit-backdrop-filter: blur(4px) saturate(80%);
 }
 
+/* Deliberate exception to the [hidden] rule above: this one stays laid out so
+   it can fade rather than vanish, so it needs the same weight to win. */
 .loading-overlay[hidden] {
-  display: grid;          /* keep it laid out so we can fade it out */
+  display: grid !important;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -1685,7 +1710,7 @@ body {
 }
 
 .loading-title {
-  font-size: 1.1rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.01em;
@@ -1696,7 +1721,7 @@ body {
 }
 
 .loading-subtitle {
-  font-size: 0.84rem;
+  font-size: var(--fs-lg);
   color: var(--txt-dim);
   font-family: "JetBrains Mono", monospace;
   min-height: 1.1em;
@@ -1747,7 +1772,7 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: var(--radius);
   color: #fca5a5;
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s var(--ease);
@@ -1766,7 +1791,7 @@ body {
 
 @media (max-width: 640px) {
   .loading-card { padding: 1.6rem 1.8rem; }
-  .loading-title { font-size: 1rem; }
+  .loading-title { font-size: var(--fs-xl); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1901,7 +1926,7 @@ body {
 
   /* Shrink brand — drop subtitle */
   .brand-text p { display: none; }
-  .brand-text h1 { font-size: 1rem; }
+  .brand-text h1 { font-size: var(--fs-xl); }
   .brand-orb { width: 26px; height: 26px; }
 
   /* Hide desktop search in the bar; shown as overlay when toggled */
@@ -1996,7 +2021,7 @@ body {
   .roster-mobile-count {
     display: inline-block;
     font-family: "JetBrains Mono", monospace;
-    font-size: 0.72rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     color: var(--txt-mute);
     margin-left: auto;
@@ -2122,20 +2147,83 @@ body {
    The incomplete `.map-controls` rule had no declarations to preserve. */
 
 /* Links from the map to the query builder and investigate pages */
-.query-builder-link {
+/* Bar-level control family — one appearance for everything that sits in a
+   page header, on all three pages. The map's nav links were 0.78rem rounded
+   rectangles, the query and investigate pages' were 0.85rem, and both sat
+   beside pill-shaped chips and buttons in the same row. They are one control
+   doing one job, so they now share a definition rather than three. */
+.query-builder-link,
+.qb-link,
+.health-check-btn,
+.virtual-exit-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  padding: 0.45rem 0.7rem;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
   border: 1px solid var(--glass-line);
-  border-radius: var(--radius-sm);
-  background: var(--glass);
+  border-radius: var(--control-radius);
+  background: rgba(5, 9, 18, 0.4);
   color: var(--txt-dim);
   text-decoration: none;
-  font-size: 0.78rem;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
   white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
 }
-.query-builder-link:hover {
-  color: var(--accent);
+
+.query-builder-link:hover,
+.qb-link:hover,
+.health-check-btn:hover:not(:disabled),
+.virtual-exit-btn:hover {
+  color: var(--txt);
   border-color: var(--glass-line-hi);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+/* ------------------------------------------------------------------ */
+/* In-panel actions — the buttons inside panels rather than in a page   */
+/* header. One step smaller than bar controls and squared off, so the   */
+/* two families read as different jobs. Previously the query page, the  */
+/* investigate page and the inspector each had their own take.          */
+/* ------------------------------------------------------------------ */
+.qb-icon-btn,
+.qb-run,
+.qb-add,
+.inv-action,
+.inv-more,
+.download-thing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
+}
+
+/* Variant: "you are looking at Things with no location" is a state, not a
+   neutral action, so it keeps its green while sharing the family's shape. */
+.virtual-exit-btn {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+}
+
+.virtual-exit-btn:hover {
+  border-color: rgba(74, 222, 128, 0.7);
+  background: rgba(74, 222, 128, 0.18);
+  color: #bbf7d0;
 }

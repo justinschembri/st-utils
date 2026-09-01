@@ -48,7 +48,7 @@
   align-items: center;
   gap: 0.9rem;
   padding: 0 1rem;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   background: transparent;
   border: none;
   border-top: 1px solid var(--glass-line);
@@ -94,7 +94,7 @@
   background: transparent;
   color: var(--txt-mute);
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -122,7 +122,6 @@
   transition: background 0.18s var(--ease);
 }
 
-.virtual-things-toggle[hidden] { display: none; }
 
 .virtual-things-toggle:hover {
   background: rgba(74, 222, 128, 0.08);
@@ -159,7 +158,7 @@
 }
 
 .virtual-toggle-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -220,7 +219,7 @@
   border-radius: 999px;
   box-shadow: var(--shadow-sm);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -241,7 +240,6 @@
   border-color: rgba(34, 211, 238, 0.5);
 }
 
-.things-list[hidden] { display: none; }
 
 .things-list {
   list-style: none;
@@ -293,7 +291,7 @@
 
 .thing-name {
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--fs-lg);
   color: var(--txt);
   display: flex;
   align-items: center;
@@ -311,7 +309,7 @@
 
 .thing-status-tag {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   padding: 0.16rem 0.42rem;
   border-radius: 999px;
   font-weight: 600;
@@ -323,7 +321,7 @@
 }
 
 .thing-description {
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
   color: var(--txt-dim);
   margin-top: 0.35rem;
 }
@@ -346,7 +344,7 @@
 
 .thing-virtual-badge {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;

@@ -335,6 +335,15 @@
               >Custom</button>
 
               <div class="chart-range-popover" id="chartRangePopover" hidden>
+                <!-- The same presets as the inline row. Shown only when the dock
+                     is too narrow to carry that row; wired by the same
+                     [data-range] listeners, so there is no second code path. -->
+                <div class="chart-range-presets">
+                  <button class="chart-panel-btn" data-range="24h">24h</button>
+                  <button class="chart-panel-btn" data-range="7d">7d</button>
+                  <button class="chart-panel-btn" data-range="30d">30d</button>
+                  <button class="chart-panel-btn" data-range="all">All</button>
+                </div>
                 <label class="chart-range-field">
                   <span>From</span>
                   <input type="datetime-local" id="chartRangeFrom">
