@@ -117,7 +117,34 @@
           <button type="button" class="qb-icon-btn" id="qbNext" hidden>Next page →</button>
         </div>
 
-        <pre class="qb-output" id="qbOutput"><span class="qb-placeholder">Run a query to see results.</span></pre>
+        <!-- Empty state. A bare "Run a query to see results." line in an
+             otherwise empty panel told a first-time visitor nothing about what
+             this page can do, so it offers a few starting points that fill the
+             builder in and run. -->
+        <div class="qb-empty" id="qbEmpty">
+          <svg class="qb-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="1.5" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M4 6h16M4 12h10M4 18h7"/>
+          </svg>
+          <p class="qb-empty-title">No response yet</p>
+          <p class="qb-empty-hint">
+            Build a request on the left and press <kbd>Run</kbd>, or
+            <kbd>&#8984;</kbd>&#8202;/&#8202;<kbd>Ctrl</kbd> + <kbd>&#9166;</kbd>.
+          </p>
+
+          <p class="qb-empty-label">Start from</p>
+          <div class="qb-starters" id="qbStarters">
+            <button type="button" class="qb-starter" data-entity="Things">All Things</button>
+            <button type="button" class="qb-starter" data-entity="Things"
+                    data-expand="Datastreams">Things with their Datastreams</button>
+            <button type="button" class="qb-starter" data-entity="Observations"
+                    data-orderby="phenomenonTime desc" data-top="20">Newest Observations</button>
+            <button type="button" class="qb-starter" data-entity="Sensors">Sensors</button>
+          </div>
+        </div>
+
+        <pre class="qb-output" id="qbOutput" hidden></pre>
       </section>
 
     </main>

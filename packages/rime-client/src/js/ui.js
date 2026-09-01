@@ -31,6 +31,38 @@ function observeChartHeaderHeight() {
     observeMeasuredHeight('.chart-panel-header', '--chart-hdr-h');
 }
 
+/**
+ * Publish the mobile sheet's peek height — the strip of the roster left visible
+ * when it is collapsed, which should be exactly the drag handle plus the
+ * Things/Locations tab row.
+ *
+ * It was a flat 60px while that content measures ~73px, so the tabs hung below
+ * the peek and, with nothing clipping them, over the floating chart dock.
+ *
+ * Measured as the distance from the roster's top to the bottom of the tab row.
+ * Both move together under the sheet's translateY, so the difference does not
+ * depend on --sheet-peek and this cannot feed its own input.
+ */
+function observeSheetPeek() {
+    const roster = document.getElementById('roster');
+    const headRow = roster?.querySelector('.roster-head-row');
+    if (!roster || !headRow) return;
+
+    const publish = () => {
+        const px = Math.ceil(
+            headRow.getBoundingClientRect().bottom - roster.getBoundingClientRect().top,
+        );
+        if (px > 0) document.documentElement.style.setProperty('--sheet-peek', `${px}px`);
+    };
+
+    publish();
+    requestAnimationFrame(publish);
+    window.addEventListener('resize', publish);
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(publish).observe(headRow);
+    }
+}
+
 /** Publish an element's measured height into a custom property on :root. */
 function observeMeasuredHeight(selector, property) {
     const bar = document.querySelector(selector);

@@ -216,20 +216,13 @@
   min-width: 0;
 }
 
-.chart-limit-group {
-  display: flex;
-  background: rgba(5, 9, 18, 0.5);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
-}
+/* Track styling is the shared segmented-control rule in styles.css. */
 
 .chart-panel-btn {
   padding: 0.38rem 0.65rem;
   background: transparent;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   color: var(--txt-mute);
   cursor: pointer;
   font-size: var(--fs-sm);
@@ -239,11 +232,6 @@
 }
 
 .chart-panel-btn:hover { color: var(--txt); }
-
-.chart-panel-btn.active {
-  background: rgba(34, 211, 238, 0.16);
-  color: #67e8f9;
-}
 
 .chart-panel-toggle {
   background: rgba(5, 9, 18, 0.5);
@@ -379,7 +367,10 @@
 
 .chart-container {
   position: relative;
-  height: 340px;
+  /* Fluid rather than a fixed 340px with a 280px tablet override: the dock is
+     already height-capped by the panel, and a short window should give the
+     trace less room without a breakpoint deciding where. */
+  height: clamp(220px, 38vh, 340px);
   background:
     linear-gradient(rgba(150, 190, 230, 0.05) 1px, transparent 1px) 0 0 / 100% 34px,
     rgba(5, 9, 18, 0.4);
@@ -460,14 +451,9 @@
    open, both), and two always-visible datetime inputs squeezed to unusable
    widths and forced the control row onto three lines. */
 .chart-range-group {
+  /* Track styling is the shared segmented-control rule in styles.css; the
+     popover anchors to this element, hence position: relative. */
   position: relative;
-  display: flex;
-  align-items: center;
-  background: rgba(5, 9, 18, 0.5);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
   flex: 0 1 auto;
   min-width: 0;
 }

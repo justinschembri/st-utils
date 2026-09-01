@@ -16,6 +16,11 @@ Git tags: `rime-client-vX.Y.Z` → image `ghcr.io/<owner>/rime-client:X.Y.Z`.
   `$orderby` / `$top` / `$skip` / `$count`, copyable request URL, and `nextLink`
   paging. Filter operators are chosen per STA version in `js/odata.js` (v1.1
   `substringof`, v2.0 `contains`) rather than hard-coded.
+- Query builder's response panel has a real empty state with one-click starting
+  points that fill the builder in and run.
+- Mobile: the roster sheet's tabs and status pill no longer sit under the chart
+  dock; offsets follow the dock's measured height instead of assuming 72px.
+- Map zoom controls step aside for the inspector instead of hiding behind it.
 - **One design system across the three pages** — shared type scale, spacing and
   control tokens, so the map, query builder and investigate pages use the same
   control sizes, shapes and typography instead of each having their own.

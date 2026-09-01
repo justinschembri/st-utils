@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------ */
 .dock-column {
   position: absolute;
-  top: calc(var(--bar-h) + 26px);
+  top: var(--hud-top);
   left: var(--dock-inset);
   bottom: var(--dock-inset);
   width: var(--roster-w);
@@ -78,14 +78,7 @@
 }
 
 /* Segmented Things | Locations toggle */
-.roster-toggle {
-  display: inline-flex;
-  background: rgba(5, 9, 18, 0.5);
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  padding: 3px;
-  gap: 2px;
-}
+/* Track styling is the shared segmented-control rule in styles.css. */
 
 .roster-toggle-btn {
   padding: 0.32rem 0.7rem;
@@ -103,11 +96,6 @@
 }
 
 .roster-toggle-btn:hover { color: var(--txt); }
-
-.roster-toggle-btn.active {
-  background: rgba(34, 211, 238, 0.16);
-  color: #67e8f9;
-}
 
 /* Virtual Things toggle — full-width sub-row below the tab bar */
 .virtual-things-toggle {
@@ -191,7 +179,7 @@
   border: 1px solid var(--glass-line);
   color: var(--txt-dim);
   cursor: pointer;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   transition: all 0.18s var(--ease);
@@ -209,7 +197,7 @@
 
 .roster-reopen {
   position: absolute;
-  top: calc(var(--bar-h) + 26px);
+  top: var(--hud-top);
   left: var(--dock-inset);
   z-index: 29;
   display: flex;

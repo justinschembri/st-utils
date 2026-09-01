@@ -60,7 +60,7 @@
      desktop size, so the middle column keeps a fair share at every width
      without a breakpoint deciding when. */
   --roster-w: clamp(240px, 22vw, 304px);
-  --inspector-w: clamp(300px, 28vw, 388px);
+  --inspector-w: clamp(264px, 28vw, 388px);
   /* --bar-min-h is the floor the command bar will not go below.
      --bar-h is the bar's MEASURED height, republished by a ResizeObserver in
      ui.js; the value here is only a sensible pre-measurement fallback. Layout
@@ -69,6 +69,18 @@
   --bar-h: 66px;
   --dock-h: 72px;
   --dock-inset: 14px;
+  /* Top edge of everything that floats below the command bar — the roster
+     dock, the inspector, the reopen pill and the map's own insets. Was
+     written out as var(--hud-top) in seven places across two
+     files, so the gap could not be changed in one edit. */
+  --hud-top: calc(var(--bar-h) + 26px);
+  /* The collapsed chart dock's real height. --dock-h is only its floor: the
+     dock's header wraps when it runs out of width, and ui.js publishes the
+     measured height into --chart-hdr-h. Anything positioned to sit clear of
+     the dock has to follow the measured value or it ends up underneath —
+     which is what put the mobile roster sheet behind the dock. */
+  --dock-h-live: var(--chart-hdr-h, var(--dock-h));
+  --dock-clear: calc(var(--dock-inset) + var(--dock-h-live) + 8px);
   /* Page width caps. The investigate list is reading-width; the query builder
      needs room for JSON but should still stop somewhere. */
   --page-max: 96rem;
@@ -270,7 +282,7 @@ body {
   /* sit above map (z:0) and grid/aurora (z:1) but below UI (z:30+) */
   z-index: 3;
   /* left gap for the dock column, top gap for the command bar */
-  inset: calc(var(--bar-h) + 26px) var(--dock-inset) var(--dock-inset) calc(var(--roster-w) + var(--dock-inset) * 2 + 10px);
+  inset: var(--hud-top) var(--dock-inset) var(--dock-inset) calc(var(--roster-w) + var(--dock-inset) * 2 + 10px);
   display: none;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -286,7 +298,7 @@ body {
   display: flex;
   pointer-events: auto;
   /* roster collapses in virtual mode — use the full stage */
-  inset: calc(var(--bar-h) + 26px) var(--dock-inset) calc(var(--dock-inset) + var(--dock-h) + 12px) var(--dock-inset);
+  inset: var(--hud-top) var(--dock-inset) calc(var(--dock-inset) + var(--dock-h-live) + 12px) var(--dock-inset);
 }
 
 .virtual-node {
@@ -997,11 +1009,19 @@ body {
 .map-controls {
   position: absolute;
   right: var(--dock-inset);
-  bottom: calc(var(--dock-inset) + var(--dock-h) + 12px);
+  bottom: calc(var(--dock-inset) + var(--dock-h-live) + 12px);
   z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  transition: right 0.42s var(--ease);
+}
+
+/* Step aside for the inspector, the same way the chart dock does. Both are
+   anchored to the right edge and the inspector is z-index 35 against these
+   controls' 30, so opening it used to hide the zoom buttons entirely. */
+.main-content.has-metadata-sidebar .map-controls {
+  right: calc(var(--inspector-w) + var(--dock-inset) * 2);
 }
 
 .map-control-btn {
@@ -1032,7 +1052,7 @@ body {
   box-shadow: var(--shadow-sm) !important;
   border-radius: var(--radius) !important;
   overflow: hidden;
-  margin-top: calc(var(--bar-h) + 26px) !important;
+  margin-top: var(--hud-top) !important;
 }
 
 .leaflet-control-zoom a {
@@ -1059,7 +1079,7 @@ body {
 .leaflet-bar { border-radius: var(--radius) !important; }
 
 .leaflet-control-layers {
-  margin-top: calc(var(--bar-h) + 26px) !important;
+  margin-top: var(--hud-top) !important;
   border: 1px solid var(--glass-line) !important;
   border-radius: var(--radius) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -1200,7 +1220,7 @@ body {
      map as one set, and the hard-coded 56px bottom left the inspector sitting
      42px above the other two. */
   right: var(--dock-inset);
-  top: calc(var(--bar-h) + 26px);
+  top: var(--hud-top);
   bottom: var(--dock-inset);
   width: var(--inspector-w);
   max-width: calc(100vw - 28px);
@@ -1252,7 +1272,7 @@ body {
   right: 1rem;
   background: rgba(5, 9, 18, 0.5);
   border: 1px solid var(--glass-line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   color: var(--txt-dim);
   cursor: pointer;
   padding: 0.4rem;
@@ -1872,35 +1892,27 @@ body {
   #endpointLabel { display: none; }
 }
 
-@media (max-width: 880px) {
-  :root {
-    --roster-w: 248px;
-    --inspector-w: 320px;
-  }
-
-  .command-bar {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 0.6rem 0.8rem;
-    gap: 0.6rem;
-  }
-
+/* Below this the search field and the trailing controls cannot share a row
+   without the field being squeezed to nothing, so it takes a row of its own. */
+@container commandbar (max-width: 620px) {
   .search-box {
     order: 3;
-    max-width: none;
     flex-basis: 100%;
+    max-width: none;
   }
-
-  .chart-panel {
-    left: var(--dock-inset);
-  }
-
-  .main-content.has-metadata-sidebar .chart-panel {
-    right: var(--dock-inset);
-  }
-
-  .chart-container { height: 280px; }
 }
+
+/* The tablet-width block that used to live here has gone.
+   It set --roster-w and --inspector-w to fixed pixel values, which overrode
+   the clamp()s that already scale them; it repeated `flex-wrap: wrap` and a
+   `height: auto` the base rule sets as min-height; and it pulled the chart
+   dock to `left: var(--dock-inset)`, which — at z-index 32 against the
+   roster's 30 — laid the dock's collapsed bar straight over the bottom of the
+   roster, covering its status line at every width between 641 and 880px.
+
+   What remains of its intent lives where it belongs: the search field going
+   full-width is a @container commandbar rule, and the chart body's height is
+   fluid. */
 
 /* ------------------------------------------------------------------ */
 /* Mobile (≤ 640 px) — bottom-sheet architecture                       */
@@ -2033,7 +2045,11 @@ body {
   .dock-column {
     position: fixed;
     top: auto;
-    bottom: 0;
+    /* Clears the floating chart dock. At bottom: 0 the sheet's peek sat
+       underneath it — the chart card is z-index 45 against the sheet's 35 —
+       so the Things/Locations tabs were unreachable whenever the dock's
+       header wrapped to two rows, which on a phone it always does. */
+    bottom: var(--dock-clear);
     left: 0;
     right: 0;
     width: 100%;
@@ -2060,7 +2076,11 @@ body {
     display: flex;
     position: fixed;
     left: 8px;
-    bottom: calc(var(--dock-inset) + var(--dock-h) + 8px);
+    /* Above the sheet's peek, which is itself above the chart dock. Clearing
+       only the dock put this pill straight on top of the Things/Locations
+       tabs. Both terms are measured, so it follows a wrapped dock header and
+       a taller tab row without a hard-coded number. */
+    bottom: calc(var(--dock-clear) + var(--sheet-peek) + 8px);
     width: auto;
     max-width: calc(100vw - 100px);
     min-height: auto;
@@ -2184,6 +2204,31 @@ body {
   color: var(--txt);
   border-color: var(--glass-line-hi);
   background: rgba(34, 211, 238, 0.1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Segmented controls — a track holding mutually exclusive options.     */
+/* The roster's Things|Locations tabs and the chart's time-range and    */
+/* point-limit groups are the same control and were built three times,  */
+/* each with its own track padding and radius.                          */
+/* ------------------------------------------------------------------ */
+.roster-toggle,
+.chart-range-group,
+.chart-limit-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(5, 9, 18, 0.5);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--control-radius);
+}
+
+/* Options inside a track share one active treatment. */
+.roster-toggle-btn.active,
+.chart-panel-btn.active {
+  background: rgba(34, 211, 238, 0.16);
+  color: #67e8f9;
 }
 
 /* ------------------------------------------------------------------ */

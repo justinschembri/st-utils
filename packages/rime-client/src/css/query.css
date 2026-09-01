@@ -382,3 +382,86 @@
   top: calc(100% + 8px);
   bottom: auto;
 }
+
+/* ── response empty state ────────────────────────────────────────────────── */
+.qb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--glass-line);
+  border-radius: var(--radius-sm);
+  background: rgba(3, 6, 14, 0.5);
+}
+
+.qb-empty-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--txt-mute);
+  opacity: 0.7;
+}
+
+.qb-empty-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--txt-dim);
+}
+
+.qb-empty-hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  max-width: 34rem;
+}
+
+.qb-empty kbd {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px solid var(--glass-line);
+  border-radius: 5px;
+  background: rgba(5, 10, 22, 0.8);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.95em;
+  color: var(--txt-dim);
+}
+
+.qb-empty-label {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+}
+
+/* Wraps on its own; no breakpoint decides when four chips need two rows. */
+.qb-starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.qb-starter {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: var(--control-radius);
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
+}
+
+.qb-starter:hover {
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.55);
+  color: #fff;
+}

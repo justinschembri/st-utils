@@ -21,7 +21,7 @@ function cacheElements() {
         'qbEntity', 'qbFilterRows', 'qbAddFilter', 'qbJoin', 'qbFilterHint',
         'qbSelect', 'qbExpand', 'qbExpandChips', 'qbOrderBy', 'qbTop', 'qbSkip',
         'qbCount', 'qbUrl', 'qbCopy', 'qbDownload', 'qbRun', 'qbStatus',
-        'qbOutput', 'qbMeta',
+        'qbOutput', 'qbMeta', 'qbEmpty', 'qbStarters',
         'qbNext',
     ].forEach(id => { el[id] = document.getElementById(id); });
 }
@@ -232,6 +232,7 @@ async function runQuery(url) {
         let parsed = null;
         try { parsed = JSON.parse(text); } catch (_) { /* not JSON */ }
 
+        showOutput();
         el.qbOutput.textContent = parsed ? JSON.stringify(parsed, null, 2) : text;
 
         if (!response.ok) {
@@ -264,12 +265,42 @@ async function runQuery(url) {
                 : `Request failed: ${err.message}`,
             'error',
         );
+        showOutput();
         el.qbOutput.textContent = String(err);
         el.qbMeta.textContent = '';
         el.qbNext.hidden = true;
     } finally {
         el.qbRun.disabled = false;
     }
+}
+
+/** Reveal the response body, replacing the empty state. One-way: once a
+ *  request has been made the panel keeps showing responses. */
+function showOutput() {
+    el.qbEmpty.hidden = true;
+    el.qbOutput.hidden = false;
+}
+
+/**
+ * Fill the builder from a starter button and run it.
+ *
+ * Deliberately writes through the same fields a person would type into, so the
+ * result is a query they can then edit — not a hidden shortcut that produces a
+ * URL the form does not explain.
+ */
+function applyStarter(btn) {
+    el.qbEntity.value = btn.dataset.entity || 'Things';
+    el.qbExpand.value = btn.dataset.expand || '';
+    el.qbOrderBy.value = btn.dataset.orderby || '';
+    el.qbTop.value = btn.dataset.top || '';
+    el.qbSelect.value = '';
+    el.qbSkip.value = '';
+    qb.filterRows = [];
+
+    renderFilterRows();
+    renderExpandChips();
+    updateUrl();
+    runQuery();
 }
 
 // ── wiring ─────────────────────────────────────────────────────────────────
@@ -330,6 +361,11 @@ function initQueryBuilder() {
             b.classList.toggle('active', b === btn);
         });
         updateUrl();
+    });
+
+    el.qbStarters.addEventListener('click', (e) => {
+        const btn = e.target.closest('.qb-starter');
+        if (btn) applyStarter(btn);
     });
 
     el.qbDownload.addEventListener('click', downloadResultsCsv);
