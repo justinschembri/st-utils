@@ -2,6 +2,97 @@
 
 const isMobileView = () => window.matchMedia('(max-width: 640px)').matches;
 
+/**
+ * Publish the command bar's measured height as the `--bar-h` custom property.
+ *
+ * The bar sizes itself from its content and wraps when it runs out of room, so
+ * its height is not knowable up front — it depends on viewport width, zoom,
+ * font size and how many controls are present. Eleven rules in styles.css
+ * offset the roster, chart panel and map stage from `--bar-h`, so publishing
+ * the real value keeps all of them correct without a single hard-coded number.
+ *
+ * `.command-bar` must never derive its own height from `--bar-h`; it uses
+ * `--bar-min-h` as a floor instead. Reading the value it writes would make this
+ * observer feed its own input.
+ */
+function observeCommandBarHeight() {
+    observeMeasuredHeight('.command-bar', '--bar-h');
+}
+
+/**
+ * Publish the chart dock header's measured height as `--chart-hdr-h`.
+ *
+ * Same reasoning as the command bar: the header wraps its controls onto a
+ * second row when they no longer fit, so the collapsed panel's height is not a
+ * constant. Clipping it to a fixed `--dock-h` cut the wrapped row off and let
+ * the header's contents paint over each other.
+ */
+function observeChartHeaderHeight() {
+    observeMeasuredHeight('.chart-panel-header', '--chart-hdr-h');
+}
+
+/**
+ * Publish the mobile sheet's peek height — the strip of the roster left visible
+ * when it is collapsed, which should be exactly the drag handle plus the
+ * Things/Locations tab row.
+ *
+ * It was a flat 60px while that content measures ~73px, so the tabs hung below
+ * the peek and, with nothing clipping them, over the floating chart dock.
+ *
+ * Measured as the distance from the roster's top to the bottom of the tab row.
+ * Both move together under the sheet's translateY, so the difference does not
+ * depend on --sheet-peek and this cannot feed its own input.
+ */
+function observeSheetPeek() {
+    const roster = document.getElementById('roster');
+    const headRow = roster?.querySelector('.roster-head-row');
+    if (!roster || !headRow) return;
+
+    const publish = () => {
+        const px = Math.ceil(
+            headRow.getBoundingClientRect().bottom - roster.getBoundingClientRect().top,
+        );
+        if (px > 0) document.documentElement.style.setProperty('--sheet-peek', `${px}px`);
+    };
+
+    publish();
+    requestAnimationFrame(publish);
+    window.addEventListener('resize', publish);
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(publish).observe(headRow);
+    }
+}
+
+/** Publish an element's measured height into a custom property on :root. */
+function observeMeasuredHeight(selector, property) {
+    const bar = document.querySelector(selector);
+    if (!bar) return;
+
+    const publish = () => {
+        // ceil, not round: this value reserves space below the bar, and rounding
+        // down by a fraction of a pixel lets the bar overlap what sits under it.
+        const px = Math.ceil(bar.getBoundingClientRect().height);
+        if (px > 0) {
+            document.documentElement.style.setProperty(property, `${px}px`);
+        }
+    };
+
+    // Publish straight away and on resize. Deliberately not relying on
+    // ResizeObserver alone: it does not fire in every embedded/automated
+    // browser context, and if it silently never runs, every layout offset keeps
+    // the stale fallback while the bar is a different height.
+    publish();
+    requestAnimationFrame(publish);   // again after first layout/fonts settle
+    window.addEventListener('resize', publish);
+
+    // ResizeObserver additionally catches height changes that no resize event
+    // accompanies — legend chips being built after the Things fetch, the
+    // "Exit virtual" button appearing, a control shedding its label.
+    if (typeof ResizeObserver !== 'undefined') {
+        new ResizeObserver(publish).observe(bar);
+    }
+}
+
 function mobileCollapseRoster() {
     if (!isMobileView()) return;
     document.getElementById('roster')?.classList.remove('sheet-expanded');
@@ -117,172 +208,9 @@ function hideLoadingOverlay(force = false) {
     }, 460);
 }
 
-// Assigned by initializeEndpointSwitcher() so callers outside it (app.js on an
-// unconfigured or unreachable boot) can open the popover.
-let _openEndpointPopover = null;
-
-const ENDPOINT_HINT_DEFAULT = 'Enter connects. Version is appended automatically.';
-
-// Open the endpoint switcher, optionally explaining why. `message` is shown in
-// the popover footer until the next time it opens cleanly.
-function promptForEndpoint(message) {
-    const hint = document.getElementById('endpointHint');
-    if (hint) {
-        hint.textContent = message || ENDPOINT_HINT_DEFAULT;
-        hint.classList.toggle('endpoint-hint-warn', !!message);
-    }
-    if (_openEndpointPopover) _openEndpointPopover();
-}
-
-// Drop a previous failure message once a server responds.
-function clearEndpointHint() {
-    const hint = document.getElementById('endpointHint');
-    if (!hint) return;
-    hint.textContent = ENDPOINT_HINT_DEFAULT;
-    hint.classList.remove('endpoint-hint-warn');
-}
-
-function initializeEndpointSwitcher() {
-    const display = document.getElementById('endpointDisplay');
-    const popover = document.getElementById('endpointPopover');
-    const input = document.getElementById('endpointInput');
-    const applyBtn = document.getElementById('endpointApply');
-    const label = document.getElementById('endpointLabel');
-    const versionGroup = document.getElementById('endpointVersionGroup');
-    const authToggle = document.getElementById('endpointAuthToggle');
-    const authFields = document.getElementById('endpointAuthFields');
-    const authChevron = document.getElementById('endpointAuthChevron');
-    const authToggleLabel = document.getElementById('endpointAuthToggleLabel');
-    const usernameInput = document.getElementById('endpointUsername');
-    const passwordInput = document.getElementById('endpointPassword');
-
-    function syncLabel() {
-        if (!state.isConfigured) {
-            label.textContent = 'Connect to a server';
-            display.classList.add('unconfigured');
-            display.classList.remove('has-auth');
-            return;
-        }
-        const host = state.frostBase.replace(/^https?:\/\//, '');
-        label.textContent = `${host} @ ${state.frostVersion}`;
-        display.classList.remove('unconfigured');
-        display.classList.toggle('has-auth', !!state.frostReadAuth);
-    }
-    syncLabel();
-
-    function syncVersionButtons() {
-        versionGroup.querySelectorAll('.endpoint-version-btn').forEach(btn => {
-            btn.classList.toggle('active', btn.dataset.version === state.frostVersion);
-        });
-    }
-    syncVersionButtons();
-
-    versionGroup.addEventListener('click', (e) => {
-        const btn = e.target.closest('.endpoint-version-btn');
-        if (!btn) return;
-        state.frostVersion = btn.dataset.version;
-        syncVersionButtons();
-    });
-
-    popover.querySelectorAll('.endpoint-quickpick').forEach(btn => {
-        btn.addEventListener('click', () => {
-            input.value = btn.dataset.base;
-            input.focus();
-        });
-    });
-
-    authToggle.addEventListener('click', () => {
-        const isOpen = !authFields.hidden;
-        authFields.hidden = isOpen;
-        authChevron.style.transform = isOpen ? '' : 'rotate(180deg)';
-        authToggleLabel.textContent = isOpen ? 'Add credentials' : 'Hide credentials';
-        if (!isOpen) usernameInput.focus();
-    });
-
-    function openPopover() {
-        input.value = state.frostBase;
-        syncVersionButtons();
-
-        if (state.frostReadAuth) {
-            try {
-                const decoded = atob(state.frostReadAuth);
-                const colon = decoded.indexOf(':');
-                usernameInput.value = decoded.substring(0, colon);
-                passwordInput.value = decoded.substring(colon + 1);
-            } catch (_) { /* ignore malformed auth */ }
-            authFields.hidden = false;
-            authChevron.style.transform = 'rotate(180deg)';
-            authToggleLabel.textContent = 'Hide credentials';
-        }
-        popover.hidden = false;
-        display.classList.add('active');
-        input.focus();
-        input.select();
-    }
-
-    function closePopover() {
-        popover.hidden = true;
-        display.classList.remove('active');
-    }
-
-    display.addEventListener('click', (e) => {
-        e.stopPropagation();
-        popover.hidden ? openPopover() : closePopover();
-    });
-
-    document.addEventListener('click', (e) => {
-        if (!document.getElementById('endpointSwitcher').contains(e.target)) {
-            closePopover();
-        }
-    });
-
-    function applyEndpoint() {
-        let raw = input.value.trim().replace(/\/+$/, '');
-
-        const versionMatch = raw.match(/\/(v\d+(?:\.\d+)?)$/i);
-        if (versionMatch) {
-            let v = versionMatch[1].toLowerCase();
-            if (v === 'v1') v = 'v1.0';
-            else if (v === 'v2') v = 'v2.0';
-
-            const known = ['v1.0', 'v1.1', 'v2.0'];
-            if (known.includes(v)) {
-                state.frostVersion = v;
-                syncVersionButtons();
-            }
-            raw = raw.replace(/\/(v\d+(?:\.\d+)?)$/i, '');
-        }
-
-        if (!raw) {
-            closePopover();
-            return;
-        }
-
-        const user = usernameInput.value.trim();
-        const pass = passwordInput.value;
-        state.frostBase = raw;
-        state.frostReadAuth = (user || pass) ? btoa(`${user}:${pass}`) : null;
-
-        // Remember the server across reloads. Credentials are deliberately not
-        // persisted — they stay in memory for this session only.
-        storeEndpoint(state.frostBase, state.frostVersion);
-
-        syncLabel();
-        closePopover();
-        resetAndReload();
-    }
-
-    // Let the rest of the app open the switcher (e.g. on an unconfigured boot).
-    _openEndpointPopover = openPopover;
-
-    applyBtn.addEventListener('click', applyEndpoint);
-    [input, usernameInput, passwordInput].forEach(el => {
-        el.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') applyEndpoint();
-            if (e.key === 'Escape') closePopover();
-        });
-    });
-}
+// The connection control (server, version, credentials) lives in
+// js/connection.js and is shared by every page. promptForEndpoint(),
+// clearEndpointHint() and mountConnectionControl() come from there.
 
 function resetAndReload() {
     // The user picked this endpoint, so report failures against it directly

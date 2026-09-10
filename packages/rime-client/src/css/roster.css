@@ -3,7 +3,7 @@
 /* ------------------------------------------------------------------ */
 .dock-column {
   position: absolute;
-  top: calc(var(--bar-h) + 26px);
+  top: var(--hud-top);
   left: var(--dock-inset);
   bottom: var(--dock-inset);
   width: var(--roster-w);
@@ -48,7 +48,7 @@
   align-items: center;
   gap: 0.9rem;
   padding: 0 1rem;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   background: transparent;
   border: none;
   border-top: 1px solid var(--glass-line);
@@ -78,14 +78,7 @@
 }
 
 /* Segmented Things | Locations toggle */
-.roster-toggle {
-  display: inline-flex;
-  background: rgba(5, 9, 18, 0.5);
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  padding: 3px;
-  gap: 2px;
-}
+/* Track styling is the shared segmented-control rule in styles.css. */
 
 .roster-toggle-btn {
   padding: 0.32rem 0.7rem;
@@ -94,7 +87,7 @@
   background: transparent;
   color: var(--txt-mute);
   font-family: inherit;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -103,11 +96,6 @@
 }
 
 .roster-toggle-btn:hover { color: var(--txt); }
-
-.roster-toggle-btn.active {
-  background: rgba(34, 211, 238, 0.16);
-  color: #67e8f9;
-}
 
 /* Virtual Things toggle — full-width sub-row below the tab bar */
 .virtual-things-toggle {
@@ -122,7 +110,6 @@
   transition: background 0.18s var(--ease);
 }
 
-.virtual-things-toggle[hidden] { display: none; }
 
 .virtual-things-toggle:hover {
   background: rgba(74, 222, 128, 0.08);
@@ -159,7 +146,7 @@
 }
 
 .virtual-toggle-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -192,7 +179,7 @@
   border: 1px solid var(--glass-line);
   color: var(--txt-dim);
   cursor: pointer;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   display: grid;
   place-items: center;
   transition: all 0.18s var(--ease);
@@ -210,7 +197,7 @@
 
 .roster-reopen {
   position: absolute;
-  top: calc(var(--bar-h) + 26px);
+  top: var(--hud-top);
   left: var(--dock-inset);
   z-index: 29;
   display: flex;
@@ -220,7 +207,7 @@
   border-radius: 999px;
   box-shadow: var(--shadow-sm);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -241,7 +228,6 @@
   border-color: rgba(34, 211, 238, 0.5);
 }
 
-.things-list[hidden] { display: none; }
 
 .things-list {
   list-style: none;
@@ -293,7 +279,7 @@
 
 .thing-name {
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--fs-lg);
   color: var(--txt);
   display: flex;
   align-items: center;
@@ -311,7 +297,7 @@
 
 .thing-status-tag {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   padding: 0.16rem 0.42rem;
   border-radius: 999px;
   font-weight: 600;
@@ -323,7 +309,7 @@
 }
 
 .thing-description {
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
   color: var(--txt-dim);
   margin-top: 0.35rem;
 }
@@ -346,7 +332,7 @@
 
 .thing-virtual-badge {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;

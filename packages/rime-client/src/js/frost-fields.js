@@ -62,6 +62,14 @@ function frostEntityId(entity, versionOrUrl) {
     return entity['@iot.id'] ?? entity['id'];
 }
 
+/** Total matching entities from a `$count=true` response, or null if absent. */
+function frostCount(payload, versionOrUrl) {
+    if (!payload) return null;
+    const { count } = frostFields(versionOrUrl);
+    const value = payload[count] ?? payload['@iot.count'] ?? payload['@count'];
+    return Number.isFinite(value) ? value : null;
+}
+
 function frostNextLink(payload, versionOrUrl) {
     if (!payload) return null;
     const { nextLink } = frostFields(versionOrUrl);

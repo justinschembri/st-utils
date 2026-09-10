@@ -102,6 +102,10 @@
           </button>
         </div>
 
+        <!-- Trailing controls. Grouped so they wrap onto a second row as a
+             unit instead of being pushed off the bar one by one. -->
+        <div class="bar-controls">
+
         <!-- One-time, on-demand health scan -->
         <button class="health-check-btn" id="healthCheckBtn" disabled
                 title="Run a one-time health scan of all Things">
@@ -119,115 +123,27 @@
           <span>Exit virtual</span>
         </button>
 
-        <!-- FROST endpoint switcher -->
-        <div class="endpoint-switcher" id="endpointSwitcher">
-          <button class="endpoint-display" id="endpointDisplay" title="Change FROST endpoint">
-            <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-              <path fill-rule="evenodd" d="M2 5a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2V5zm14 1a1 1 0 11-2 0 1 1 0 012 0zM2 13a2 2 0 012-2h12a2 2 0 012 2v2a2 2 0 01-2 2H4a2 2 0 01-2-2v-2zm14 1a1 1 0 11-2 0 1 1 0 012 0z" clip-rule="evenodd"/>
-            </svg>
-            <span id="endpointLabel">FROST</span>
-          </button>
-          <div class="endpoint-popover" id="endpointPopover" hidden>
-
-            <!-- Base URL -->
-            <label class="endpoint-popover-label">Server URL</label>
-            <div class="endpoint-input-row">
-              <input
-                type="text"
-                id="endpointInput"
-                class="endpoint-input"
-                placeholder="http://host/FROST-Server"
-                autocomplete="off"
-                spellcheck="false"
-              >
-            </div>
-
-            <!-- Quick-picks -->
-            <div class="endpoint-quickpicks">
-              <button class="endpoint-quickpick" data-base="http://localhost:8080/FROST-Server"                           type="button">localhost</button>
-              <button class="endpoint-quickpick" data-base="https://sta.wbd-rd.nl/FROST-Server"                          type="button">sta.wbd-rd.nl</button>
-              <button class="endpoint-quickpick" data-base="https://multicare.bk.tudelft.nl/FROST-Server"                type="button">multicare.tudelft.nl</button>
-              <button class="endpoint-quickpick" data-base="https://airquality-frost.k8s.ilt-dmz.iosb.fraunhofer.de"     type="button">iosb.fraunhofer.de</button>
-            </div>
-
-            <!-- API version -->
-            <label class="endpoint-popover-label">API version</label>
-            <div class="endpoint-version-group" id="endpointVersionGroup">
-              <button class="endpoint-version-btn" data-version="v1.0"   type="button">v1.0</button>
-              <button class="endpoint-version-btn active" data-version="v1.1" type="button">v1.1</button>
-              <button class="endpoint-version-btn" data-version="v2.0"   type="button">v2.0</button>
-            </div>
-
-            <!-- Credentials (collapsible) -->
-            <button class="endpoint-auth-toggle" id="endpointAuthToggle" type="button">
-              <svg viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd"/>
-              </svg>
-              <span id="endpointAuthToggleLabel">Add credentials</span>
-              <svg class="endpoint-auth-chevron" id="endpointAuthChevron" viewBox="0 0 20 20" fill="currentColor" width="13" height="13">
-                <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-              </svg>
-            </button>
-
-            <div class="endpoint-auth-fields" id="endpointAuthFields" hidden>
-              <div class="endpoint-auth-row">
-                <input
-                  type="text"
-                  id="endpointUsername"
-                  class="endpoint-input endpoint-input-half"
-                  placeholder="Username"
-                  autocomplete="username"
-                  spellcheck="false"
-                >
-                <input
-                  type="password"
-                  id="endpointPassword"
-                  class="endpoint-input endpoint-input-half"
-                  placeholder="Password"
-                  autocomplete="current-password"
-                >
-              </div>
-            </div>
-
-            <div class="endpoint-popover-footer">
-              <p class="endpoint-hint" id="endpointHint">Enter connects. Version is appended automatically.</p>
-              <button class="endpoint-apply-btn" id="endpointApply" title="Connect">
-                <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
-                  <path fill-rule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clip-rule="evenodd"/>
-                </svg>
-                Connect
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <a
-          href="https://www.ogc.org/standards/sensorthings/"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="bar-link-btn"
-          title="OGC SensorThings API documentation"
-          aria-label="OGC SensorThings API documentation"
-        >
-          <svg viewBox="0 0 43 50" fill="currentColor" width="18" height="18" aria-hidden="true">
-            <path d="M36.67,10.06l-.05-.03-3.81-2.22-.04-.02-3.82-2.23h-.03s-3.84-2.25-3.84-2.25h-.01s-1.68-.99-1.68-.99c-1.34-.78-2.99-.78-4.33,0l-1.69.98h-.01s-3.84,2.25-3.84,2.25h-.03s-3.82,2.25-3.82,2.25l-.04.02-3.81,2.23-.05.03-2.1,1.23c-.76.44-.76,1.54,0,1.98l2.1,1.23.05.03,3.81,2.23.04.02,3.82,2.23h.03s3.84,2.25,3.84,2.25h.01s1.69.99,1.69.99c1.34.78,2.99.78,4.33,0l1.68-.98h.01s3.84-2.25,3.84-2.25h.03s3.82-2.25,3.82-2.25l.04-.02,3.81-2.22.05-.03,2.1-1.23c.76-.44.76-1.54,0-1.98l-2.1-1.23ZM28.95,14.51h-.03s-3.84,2.25-3.84,2.25h-.01s-2.77,1.62-2.77,1.62c-.67.39-1.5.39-2.16,0l-2.77-1.62h-.01s-3.84-2.25-3.84-2.25h-.03s-2.98-1.75-2.98-1.75c-.38-.22-.38-.77,0-.99l2.98-1.74h.03s3.84-2.25,3.84-2.25h.01s2.77-1.62,2.77-1.62c.67-.39,1.5-.39,2.16,0l2.77,1.61h.01s3.84,2.25,3.84,2.25h.03s2.98,1.75,2.98,1.75c.38.22.38.77,0,.99l-2.98,1.74Z"/>
-            <path d="M39.9,16.89c1.14-.67,2.58.16,2.58,1.48v5.34c0,.41-.22.78-.57.99l-2.43,1.42c-.38.22-.86-.05-.86-.49v-3c0-.22-.24-.36-.43-.25l-3.43,2-.05.03-3.81,2.22-.04.02-3.26,1.9c-.35.21-.57.58-.57.99v12.33c0,.22.24.36.43.25l3.39-1.98.04.02v-.05l3.81-2.22.05.03v-.06l3.58-2.09c.18-.1.28-.29.28-.49v-3.51c0-.41.22-.78.57-.99l2.43-1.42c.38-.22.86.05.86.49v3.5l-.08.04.08.04v3.42c0,.61-.32,1.18-.85,1.48l-3.01,1.76-.06.04-3.8,2.22-.05.03-3.81,2.22-.04.02-3.82,2.23h-.03s-2.11,1.25-2.11,1.25c-.76.45-1.72-.1-1.72-.99v-19.82c0-.41.22-.78.57-.99l3.27-1.91h.03s3.82-2.25,3.82-2.25l.04-.02,3.81-2.22.05-.03,3.8-2.22.06-.04,1.28-.75Z"/>
-            <path d="M15.45,33.39h.03s3.27,1.92,3.27,1.92c.35.21.57.58.57.99v10.83c0,.88-.96,1.43-1.72.99C13.4,45.68.85,38.35.85,38.35.32,38.04,0,37.48,0,36.87v-18.49c0-1.33,1.44-2.15,2.58-1.48l1.28.75.06.04,3.8,2.22.05.03,3.81,2.22.04.02,3.82,2.23h.03s3.27,1.92,3.27,1.92c.35.21.57.58.57.99v2.84c0,.44-.48.72-.86.49l-2.98-1.74h-.03s-3.82-2.25-3.82-2.25l-.04-.02-3.81-2.23-.05-.03-3.43-2c-.19-.11-.43.03-.43.25v12.49c0,.31.16.59.43.74l3.44,2.01.05.03,3.81,2.23.04.02,3.39,1.98c.19.11.43-.03.43-.25v-3.67c0-.2-.11-.39-.28-.49l-3.01-1.76c-.35-.21-.57-.58-.57-.99v-2.84c0-.44.48-.72.86-.49l3,1.75Z"/>
+        <!-- OData query builder (separate page, shares the endpoint) -->
+        <a class="query-builder-link" href="query.html" title="OData query builder">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+            <path fill-rule="evenodd" d="M3 3a1 1 0 011-1h12a1 1 0 011 1v2a1 1 0 01-.293.707L12 10.414V15a1 1 0 01-.553.894l-3 1.5A1 1 0 017 16.5v-6.086L3.293 5.707A1 1 0 013 5V3z" clip-rule="evenodd"/>
           </svg>
+          <span>Query</span>
         </a>
 
-        <a
-          href="https://github.com/justinschembri/rime"
-          target="_blank"
-          rel="noopener noreferrer"
-          class="bar-link-btn"
-          title="View source on GitHub"
-          aria-label="View source on GitHub"
-        >
-          <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" aria-hidden="true">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M12 2C6.477 2 2 6.486 2 12.02c0 4.428 2.865 8.184 6.839 9.51.5.092.682-.218.682-.483 0-.237-.009-.866-.014-1.7-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.467-1.11-1.467-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.339-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0 1 12 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.203 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.31.678.921.678 1.856 0 1.34-.012 2.42-.012 2.749 0 .268.18.58.688.482A10.02 10.02 0 0 0 22 12.02C22 6.486 17.523 2 12 2Z"/>
+        <a class="query-builder-link" href="investigate.html" title="Browse entities">
+          <svg viewBox="0 0 20 20" fill="currentColor" width="14" height="14">
+            <path fill-rule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.817-4.817A6 6 0 012 8z" clip-rule="evenodd"/>
           </svg>
+          <span>Investigate</span>
         </a>
+
+        <!-- Connection control (server + version + credentials).
+             Markup and behaviour live in js/connection.js so all three pages
+             share one implementation. -->
+        <div id="connectionControl"></div>
+
+        </div><!-- /.bar-controls -->
       </header>
 
       <!-- Sensor roster (floating glass rail / mobile bottom sheet) -->
@@ -395,6 +311,55 @@
               <span class="trace-label">Trace</span>
             </button>
 
+            <!-- Comparison mode: makes the datastream pills toggle membership
+                 instead of switching. Off by default, so the pills behave
+                 exactly as before until it is turned on. -->
+            <button class="chart-panel-btn chart-compare-btn" id="chartCompareBtn"
+                    title="Compare several datastreams">Compare</button>
+
+            <!-- Time window: applied server-side as a $filter on phenomenonTime.
+                 The custom from/to pair lives in a popover so the always-visible
+                 row stays compact — the panel narrows a lot when the roster and
+                 inspector are both open. -->
+            <div class="chart-range-group" id="chartRangeGroup">
+              <button class="chart-panel-btn" data-range="24h">24h</button>
+              <button class="chart-panel-btn" data-range="7d">7d</button>
+              <button class="chart-panel-btn" data-range="30d">30d</button>
+              <button class="chart-panel-btn active" data-range="all">All</button>
+              <button
+                class="chart-panel-btn chart-range-custom-btn"
+                id="chartRangeCustomBtn"
+                title="Custom range"
+                aria-haspopup="true"
+                aria-expanded="false"
+              >Custom</button>
+
+              <div class="chart-range-popover" id="chartRangePopover" hidden>
+                <!-- The same presets as the inline row. Shown only when the dock
+                     is too narrow to carry that row; wired by the same
+                     [data-range] listeners, so there is no second code path. -->
+                <div class="chart-range-presets">
+                  <button class="chart-panel-btn" data-range="24h">24h</button>
+                  <button class="chart-panel-btn" data-range="7d">7d</button>
+                  <button class="chart-panel-btn" data-range="30d">30d</button>
+                  <button class="chart-panel-btn" data-range="all">All</button>
+                </div>
+                <label class="chart-range-field">
+                  <span>From</span>
+                  <input type="datetime-local" id="chartRangeFrom">
+                </label>
+                <label class="chart-range-field">
+                  <span>To</span>
+                  <input type="datetime-local" id="chartRangeTo">
+                </label>
+                <p class="chart-range-hint">Local time. Leave a field empty for an open end.</p>
+                <div class="chart-range-actions">
+                  <button class="chart-range-clear" id="chartRangeClear" type="button">Clear</button>
+                  <button class="chart-range-apply" id="chartRangeApply" type="button">Apply</button>
+                </div>
+              </div>
+            </div>
+
             <div class="chart-limit-group">
               <button
                 class="chart-panel-btn"
@@ -412,6 +377,10 @@
                 class="chart-panel-btn"
                 data-limit="2500"
               >2.5k</button>
+              <button
+                class="chart-panel-btn"
+                data-limit="10000"
+              >10k</button>
             </div>
             <button
               class="chart-panel-toggle"
@@ -475,6 +444,7 @@
     <script src="js/frost-fields.js"></script>
     <script src="js/observations.js"></script>
     <script src="js/api.js"></script>
+    <script src="js/connection.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/chart.js"></script>
     <script src="js/roster.js"></script>

@@ -1,0 +1,252 @@
+/* Entity investigation page. Builds on css/query.css for the shared bar/panel
+   look; only the list, breadcrumb and credential popover are new here. */
+
+/* ── layout ──────────────────────────────────────────────────────────────── */
+.inv-main {
+  padding: 1rem;
+  max-width: var(--page-max-narrow);
+  margin: 0 auto;
+  container-type: inline-size;
+  container-name: invmain;
+}
+
+/* ── breadcrumb ──────────────────────────────────────────────────────────── */
+.inv-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-bottom: 0.7rem;
+  min-height: 1.6rem;
+}
+
+.inv-crumb {
+  background: none;
+  border: none;
+  color: var(--txt-dim);
+  font-family: inherit;
+  font-size: var(--fs-md);
+  padding: 0.2rem 0.35rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.inv-crumb:hover { color: var(--accent); background: rgba(34, 211, 238, 0.08); }
+.inv-crumb.is-current { color: var(--txt); cursor: default; }
+.inv-crumb-sep { color: var(--txt-mute); font-size: var(--fs-md); }
+
+/* ── toolbar ─────────────────────────────────────────────────────────────── */
+.inv-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.inv-entity-select { flex: 0 1 12rem; }
+.inv-search { flex: 1 1 12rem; min-width: 0; }
+
+.inv-meta {
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  flex: 0 0 auto;
+}
+
+/* ── status ──────────────────────────────────────────────────────────────── */
+.inv-status {
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  margin-bottom: 0.6rem;
+}
+.inv-status-info { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+.inv-status-error { background: rgba(251, 113, 133, 0.12); color: var(--bad); }
+
+/* ── list ────────────────────────────────────────────────────────────────── */
+.inv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.inv-row {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.inv-row.is-open { border-color: var(--glass-line-hi); }
+
+.inv-row-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.6rem 0.8rem;
+  background: none;
+  border: none;
+  color: var(--txt);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  min-width: 0;
+}
+
+.inv-row-head:hover { background: rgba(255, 255, 255, 0.03); }
+
+.inv-caret {
+  color: var(--txt-mute);
+  flex: 0 0 auto;
+  transition: transform 0.18s var(--ease);
+}
+.inv-row.is-open .inv-caret { transform: rotate(90deg); }
+
+.inv-row-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.inv-row-name {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inv-row-sub {
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.inv-row-id {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-xs);
+  color: var(--txt-mute);
+  flex: 0 0 auto;
+}
+
+.inv-row-body {
+  padding: 0.2rem 0.8rem 0.8rem 2rem;
+  border-top: 1px solid var(--glass-line);
+}
+
+/* ── properties ──────────────────────────────────────────────────────────── */
+.inv-props {
+  display: grid;
+  grid-template-columns: minmax(6rem, max-content) minmax(0, 1fr);
+  gap: 0.25rem 0.9rem;
+  margin: 0.7rem 0;
+  font-size: var(--fs-sm);
+}
+
+/* Below this the two columns are unusably narrow — stack them. Queries the
+   page container, so it also fires inside a narrow window on a wide screen. */
+@container invmain (max-width: 460px) {
+  .inv-props { grid-template-columns: minmax(0, 1fr); gap: 0.1rem; }
+  .inv-props dt { margin-top: 0.4rem; }
+}
+
+.inv-props dt {
+  color: var(--txt-mute);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.inv-props dd {
+  margin: 0;
+  color: var(--txt);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.inv-props pre {
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  background: rgba(3, 6, 14, 0.75);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  overflow-x: auto;
+  white-space: pre;
+}
+
+/* ── relations ───────────────────────────────────────────────────────────── */
+.inv-relations {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+.inv-relations-label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+  margin-right: 0.2rem;
+}
+
+.inv-rel-chip { font-size: var(--fs-sm); padding: 0.22rem 0.6rem; }
+
+.inv-selflink {
+  display: inline-block;
+  margin-top: 0.6rem;
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  text-decoration: none;
+}
+.inv-selflink:hover { color: var(--accent); }
+
+/* ── misc ────────────────────────────────────────────────────────────────── */
+.inv-empty {
+  padding: 1.2rem;
+  text-align: center;
+  color: var(--txt-mute);
+  font-size: var(--fs-md);
+  border: 1px dashed var(--glass-line);
+  border-radius: var(--radius);
+}
+
+.inv-more { width: 100%; margin-top: 0.6rem; }
+
+/* ── hand-off actions ────────────────────────────────────────────────────── */
+/* Links back to the map. Without these the page dead-ends: you can find a
+   datastream and then have no way to look at its data. */
+.inv-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+}
+
+.inv-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid rgba(34, 211, 238, 0.35);
+  background: rgba(34, 211, 238, 0.1);
+  color: var(--accent);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.inv-action:hover {
+  background: rgba(34, 211, 238, 0.2);
+  color: #fff;
+}

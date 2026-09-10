@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rime — Investigate</title>
+
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23070b16'/%3E%3Ccircle cx='16' cy='16' r='4' fill='%2322d3ee'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='%2322d3ee' stroke-opacity='0.6' stroke-width='1.5'/%3E%3Ccircle cx='16' cy='16' r='12.5' fill='none' stroke='%2322d3ee' stroke-opacity='0.25' stroke-width='1.5'/%3E%3C/svg%3E"
+    >
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    >
+
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="css/query.css">
+    <link rel="stylesheet" href="css/investigate.css">
+  </head>
+
+  <body class="query-body">
+
+    <!-- Deliberately NOT .command-bar: that class is absolutely positioned with
+         a fixed height for the map stage, which overlaps a sticky page header. -->
+    <header class="query-bar">
+      <div class="brand">
+        <span class="brand-orb" aria-hidden="true"></span>
+        <div class="brand-text">
+          <h1>RIME</h1>
+          <p>Investigate</p>
+        </div>
+      </div>
+
+      <!-- Connection + page links travel as one right-aligned group. -->
+      <div class="bar-actions">
+        <div id="connectionControl" class="page-connection"></div>
+        <a class="qb-link" href="query.html">Query</a>
+        <a class="qb-link" href="index.html">← Map</a>
+      </div>
+    </header>
+
+    <main class="inv-main">
+
+      <nav class="inv-breadcrumb" id="invBreadcrumb" aria-label="Navigation trail"></nav>
+
+      <div class="inv-toolbar">
+        <select id="invEntity" class="qb-select inv-entity-select" aria-label="Entity type"></select>
+        <input
+          type="search"
+          id="invSearch"
+          class="qb-input inv-search"
+          placeholder="Filter by name…"
+          aria-label="Filter by name"
+          spellcheck="false"
+        >
+        <span class="inv-meta" id="invMeta"></span>
+      </div>
+
+      <div class="inv-status" id="invStatus" hidden></div>
+
+      <ul class="inv-list" id="invList"></ul>
+
+      <button class="qb-icon-btn inv-more" id="invMore" hidden>Load more</button>
+    </main>
+
+    <script src="js/runtime-config.js"></script>
+    <script src="js/config.js"></script>
+    <script src="js/state.js"></script>
+    <script src="js/frost-fields.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/connection.js"></script>
+    <script src="js/odata.js"></script>
+    <script src="js/export.js"></script>
+    <script src="js/investigate.js"></script>
+  </body>
+
+</html>

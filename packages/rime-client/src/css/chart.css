@@ -13,12 +13,22 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   overflow: hidden;
+  /* Density rules query this element: the panel's width changes whenever the
+     roster or inspector opens, independently of the viewport, so viewport
+     breakpoints would be measuring the wrong thing entirely. */
+  container-type: inline-size;
+  container-name: chartpanel;
   transition: max-height 0.42s var(--ease), left 0.42s var(--ease), right 0.42s var(--ease), box-shadow 0.42s var(--ease);
 }
 
-/* Collapsed: a complete floating bar — header only, fully above the bottom inset */
+/* Collapsed: a complete floating bar — header only, fully above the bottom inset.
+   The height is the header's *measured* height (published by observeChartHeaderHeight),
+   not a constant: the header wraps its controls onto a second row when they no
+   longer fit, and clipping that to --dock-h hid the wrapped row. --dock-h stays
+   as the fallback, and the header's own min-height keeps the unwrapped case
+   exactly as it was. */
 .chart-panel:not(.expanded) {
-  max-height: var(--dock-h);
+  max-height: var(--chart-hdr-h, var(--dock-h));
   box-shadow: var(--shadow-sm);
 }
 
@@ -36,11 +46,23 @@
 
 .chart-panel-header {
   position: relative;
-  padding: 0 1.1rem;
+  /* Title and controls drop onto separate rows when they no longer fit side by
+     side. Without this the title was squeezed to 0px wide and its Next button —
+     which must not shrink — overflowed and painted on top of the controls. */
+  flex-wrap: wrap;
+  /* Vertical padding, not just horizontal: while the header was a single row
+     min-height + align-items:center kept the content off the edges by accident.
+     Once it wraps, the flex lines fill the box and the eyebrow sat flush
+     against the top border. 0.5rem keeps the unwrapped header at exactly
+     --dock-h, so the collapsed bar is unchanged. */
+  padding: 0.5rem 1.1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 1rem;
+  /* Centre the wrapped rows as a group rather than stretching them apart. */
+  align-content: center;
+  /* Rows sit closer to each other than the title does to the controls beside it. */
+  gap: 0.4rem 1rem;
   min-height: var(--dock-h);
   flex-shrink: 0;
   border-bottom: none;
@@ -53,15 +75,19 @@
 }
 
 .chart-panel-title {
-  flex: 1;
+  /* A real basis, so it wraps instead of shrinking away to nothing. */
+  flex: 1 1 15rem;
   display: flex;
   align-items: center;
   gap: 1rem;
   min-width: 0;
 }
 
+/* Sized to its text, so the Next button sits beside the title it belongs to
+   instead of being pushed to the far edge of the row — which left it stranded
+   in the top-right corner once the header started wrapping. */
 .chart-panel-title > div:not(.chart-panel-nav) {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   cursor: pointer;
 }
@@ -70,7 +96,7 @@
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--accent);
@@ -91,7 +117,7 @@
 }
 
 .chart-panel-title h2 {
-  font-size: 1.05rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   white-space: nowrap;
@@ -100,7 +126,7 @@
 }
 
 .chart-panel-title p {
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   color: var(--txt-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -116,7 +142,7 @@
   cursor: pointer;
   padding: 0.42rem 0.85rem;
   font-weight: 600;
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-family: inherit;
   display: flex;
   align-items: center;
@@ -141,8 +167,6 @@
   flex-shrink: 0;
 }
 
-.chart-ds-pills[hidden] { display: none; }
-
 .chart-ds-pills::-webkit-scrollbar { height: 6px; }
 .chart-ds-pills::-webkit-scrollbar-thumb {
   background: rgba(140, 170, 210, 0.25);
@@ -157,7 +181,7 @@
   background: rgba(5, 9, 18, 0.4);
   color: var(--txt-dim);
   font-family: inherit;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   white-space: nowrap;
   cursor: pointer;
@@ -179,37 +203,35 @@
   display: flex;
   gap: 0.55rem;
   align-items: center;
-  flex-shrink: 0;
+  /* Wraps rather than overflowing: the range group, the custom from/to pair and
+     the limit group together need ~820px, more than the panel has on a narrow
+     window. The header is min-height, not height, so a second row is free. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  /* Grow into whatever row it lands on. Without this the group is only as wide
+     as its shrink-to-fit size, so on a wrapped row it left ~35px unused and
+     pushed the collapse chevron onto a third row by itself. Children stay
+     right-aligned either way. */
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-.chart-limit-group {
-  display: flex;
-  background: rgba(5, 9, 18, 0.5);
-  border: 1px solid var(--glass-line);
-  border-radius: var(--radius);
-  padding: 3px;
-  gap: 2px;
-}
+/* Track styling is the shared segmented-control rule in styles.css. */
 
 .chart-panel-btn {
   padding: 0.38rem 0.65rem;
   background: transparent;
   border: none;
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   color: var(--txt-mute);
   cursor: pointer;
-  font-size: 0.76rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   transition: all 0.15s var(--ease);
 }
 
 .chart-panel-btn:hover { color: var(--txt); }
-
-.chart-panel-btn.active {
-  background: rgba(34, 211, 238, 0.16);
-  color: #67e8f9;
-}
 
 .chart-panel-toggle {
   background: rgba(5, 9, 18, 0.5);
@@ -261,10 +283,6 @@
   z-index: 2;
 }
 
-.chart-overlay[hidden] {
-  display: none !important;
-}
-
 /* Stat readouts — compact pills aligned with command-bar legend chips */
 .chart-stats {
   display: flex;
@@ -306,7 +324,7 @@
 }
 
 .stat-label {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -315,7 +333,7 @@
 }
 
 .stat-value {
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: -0.01em;
@@ -324,7 +342,7 @@
 }
 
 .stat-unit {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--txt-dim);
   margin-left: 0.15rem;
@@ -338,7 +356,7 @@
   padding: 0.12rem 0.42rem;
   border-radius: 999px;
   border: 1px solid transparent;
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   letter-spacing: 0.01em;
@@ -349,7 +367,10 @@
 
 .chart-container {
   position: relative;
-  height: 340px;
+  /* Fluid rather than a fixed 340px with a 280px tablet override: the dock is
+     already height-capped by the panel, and a short window should give the
+     trace less room without a breakpoint deciding where. */
+  height: clamp(220px, 38vh, 340px);
   background:
     linear-gradient(rgba(150, 190, 230, 0.05) 1px, transparent 1px) 0 0 / 100% 34px,
     rgba(5, 9, 18, 0.4);
@@ -378,7 +399,7 @@
   }
 
   .chart-panel:not(.expanded) {
-    max-height: var(--dock-h);
+    max-height: var(--chart-hdr-h, var(--dock-h));
   }
 
   .chart-panel.expanded {
@@ -401,7 +422,7 @@
     border: 1px solid rgba(34, 211, 238, 0.35);
     border-radius: 999px;
     color: var(--accent);
-    font-size: 0.74rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     font-family: inherit;
     cursor: pointer;
@@ -422,4 +443,238 @@
 
   .chart-panel-content { padding: 0.8rem; }
   .chart-container { height: 220px; }
+}
+
+/* ── Time-window control ──────────────────────────────────────────────── */
+/* Mirrors .chart-limit-group. The custom from/to pair sits in a popover rather
+   than inline: the chart panel's width swings a lot (roster open, inspector
+   open, both), and two always-visible datetime inputs squeezed to unusable
+   widths and forced the control row onto three lines. */
+.chart-range-group {
+  /* Track styling is the shared segmented-control rule in styles.css; the
+     popover anchors to this element, hence position: relative. */
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.chart-range-custom-btn.active {
+  color: var(--obs-bg);
+  background: var(--accent);
+}
+
+/* `hidden` alone loses to `display: flex` below, exactly as .endpoint-popover
+   handles it in styles.css. Without this the popover is open on page load. */
+
+.chart-range-popover {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  right: 0;
+  width: min(19rem, 80vw);
+  background: var(--glass-2);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border: 1px solid var(--glass-line-hi);
+  border-radius: var(--radius-lg);
+  padding: 0.85rem 0.95rem;
+  box-shadow: var(--shadow);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.chart-range-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.chart-range-field > span {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+}
+
+.chart-range-field input {
+  width: 100%;
+  min-width: 0;
+  background: rgba(5, 9, 18, 0.6);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  padding: 0.35rem 0.45rem;
+  color-scheme: dark;   /* native picker follows the dark theme */
+}
+
+.chart-range-field input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.chart-range-hint {
+  font-size: var(--fs-xs);
+  color: var(--txt-mute);
+  margin: 0;
+}
+
+.chart-range-actions {
+  display: flex;
+  gap: 0.4rem;
+  justify-content: flex-end;
+}
+
+.chart-range-clear,
+.chart-range-apply {
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.chart-range-clear {
+  background: none;
+  border: 1px solid var(--glass-line);
+  color: var(--txt-dim);
+}
+.chart-range-clear:hover { color: var(--accent); border-color: var(--accent); }
+
+.chart-range-apply {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: var(--obs-bg);
+  font-weight: 600;
+}
+
+/* Density follows the PANEL's width, not the viewport: the panel narrows
+   whenever the roster or inspector opens, at any viewport size. Buttons get
+   tighter rather than disappearing — a control you cannot find is worse than a
+   small one, and "Custom" is short enough to keep its word. */
+@container chartpanel (max-width: 620px) {
+  .chart-panel-btn { padding: 0.28rem 0.42rem; font-size: var(--fs-xs); }
+  .chart-range-group,
+  .chart-limit-group { gap: 1px; padding: 2px; }
+
+  /* The subtitle is the least useful line in the header, and dropping it lets
+     the title and controls share a row for longer. */
+  .chart-panel-title p { display: none; }
+
+  /* Even tightened, the full control set needs more width than this dock has,
+     so it has to wrap. Left alone flex packed the first row and stranded the
+     collapse chevron on a second one by itself. A zero-height flex-basis:100%
+     item, ordered between the groups, breaks the line where it reads best:
+     time range on one row, point limit and the chevron on the next. */
+  .chart-panel-controls::before {
+    content: '';
+    flex-basis: 100%;
+    height: 0;
+    order: 3;
+  }
+  .chart-compare-btn { order: 1; }
+  .chart-range-group { order: 2; }
+  .chart-limit-group { order: 4; }
+  .chart-panel-toggle { order: 5; }
+}
+
+/* ── comparison ──────────────────────────────────────────────────────────── */
+.chart-compare-btn {
+  background: rgba(5, 9, 18, 0.5);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+}
+
+.chart-compare-btn.active {
+  background: rgba(34, 211, 238, 0.16);
+  border-color: rgba(34, 211, 238, 0.5);
+  color: #67e8f9;
+}
+
+/* In compare mode a pill is a membership toggle, so unselected ones read as
+   available rather than merely inactive. */
+.chart-ds-pills.is-comparing .chart-ds-pill { border-style: dashed; }
+.chart-ds-pills.is-comparing .chart-ds-pill.active { border-style: solid; }
+
+.chart-compare-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  margin-bottom: 0.85rem;
+}
+
+.chart-compare-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.3rem 0.7rem;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius);
+  background: rgba(5, 9, 18, 0.4);
+  font-size: var(--fs-sm);
+}
+
+.chart-compare-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: 0 0 auto;
+}
+
+.chart-compare-name {
+  font-weight: 600;
+  color: var(--txt);
+  flex: 1 1 8rem;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chart-compare-stat {
+  color: var(--txt-mute);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  flex: 0 0 auto;
+}
+.chart-compare-stat b { color: var(--txt); font-weight: 600; }
+
+.chart-compare-note {
+  margin: 0.2rem 0 0;
+  font-size: var(--fs-xs);
+  color: var(--warn);
+}
+
+
+@container chartpanel (max-width: 420px) {
+  .chart-panel-title .chart-eyebrow { display: none; }
+}
+
+/* Folded time-range control ------------------------------------------------
+   The presets inside the popover are the narrow-dock form of the inline row.
+   They are hidden while the row itself fits. */
+.chart-range-presets {
+  display: none;
+  gap: 2px;
+  padding-bottom: var(--space-2);
+  margin-bottom: var(--space-2);
+  border-bottom: 1px solid var(--glass-line);
+}
+
+/* Below this the dock cannot carry five preset buttons plus the limit group
+   without a third row. Rather than wrap further, the presets fold into the
+   popover they already sit next to, and the trigger names the active window
+   so nothing is hidden from view — it reads "24h" or "All" instead of
+   "Custom" while folded. */
+@container chartpanel (max-width: 460px) {
+  .chart-range-group > .chart-panel-btn[data-range] { display: none; }
+  .chart-range-presets { display: flex; }
+  .chart-range-custom-btn { font-size: 0; }
+  .chart-range-custom-btn::after {
+    content: attr(data-active-range);
+    font-size: var(--fs-xs);
+  }
 }

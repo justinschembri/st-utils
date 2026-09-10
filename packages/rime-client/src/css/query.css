@@ -1,0 +1,467 @@
+/* Query builder page — reuses the observatory tokens from styles.css. */
+
+.query-body {
+  min-height: 100vh;
+  background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(34, 211, 238, 0.08), transparent 60%),
+    radial-gradient(900px 500px at 95% 0%, rgba(129, 140, 248, 0.08), transparent 55%),
+    var(--obs-bg);
+  color: var(--txt);
+  font-family: 'Space Grotesk', system-ui, sans-serif;
+  overflow-y: auto;
+}
+
+.query-bar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;          /* the bar has no fixed height, so wrapping is free */
+  gap: 0.6rem 1rem;
+  padding: 0.7rem 1.1rem;
+  background: var(--glass-2);
+  backdrop-filter: blur(22px) saturate(140%);
+  -webkit-backdrop-filter: blur(22px) saturate(140%);
+  border-bottom: 1px solid var(--glass-line);
+  container-type: inline-size;
+  container-name: querybar;
+}
+
+.query-bar .qb-link { flex: 0 0 auto; align-self: center; }
+
+.query-bar > * { min-width: 0; }
+.query-bar .brand { flex: 0 0 auto; }
+
+.query-endpoint {
+  display: flex;
+  align-items: center;
+  /* Wraps internally: with four children (label, preset, URL, version) sharing
+     one flex line, the URL field was the only one that could shrink and
+     collapsed to nothing. Letting this group wrap means a piece drops to the
+     next line instead of any single control being crushed. */
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.query-endpoint label {
+  font-size: var(--fs-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+  flex: 0 0 auto;
+}
+
+/* Never let the URL field vanish — it is the point of the control. */
+.query-endpoint .endpoint-input { flex: 1 1 200px; min-width: 160px; }
+
+.qb-select-preset { flex: 0 1 auto; max-width: 220px; }
+
+/* Density based on the bar's own width, not the viewport — same reasoning as
+   the map's command bar. */
+@container querybar (max-width: 560px) {
+  .query-bar .brand-text p { display: none; }
+  .query-endpoint label { display: none; }
+}
+
+/* .qb-link's appearance is the shared bar-control family in styles.css —
+   the same control as the map page's nav links, so it is defined once. */
+
+/* ── layout ──────────────────────────────────────────────────────────────── */
+/* Flex rather than grid: the builder and the response pane want *different*
+   widths, and flex-wrap drops them onto separate full-width rows on its own
+   when their preferred sizes no longer fit side by side. No breakpoint decides
+   that — their flex-basis values and the available width do. */
+.qb-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  align-items: flex-start;
+  /* Capped and centred like the investigate page: unbounded, the builder
+     stretched a form across the full width of a large monitor. */
+  max-width: var(--page-max);
+  margin: 0 auto;
+}
+
+/* No breakpoint needed: auto-fit collapses to one column when the columns can
+   no longer hold their minimums. */
+
+.qb-panel {
+  background: var(--glass);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  container-type: inline-size;
+  container-name: qbpanel;
+}
+
+/* Builder: modest, capped. Response: takes the lion's share of any extra. */
+.qb-panel { flex: 1 1 320px; max-width: 460px; }
+.qb-panel-wide { flex: 3 1 520px; max-width: none; min-width: 0; }
+
+.qb-heading {
+  font-size: var(--fs-sm);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+  margin: 0 0 0.75rem;
+  font-weight: 600;
+}
+
+/* ── fields ──────────────────────────────────────────────────────────────── */
+.qb-field { margin-bottom: 0.9rem; }
+
+.qb-field > label,
+.qb-field-head label {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--txt-dim);
+  margin-bottom: 0.35rem;
+}
+
+.qb-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.qb-hint {
+  color: var(--txt-mute);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+}
+
+/* Auto-fit rather than fixed columns: these collapse to one column on their own
+   when the panel is narrow, with no breakpoint needed. */
+.qb-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.75rem;
+}
+
+.qb-grid-3 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 72px), 1fr));
+  gap: 0.75rem;
+}
+
+.qb-input,
+.qb-select {
+  width: 100%;
+  padding: 0.45rem 0.6rem;
+  background: rgba(5, 10, 22, 0.75);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-md);
+}
+
+.qb-input:focus,
+.qb-select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.15);
+}
+
+.qb-select-version { width: auto; }
+
+.qb-check {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  font-size: var(--fs-md);
+  color: var(--txt-dim);
+}
+
+/* ── filter rows ─────────────────────────────────────────────────────────── */
+.qb-filter-rows { display: flex; flex-direction: column; gap: 0.45rem; }
+
+.qb-filter-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  gap: 0.35rem;
+  align-items: center;
+}
+
+/* Below this the three inputs are unusably narrow — stack them instead.
+   Queries the panel, so it also stacks when the panel is narrow on a wide
+   screen (e.g. the two-column layout on a mid-size window). */
+@container qbpanel (max-width: 440px) {
+  .qb-filter-row {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "field remove"
+      "op    op"
+      "value value";
+  }
+  .qb-filter-row .qb-input-field { grid-area: field; }
+  .qb-filter-row .qb-select { grid-area: op; }
+  .qb-filter-row .qb-input-value { grid-area: value; }
+  .qb-filter-row .qb-remove { grid-area: remove; }
+}
+
+.qb-url-row { flex-wrap: wrap; }
+
+.qb-remove {
+  background: none;
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-mute);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  font-size: var(--fs-xl);
+  line-height: 1;
+}
+.qb-remove:hover { color: var(--bad); border-color: var(--bad); }
+
+.qb-add {
+  margin-top: 0.5rem;
+  background: none;
+  border: 1px dashed var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-dim);
+  padding: 0.4rem 0.7rem;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  width: 100%;
+}
+.qb-add:hover { color: var(--accent); border-color: var(--accent); }
+
+.qb-join { display: inline-flex; gap: 0.2rem; }
+
+.qb-join-btn {
+  background: rgba(5, 10, 22, 0.7);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt-mute);
+  font-size: var(--fs-xs);
+  padding: 0.2rem 0.5rem;
+  cursor: pointer;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+.qb-join-btn.active {
+  color: var(--obs-bg);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ── expand chips ────────────────────────────────────────────────────────── */
+.qb-chips { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.35rem; }
+
+.qb-chip {
+  background: rgba(129, 140, 248, 0.12);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 999px;
+  color: var(--accent-2);
+  font-size: var(--fs-xs);
+  padding: 0.15rem 0.5rem;
+  cursor: pointer;
+}
+.qb-chip:hover { background: rgba(129, 140, 248, 0.22); }
+
+/* ── request ─────────────────────────────────────────────────────────────── */
+.qb-url-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+  margin-bottom: 0.6rem;
+}
+
+.qb-url {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 0.5rem 0.65rem;
+  background: rgba(5, 10, 22, 0.85);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  overflow-x: auto;
+  white-space: pre;
+}
+.qb-url-empty { color: var(--txt-mute); }
+
+.qb-icon-btn,
+.qb-run {
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+  padding: 0.45rem 0.8rem;
+  white-space: nowrap;
+}
+
+.qb-icon-btn {
+  background: rgba(5, 10, 22, 0.7);
+  border: 1px solid var(--glass-line);
+  color: var(--txt-dim);
+}
+.qb-icon-btn:hover { color: var(--accent); border-color: var(--accent); }
+
+.qb-run {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  border: none;
+  color: var(--obs-bg);
+  font-weight: 600;
+}
+.qb-run:disabled { opacity: 0.55; cursor: default; }
+
+/* ── status + output ─────────────────────────────────────────────────────── */
+.qb-status {
+  padding: 0.45rem 0.65rem;
+  border-radius: var(--radius-sm);
+  font-size: var(--fs-sm);
+  margin-bottom: 0.6rem;
+}
+.qb-status-info { background: rgba(34, 211, 238, 0.1); color: var(--accent); }
+.qb-status-error { background: rgba(251, 113, 133, 0.12); color: var(--bad); }
+
+.qb-result-head {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.4rem;
+}
+.qb-result-head .qb-heading { margin: 0; }
+
+.qb-result-meta {
+  flex: 1;
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+.qb-output {
+  margin: 0;
+  padding: 0.75rem;
+  background: rgba(3, 6, 14, 0.9);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--radius-sm);
+  color: var(--txt);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  max-height: 62vh;
+  overflow: auto;
+  white-space: pre;
+}
+
+.qb-placeholder { color: var(--txt-mute); }
+
+/* Connection control and page links as one right-aligned group.
+   They were separate flex children each carrying `margin-left: auto`, so the
+   free space was split *between* them and they drifted apart. One auto margin
+   on the group keeps them together at the right edge. */
+.bar-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+  min-width: 0;
+}
+
+/* Shared connection control (js/connection.js) on the query/investigate bars.
+   The map places it in the command bar; here it sits in the page header. */
+.page-connection {
+  position: relative;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+/* The popover opens downward from a sticky top bar on these pages. */
+.page-connection .endpoint-popover {
+  top: calc(100% + 8px);
+  bottom: auto;
+}
+
+/* ── response empty state ────────────────────────────────────────────────── */
+.qb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  border: 1px dashed var(--glass-line);
+  border-radius: var(--radius-sm);
+  background: rgba(3, 6, 14, 0.5);
+}
+
+.qb-empty-icon {
+  width: 28px;
+  height: 28px;
+  color: var(--txt-mute);
+  opacity: 0.7;
+}
+
+.qb-empty-title {
+  margin: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--txt-dim);
+}
+
+.qb-empty-hint {
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--txt-mute);
+  max-width: 34rem;
+}
+
+.qb-empty kbd {
+  display: inline-block;
+  padding: 0 0.35em;
+  border: 1px solid var(--glass-line);
+  border-radius: 5px;
+  background: rgba(5, 10, 22, 0.8);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 0.95em;
+  color: var(--txt-dim);
+}
+
+.qb-empty-label {
+  margin: var(--space-4) 0 0;
+  font-size: var(--fs-2xs);
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--txt-mute);
+}
+
+/* Wraps on its own; no breakpoint decides when four chips need two rows. */
+.qb-starters {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+}
+
+.qb-starter {
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: var(--control-radius);
+  background: rgba(34, 211, 238, 0.08);
+  color: var(--accent);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
+}
+
+.qb-starter:hover {
+  background: rgba(34, 211, 238, 0.18);
+  border-color: rgba(34, 211, 238, 0.55);
+  color: #fff;
+}

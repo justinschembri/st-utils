@@ -53,11 +53,98 @@
 
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
 
-  --roster-w: 304px;
-  --inspector-w: 388px;
+  /* Fluid, not fixed. These were 304px and 388px flat, so with both panels open
+     they claimed 692px regardless of screen size — 69% of a 1000px viewport,
+     leaving the chart panel ~300px and forcing its controls onto three rows.
+     clamp() scales them continuously between a usable minimum and today's
+     desktop size, so the middle column keeps a fair share at every width
+     without a breakpoint deciding when. */
+  --roster-w: clamp(240px, 22vw, 304px);
+  --inspector-w: clamp(264px, 28vw, 388px);
+  /* --bar-min-h is the floor the command bar will not go below.
+     --bar-h is the bar's MEASURED height, republished by a ResizeObserver in
+     ui.js; the value here is only a sensible pre-measurement fallback. Layout
+     offsets read --bar-h, never --bar-min-h. */
+  --bar-min-h: 56px;
   --bar-h: 66px;
   --dock-h: 72px;
   --dock-inset: 14px;
+  /* Top edge of everything that floats below the command bar — the roster
+     dock, the inspector, the reopen pill and the map's own insets. Was
+     written out as var(--hud-top) in seven places across two
+     files, so the gap could not be changed in one edit. */
+  --hud-top: calc(var(--bar-h) + 26px);
+  /* The collapsed chart dock's real height. --dock-h is only its floor: the
+     dock's header wraps when it runs out of width, and ui.js publishes the
+     measured height into --chart-hdr-h. Anything positioned to sit clear of
+     the dock has to follow the measured value or it ends up underneath —
+     which is what put the mobile roster sheet behind the dock. */
+  --dock-h-live: var(--chart-hdr-h, var(--dock-h));
+  --dock-clear: calc(var(--dock-inset) + var(--dock-h-live) + 8px);
+  /* Page width caps. The investigate list is reading-width; the query builder
+     needs room for JSON but should still stop somewhere. */
+  --page-max: 96rem;
+  --page-max-narrow: 68rem;
+
+  /* --- Type scale ---------------------------------------------------------
+     Seven steps, and every size in the client maps onto one of them. Before
+     this there were 29 distinct font-sizes between 0.58 and 1.15rem doing the
+     same handful of jobs, which is what made the pages read as separate
+     projects rather than one product. */
+  --fs-2xs: 0.62rem;   /* eyebrows and uppercase micro-labels */
+  --fs-xs: 0.68rem;    /* dense control text, table meta */
+  --fs-sm: 0.74rem;    /* default control text */
+  --fs-md: 0.8rem;     /* body copy */
+  --fs-lg: 0.88rem;    /* emphasis, list item titles */
+  --fs-xl: 1rem;       /* section headings */
+  --fs-2xl: 1.12rem;   /* panel titles */
+
+  /* --- Spacing scale --- */
+  --space-1: 0.25rem;
+  --space-2: 0.4rem;
+  --space-3: 0.6rem;
+  --space-4: 0.85rem;
+  --space-5: 1.1rem;
+  --space-6: 1.5rem;
+
+  /* --- Controls ---------------------------------------------------------
+     Bar-level controls are pills: the search box, legend chips and health
+     button already were, so the nav links were the odd ones out at
+     --radius-sm. One height keeps a row of mixed controls on a single
+     baseline however they wrap. */
+  --control-h: 34px;
+  --control-h-sm: 30px;   /* in-panel actions, one step down from bar controls */
+  --control-pad-x: 0.75rem;
+  --control-radius: 999px;
+
+  /* Single focus treatment for every interactive element. The inner ring is
+     the page colour so the outer one reads on any surface. */
+  --focus-ring: 0 0 0 2px var(--obs-bg), 0 0 0 4px rgba(34, 211, 238, 0.6);
+}
+
+/* ------------------------------------------------------------------ */
+/* Focus — one visible ring for everything keyboard-reachable.         */
+/* Nothing in the client had a :focus-visible style, so tabbing through */
+/* it showed no ring at all on any button, link or chip.               */
+/* ------------------------------------------------------------------ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  /* Keep the ring clear of clipping ancestors like the pills scroller. */
+  position: relative;
+  z-index: 1;
+}
+
+/* ------------------------------------------------------------------ */
+/* [hidden] must actually hide.                                        */
+/* The attribute's UA rule is a plain `display: none`, so ANY author    */
+/* `display` on the same element beats it and the element stays on      */
+/* screen. That had been patched twelve times, component by component,  */
+/* and still caught the query builder's "Next page" button. One rule    */
+/* here retires all of them.                                            */
+/* ------------------------------------------------------------------ */
+[hidden] {
+  display: none !important;
 }
 
 * {
@@ -195,7 +282,7 @@ body {
   /* sit above map (z:0) and grid/aurora (z:1) but below UI (z:30+) */
   z-index: 3;
   /* left gap for the dock column, top gap for the command bar */
-  inset: calc(var(--bar-h) + 26px) var(--dock-inset) var(--dock-inset) calc(var(--roster-w) + var(--dock-inset) * 2 + 10px);
+  inset: var(--hud-top) var(--dock-inset) var(--dock-inset) calc(var(--roster-w) + var(--dock-inset) * 2 + 10px);
   display: none;
   flex-wrap: wrap;
   align-content: flex-start;
@@ -211,7 +298,7 @@ body {
   display: flex;
   pointer-events: auto;
   /* roster collapses in virtual mode — use the full stage */
-  inset: calc(var(--bar-h) + 26px) var(--dock-inset) calc(var(--dock-inset) + var(--dock-h) + 12px) var(--dock-inset);
+  inset: var(--hud-top) var(--dock-inset) calc(var(--dock-inset) + var(--dock-h-live) + 12px) var(--dock-inset);
 }
 
 .virtual-node {
@@ -266,7 +353,7 @@ body {
 }
 
 .virtual-node-prompt {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 700;
   color: #4ade80;
   flex-shrink: 0;
@@ -275,7 +362,7 @@ body {
 }
 
 .virtual-node-name {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   color: #86efac;
   white-space: nowrap;
@@ -286,7 +373,7 @@ body {
 }
 
 .virtual-node-id {
-  font-size: 0.58rem;
+  font-size: var(--fs-2xs);
   color: rgba(74, 222, 128, 0.5);
   margin-bottom: 4px;
   letter-spacing: 0.04em;
@@ -308,7 +395,7 @@ body {
 }
 
 .virtual-node-status {
-  font-size: 0.6rem;
+  font-size: var(--fs-2xs);
   color: rgba(134, 239, 172, 0.6);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -352,7 +439,6 @@ body {
 /* Shared glass surface treatment */
 .command-bar,
 .roster,
-.dock-column,
 .thing-metadata-sidebar,
 .chart-panel,
 .map-control-btn,
@@ -364,6 +450,18 @@ body {
   border: 1px solid var(--glass-line);
 }
 
+/* .dock-column is a clipping/positioning container, not a surface: .roster and
+   .roster-foot fill it exactly in both the expanded and collapsed states, so
+   its own background and backdrop-filter never show. Painting them anyway was
+   harmless on desktop and a real bug on mobile, where the dock becomes
+   `position: fixed; bottom: 0; height: auto` and the mobile rules reset
+   background/border/shadow but not backdrop-filter — leaving an invisible
+   612px-tall element blurring ~72% of the map behind the bottom sheet.
+   It keeps only the border, which is what draws its outline. */
+.dock-column {
+  border: 1px solid var(--glass-line);
+}
+
 /* ------------------------------------------------------------------ */
 /* Command bar                                                         */
 /* ------------------------------------------------------------------ */
@@ -372,14 +470,27 @@ body {
   top: var(--dock-inset);
   left: var(--dock-inset);
   right: var(--dock-inset);
-  height: var(--bar-h);
   z-index: 40;
   display: flex;
   align-items: center;
-  gap: 1rem;
-  padding: 0 0.9rem 0 1.1rem;
+  flex-wrap: wrap;
+  gap: 0.55rem 1rem;
+  padding: 0.5rem 0.9rem 0.5rem 1.1rem;
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+
+  /* The bar sizes itself from its content. Its height is then *published* into
+     --bar-h by a ResizeObserver (ui.js) so the roster, chart panel and map
+     insets follow automatically.
+
+     It must NOT read --bar-h for its own height: that would make the observer
+     feed its own input and oscillate. --bar-h is output only. */
+  min-height: var(--bar-min-h);
+
+  /* Density rules below query THIS element's width, not the viewport, so the
+     bar adapts to the space it actually has under any zoom or font size. */
+  container-type: inline-size;
+  container-name: commandbar;
 }
 
 .brand {
@@ -413,7 +524,7 @@ body {
 }
 
 .brand-text h1 {
-  font-size: 1.12rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   letter-spacing: 0.22em;
   line-height: 1;
@@ -421,7 +532,7 @@ body {
 }
 
 .brand-text p {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 500;
   letter-spacing: 0.34em;
   text-transform: uppercase;
@@ -429,12 +540,35 @@ body {
   margin-top: 3px;
 }
 
+/* Command-bar children must be allowed to shrink. Without min-width:0 a flex
+   item never goes below its content width, which is how fixed-size controls
+   ended up overflowing the bar entirely. */
+.command-bar > * { min-width: 0; }
+
+/* Trailing controls travel together. Previously each was a direct child with
+   flex-shrink:0, so when space ran out they were pushed past the bar's right
+   edge one at a time (measured at 1280px: switcher ending at x=1466, doc links
+   at x=1520 and x=1574, all off-screen). As one group they wrap to a second
+   row instead, and the bar grows to fit — see the ResizeObserver in ui.js. */
+.bar-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  /* Never shrink: these are the controls, and a half-width endpoint switcher is
+     worse than a scrolling legend. The legend absorbs the pressure instead. */
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
 /* Search */
 .search-box {
   position: relative;
-  flex: 1;
-  max-width: 420px;
-  min-width: 120px;
+  /* No flex-grow: the legend also grows, and with both at grow:1 they split the
+     free space — search would hit its max width while the legend went 14px
+     short and started scrolling, hiding health tiers. A search box has no use
+     for extra width; the legend does. Shrinks normally when space is tight. */
+  flex: 0 1 320px;
+  min-width: 92px;
 }
 
 .search-icon {
@@ -450,10 +584,11 @@ body {
 
 .search-box input {
   width: 100%;
-  padding: 0.6rem 0.9rem 0.6rem 2.5rem;
+  min-height: var(--control-h);
+  padding: 0 var(--space-4) 0 2.5rem;
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  font-size: 0.88rem;
+  border-radius: var(--control-radius);
+  font-size: var(--fs-md);
   font-family: inherit;
   background: rgba(5, 9, 18, 0.55);
   color: var(--txt);
@@ -475,17 +610,38 @@ body {
 .status-legend {
   display: flex;
   gap: 0.4rem;
-  flex-shrink: 0;
-  margin-left: auto;
+  /* Shrink and scroll instead of pushing the trailing controls off the bar.
+     This is the widest item in the command bar (~730px with labels shown), so
+     with flex-shrink:0 it forced ~1430px of content into a 1250px bar and the
+     endpoint switcher and doc links ended up outside the viewport. */
+  /* flex-basis 0 is the important part. With flex-wrap on, wrapping is decided
+     from each item's *base* size — an `auto` basis meant the legend claimed its
+     full ~730px, could not fit, and pushed the controls onto a second row. With
+     a 0 basis it never triggers a wrap: it grows into whatever space is left
+     over and scrolls internally when its chips exceed that. No breakpoint
+     decides this; the available space does. */
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;          /* Firefox */
+  -ms-overflow-style: none;       /* legacy Edge */
 }
+
+.status-legend::-webkit-scrollbar { display: none; }
+
+/* Chips keep their size inside the scroller rather than squashing. */
+.status-legend > .legend-chip { flex: 0 0 auto; }
 
 .legend-chip {
   display: flex;
   align-items: center;
-  gap: 0.42rem;
-  padding: 0.4rem 0.7rem;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
+  font-size: var(--fs-sm);
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: rgba(5, 9, 18, 0.4);
   cursor: pointer;
   font-family: inherit;
@@ -517,12 +673,12 @@ body {
 .legend-count {
   font-family: "JetBrains Mono", monospace;
   font-weight: 700;
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   color: #fff;
 }
 
 .legend-label {
-  font-size: 0.66rem;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   letter-spacing: 0.08em;
 }
@@ -538,17 +694,21 @@ body {
 .endpoint-display {
   display: flex;
   align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.85rem;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
   border: 1px solid var(--glass-line);
-  border-radius: 999px;
+  border-radius: var(--control-radius);
   background: rgba(5, 9, 18, 0.4);
   color: var(--txt-dim);
-  font-size: 0.78rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
+  /* Monospace on purpose: it shows a URL, and this is the one bar control
+     whose content is machine text rather than a label. */
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
-  transition: all 0.18s var(--ease);
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
   white-space: nowrap;
   max-width: 200px;
 }
@@ -585,12 +745,8 @@ body {
   gap: 0.6rem;
 }
 
-.endpoint-popover[hidden] {
-  display: none;
-}
-
 .endpoint-popover-label {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   font-weight: 600;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -608,7 +764,7 @@ body {
   padding: 0.6rem 0.8rem;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius);
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-family: "JetBrains Mono", monospace;
   background: rgba(5, 9, 18, 0.6);
   color: var(--txt);
@@ -636,7 +792,7 @@ body {
   border-radius: 999px;
   background: rgba(34, 211, 238, 0.07);
   color: var(--accent);
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
@@ -661,7 +817,7 @@ body {
   border-radius: var(--radius);
   background: rgba(5, 9, 18, 0.5);
   color: var(--txt-dim);
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   font-family: "JetBrains Mono", monospace;
   cursor: pointer;
@@ -688,7 +844,7 @@ body {
   background: none;
   border: none;
   padding: 0.3rem 0;
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   font-weight: 500;
   color: var(--txt-dim);
   cursor: pointer;
@@ -708,10 +864,6 @@ body {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
-}
-
-.endpoint-auth-fields[hidden] {
-  display: none;
 }
 
 .endpoint-auth-row {
@@ -741,7 +893,7 @@ body {
   border: none;
   border-radius: var(--radius);
   color: #03121a;
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -781,7 +933,7 @@ body {
 }
 
 .endpoint-hint {
-  font-size: 0.68rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
   line-height: 1.4;
   flex: 1;
@@ -809,29 +961,7 @@ body {
 }
 
 /* On-demand health-check button */
-.health-check-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid var(--glass-line);
-  border-radius: 999px;
-  background: rgba(5, 9, 18, 0.4);
-  color: var(--txt-dim);
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.18s var(--ease);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
-.health-check-btn:hover:not(:disabled) {
-  border-color: rgba(34, 211, 238, 0.5);
-  background: rgba(34, 211, 238, 0.1);
-  color: #fff;
-}
+/* Appearance comes from the bar-control family above. */
 
 .health-check-btn:disabled {
   opacity: 0.45;
@@ -852,25 +982,8 @@ body {
 }
 
 /* Exit virtual mode — lives in the command bar so it never covers map nodes */
-.virtual-exit-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.5rem 0.9rem;
-  border: 1px solid rgba(74, 222, 128, 0.45);
-  border-radius: 999px;
-  background: rgba(74, 222, 128, 0.1);
-  color: #86efac;
-  font-size: 0.78rem;
-  font-weight: 600;
-  font-family: inherit;
-  cursor: pointer;
-  transition: all 0.18s var(--ease);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
+/* Shape comes from the bar-control family; its green is a variant below. */
 
-.virtual-exit-btn[hidden] { display: none; }
 
 .virtual-exit-btn:hover {
   border-color: rgba(74, 222, 128, 0.7);
@@ -896,11 +1009,19 @@ body {
 .map-controls {
   position: absolute;
   right: var(--dock-inset);
-  bottom: calc(var(--dock-inset) + var(--dock-h) + 12px);
+  bottom: calc(var(--dock-inset) + var(--dock-h-live) + 12px);
   z-index: 30;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
+  transition: right 0.42s var(--ease);
+}
+
+/* Step aside for the inspector, the same way the chart dock does. Both are
+   anchored to the right edge and the inspector is z-index 35 against these
+   controls' 30, so opening it used to hide the zoom buttons entirely. */
+.main-content.has-metadata-sidebar .map-controls {
+  right: calc(var(--inspector-w) + var(--dock-inset) * 2);
 }
 
 .map-control-btn {
@@ -931,7 +1052,7 @@ body {
   box-shadow: var(--shadow-sm) !important;
   border-radius: var(--radius) !important;
   overflow: hidden;
-  margin-top: calc(var(--bar-h) + 26px) !important;
+  margin-top: var(--hud-top) !important;
 }
 
 .leaflet-control-zoom a {
@@ -958,7 +1079,7 @@ body {
 .leaflet-bar { border-radius: var(--radius) !important; }
 
 .leaflet-control-layers {
-  margin-top: calc(var(--bar-h) + 26px) !important;
+  margin-top: var(--hud-top) !important;
   border: 1px solid var(--glass-line) !important;
   border-radius: var(--radius) !important;
   box-shadow: var(--shadow-sm) !important;
@@ -980,7 +1101,7 @@ body {
   padding: 0.6rem 0.85rem !important;
   color: var(--txt) !important;
   font-family: "Space Grotesk", sans-serif !important;
-  font-size: 0.82rem !important;
+  font-size: var(--fs-md) !important;
 }
 
 .leaflet-control-layers-expanded label {
@@ -998,7 +1119,7 @@ body {
   background: rgba(5, 9, 18, 0.6) !important;
   backdrop-filter: blur(8px);
   border-radius: 8px 0 0 0 !important;
-  font-size: 0.66rem !important;
+  font-size: var(--fs-xs) !important;
   color: var(--txt-mute) !important;
   padding: 2px 8px !important;
 }
@@ -1095,9 +1216,12 @@ body {
 /* ------------------------------------------------------------------ */
 .thing-metadata-sidebar {
   position: absolute;
-  right: 14px;
-  top: calc(var(--bar-h) + 26px);
-  bottom: 56px;
+  /* Same insets as .dock-column and .chart-panel — these three float over the
+     map as one set, and the hard-coded 56px bottom left the inspector sitting
+     42px above the other two. */
+  right: var(--dock-inset);
+  top: var(--hud-top);
+  bottom: var(--dock-inset);
   width: var(--inspector-w);
   max-width: calc(100vw - 28px);
   z-index: 35;
@@ -1126,7 +1250,7 @@ body {
 }
 
 .inspector-eyebrow {
-  font-size: 0.62rem;
+  font-size: var(--fs-2xs);
   letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--accent);
@@ -1135,7 +1259,7 @@ body {
 
 .thing-metadata-header h2 {
   margin: 0;
-  font-size: 1.15rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   padding-right: 2rem;
@@ -1148,7 +1272,7 @@ body {
   right: 1rem;
   background: rgba(5, 9, 18, 0.5);
   border: 1px solid var(--glass-line);
-  border-radius: 9px;
+  border-radius: var(--radius-sm);
   color: var(--txt-dim);
   cursor: pointer;
   padding: 0.4rem;
@@ -1173,7 +1297,7 @@ body {
 }
 
 .metadata-section h3 {
-  font-size: 0.64rem;
+  font-size: var(--fs-2xs);
   color: var(--txt-mute);
   text-transform: uppercase;
   letter-spacing: 0.16em;
@@ -1184,13 +1308,13 @@ body {
 .metadata-item { margin-bottom: 0.65rem; }
 
 .metadata-label {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   margin-bottom: 0.2rem;
 }
 
 .metadata-value {
-  font-size: 0.92rem;
+  font-size: var(--fs-xl);
   color: var(--txt);
   font-weight: 500;
   word-break: break-word;
@@ -1225,13 +1349,13 @@ body {
 
 .metadata-datastream-name {
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: var(--fs-lg);
   color: var(--txt);
   margin-bottom: 0.25rem;
 }
 
 .metadata-datastream-meta {
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   display: flex;
   justify-content: space-between;
@@ -1249,7 +1373,7 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  font-size: 0.74rem;
+  font-size: var(--fs-sm);
   padding: 0.4rem 0.8rem;
   border-radius: 999px;
   font-weight: 600;
@@ -1274,7 +1398,7 @@ body {
   color: #03121a;
   border: none;
   border-radius: var(--radius);
-  font-size: 0.86rem;
+  font-size: var(--fs-lg);
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
@@ -1309,12 +1433,11 @@ body {
   border-radius: var(--radius-sm);
   background: rgba(34, 211, 238, 0.08);
   border: 1px solid rgba(34, 211, 238, 0.2);
-  font-size: 0.78rem;
+  font-size: var(--fs-md);
   line-height: 1.45;
   color: var(--accent);
 }
 
-.download-status[hidden] { display: none; }
 
 .download-status-spinner {
   width: 14px;
@@ -1341,7 +1464,7 @@ body {
 }
 
 .date-input-group label {
-  font-size: 0.72rem;
+  font-size: var(--fs-sm);
   color: var(--txt-mute);
   font-weight: 600;
 }
@@ -1350,7 +1473,7 @@ body {
   padding: 0.55rem 0.65rem;
   border: 1px solid var(--glass-line);
   border-radius: var(--radius-sm);
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-family: "JetBrains Mono", monospace;
   background: rgba(5, 9, 18, 0.5);
   color: var(--txt);
@@ -1377,7 +1500,7 @@ body {
   justify-content: center;
   gap: 0.45rem;
   cursor: pointer;
-  font-size: 0.8rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   color: var(--txt-dim);
   padding: 0.55rem 0.5rem;
@@ -1423,13 +1546,13 @@ body {
 .no-data-icon svg { width: 80px; height: 40px; }
 
 .no-data-message h3 {
-  font-size: 1rem;
+  font-size: var(--fs-xl);
   font-weight: 700;
   color: var(--txt);
 }
 
 .no-data-message p {
-  font-size: 0.85rem;
+  font-size: var(--fs-lg);
   max-width: 320px;
 }
 
@@ -1475,7 +1598,7 @@ body {
 
 #statusDetails {
   font-family: "JetBrains Mono", monospace;
-  font-size: 0.7rem;
+  font-size: var(--fs-xs);
   color: var(--txt-mute);
 }
 
@@ -1518,8 +1641,10 @@ body {
   -webkit-backdrop-filter: blur(4px) saturate(80%);
 }
 
+/* Deliberate exception to the [hidden] rule above: this one stays laid out so
+   it can fade rather than vanish, so it needs the same weight to win. */
 .loading-overlay[hidden] {
-  display: grid;          /* keep it laid out so we can fade it out */
+  display: grid !important;
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
@@ -1605,7 +1730,7 @@ body {
 }
 
 .loading-title {
-  font-size: 1.1rem;
+  font-size: var(--fs-2xl);
   font-weight: 700;
   color: #fff;
   letter-spacing: 0.01em;
@@ -1616,7 +1741,7 @@ body {
 }
 
 .loading-subtitle {
-  font-size: 0.84rem;
+  font-size: var(--fs-lg);
   color: var(--txt-dim);
   font-family: "JetBrains Mono", monospace;
   min-height: 1.1em;
@@ -1667,7 +1792,7 @@ body {
   border: 1px solid rgba(239, 68, 68, 0.4);
   border-radius: var(--radius);
   color: #fca5a5;
-  font-size: 0.82rem;
+  font-size: var(--fs-md);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s var(--ease);
@@ -1686,7 +1811,7 @@ body {
 
 @media (max-width: 640px) {
   .loading-card { padding: 1.6rem 1.8rem; }
-  .loading-title { font-size: 1rem; }
+  .loading-title { font-size: var(--fs-xl); }
 }
 
 /* ------------------------------------------------------------------ */
@@ -1738,39 +1863,56 @@ body {
 .roster-mobile-count  { display: none; }
 .chart-trace-toggle-btn { display: none; }
 
-@media (max-width: 1100px) {
+/* ------------------------------------------------------------------ */
+/* Command bar density — CONTAINER queries, not viewport queries.       */
+/* ------------------------------------------------------------------ */
+/* These react to the width of the bar itself, so they behave the same
+   whatever the viewport, zoom level or font size. A viewport breakpoint
+   is a guess about available space; this is a measurement of it.
+   Shedding order, widest first: chip words → button words → endpoint
+   host. Past that the legend scrolls and the control group wraps. */
+
+/* Threshold derived from measured content, not guessed: the non-legend items
+   need ~734px (brand 145 + controls 507 + gaps/padding 82) plus the search
+   box's 220px flex basis, and the legend needs ~730px to show its labels.
+   Below ~1690px of *bar* width the labels cannot fit, and keeping them would
+   make the legend scroll — which hides whole health tiers. Dropping the words
+   keeps every dot and count visible, which is the information that matters. */
+@container commandbar (max-width: 1690px) {
   .legend-label { display: none; }
 }
 
-@media (max-width: 880px) {
-  :root {
-    --roster-w: 248px;
-    --inspector-w: 320px;
-  }
+@container commandbar (max-width: 900px) {
+  .health-check-btn > span,
+  .query-builder-link > span,
+  .virtual-exit-btn > span { display: none; }
+}
 
-  .command-bar {
-    flex-wrap: wrap;
-    height: auto;
-    padding: 0.6rem 0.8rem;
-    gap: 0.6rem;
-  }
+@container commandbar (max-width: 720px) {
+  #endpointLabel { display: none; }
+}
 
+/* Below this the search field and the trailing controls cannot share a row
+   without the field being squeezed to nothing, so it takes a row of its own. */
+@container commandbar (max-width: 620px) {
   .search-box {
     order: 3;
-    max-width: none;
     flex-basis: 100%;
+    max-width: none;
   }
-
-  .chart-panel {
-    left: var(--dock-inset);
-  }
-
-  .main-content.has-metadata-sidebar .chart-panel {
-    right: var(--dock-inset);
-  }
-
-  .chart-container { height: 280px; }
 }
+
+/* The tablet-width block that used to live here has gone.
+   It set --roster-w and --inspector-w to fixed pixel values, which overrode
+   the clamp()s that already scale them; it repeated `flex-wrap: wrap` and a
+   `height: auto` the base rule sets as min-height; and it pulled the chart
+   dock to `left: var(--dock-inset)`, which — at z-index 32 against the
+   roster's 30 — laid the dock's collapsed bar straight over the bottom of the
+   roster, covering its status line at every width between 641 and 880px.
+
+   What remains of its intent lives where it belongs: the search field going
+   full-width is a @container commandbar rule, and the chart body's height is
+   fluid. */
 
 /* ------------------------------------------------------------------ */
 /* Mobile (≤ 640 px) — bottom-sheet architecture                       */
@@ -1796,7 +1938,7 @@ body {
 
   /* Shrink brand — drop subtitle */
   .brand-text p { display: none; }
-  .brand-text h1 { font-size: 1rem; }
+  .brand-text h1 { font-size: var(--fs-xl); }
   .brand-orb { width: 26px; height: 26px; }
 
   /* Hide desktop search in the bar; shown as overlay when toggled */
@@ -1891,7 +2033,7 @@ body {
   .roster-mobile-count {
     display: inline-block;
     font-family: "JetBrains Mono", monospace;
-    font-size: 0.72rem;
+    font-size: var(--fs-sm);
     font-weight: 600;
     color: var(--txt-mute);
     margin-left: auto;
@@ -1903,7 +2045,11 @@ body {
   .dock-column {
     position: fixed;
     top: auto;
-    bottom: 0;
+    /* Clears the floating chart dock. At bottom: 0 the sheet's peek sat
+       underneath it — the chart card is z-index 45 against the sheet's 35 —
+       so the Things/Locations tabs were unreachable whenever the dock's
+       header wrapped to two rows, which on a phone it always does. */
+    bottom: var(--dock-clear);
     left: 0;
     right: 0;
     width: 100%;
@@ -1930,7 +2076,11 @@ body {
     display: flex;
     position: fixed;
     left: 8px;
-    bottom: calc(var(--dock-inset) + var(--dock-h) + 8px);
+    /* Above the sheet's peek, which is itself above the chart dock. Clearing
+       only the dock put this pill straight on top of the Things/Locations
+       tabs. Both terms are measured, so it follows a wrapped dock header and
+       a taller tab row without a hard-coded number. */
+    bottom: calc(var(--dock-clear) + var(--sheet-peek) + 8px);
     width: auto;
     max-width: calc(100vw - 100px);
     min-height: auto;
@@ -2006,5 +2156,119 @@ body {
     margin-top: calc(var(--bar-h) + 18px) !important;
   }
 
-  /* ---- Map controls ---- */
-  .map-controls {
+}
+/* ^ closes @media (max-width: 640px).
+
+   styles.css was truncated on main: it ended mid-rule at an empty
+   an empty .map-controls rule, leaving both that rule and the 640px media
+   query unclosed. Everything appended after it was therefore parsed as part of the
+   mobile block and never applied on desktop — which is why the Query and
+   Investigate links fell back to the browser's default link blue/purple.
+   The incomplete `.map-controls` rule had no declarations to preserve. */
+
+/* Links from the map to the query builder and investigate pages */
+/* Bar-level control family — one appearance for everything that sits in a
+   page header, on all three pages. The map's nav links were 0.78rem rounded
+   rectangles, the query and investigate pages' were 0.85rem, and both sat
+   beside pill-shaped chips and buttons in the same row. They are one control
+   doing one job, so they now share a definition rather than three. */
+.query-builder-link,
+.qb-link,
+.health-check-btn,
+.virtual-exit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: var(--control-h);
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--control-radius);
+  background: rgba(5, 9, 18, 0.4);
+  color: var(--txt-dim);
+  text-decoration: none;
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
+}
+
+.query-builder-link:hover,
+.qb-link:hover,
+.health-check-btn:hover:not(:disabled),
+.virtual-exit-btn:hover {
+  color: var(--txt);
+  border-color: var(--glass-line-hi);
+  background: rgba(34, 211, 238, 0.1);
+}
+
+/* ------------------------------------------------------------------ */
+/* Segmented controls — a track holding mutually exclusive options.     */
+/* The roster's Things|Locations tabs and the chart's time-range and    */
+/* point-limit groups are the same control and were built three times,  */
+/* each with its own track padding and radius.                          */
+/* ------------------------------------------------------------------ */
+.roster-toggle,
+.chart-range-group,
+.chart-limit-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  background: rgba(5, 9, 18, 0.5);
+  border: 1px solid var(--glass-line);
+  border-radius: var(--control-radius);
+}
+
+/* Options inside a track share one active treatment. */
+.roster-toggle-btn.active,
+.chart-panel-btn.active {
+  background: rgba(34, 211, 238, 0.16);
+  color: #67e8f9;
+}
+
+/* ------------------------------------------------------------------ */
+/* In-panel actions — the buttons inside panels rather than in a page   */
+/* header. One step smaller than bar controls and squared off, so the   */
+/* two families read as different jobs. Previously the query page, the  */
+/* investigate page and the inspector each had their own take.          */
+/* ------------------------------------------------------------------ */
+.qb-icon-btn,
+.qb-run,
+.qb-add,
+.inv-action,
+.inv-more,
+.download-thing-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: var(--control-h-sm);
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm);
+  font-family: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 0.18s var(--ease), border-color 0.18s var(--ease),
+              background-color 0.18s var(--ease);
+}
+
+/* Variant: "you are looking at Things with no location" is a state, not a
+   neutral action, so it keeps its green while sharing the family's shape. */
+.virtual-exit-btn {
+  border-color: rgba(74, 222, 128, 0.45);
+  background: rgba(74, 222, 128, 0.1);
+  color: #86efac;
+}
+
+.virtual-exit-btn:hover {
+  border-color: rgba(74, 222, 128, 0.7);
+  background: rgba(74, 222, 128, 0.18);
+  color: #bbf7d0;
+}

@@ -61,7 +61,17 @@ const state = {
     currentDatastream: null,
     currentChart: null,
     currentLimit: 1000,
-    chartPointCache: null,       // { datastreamId, points, unitSymbol, datastreamName }
+    // Time window the chart requests, applied server-side as an OData $filter on
+    // phenomenonTime. preset is one of 'all' | '24h' | '7d' | '30d' | 'custom';
+    // from/to are Date objects and only used when preset is 'custom'.
+    chartRange: { preset: 'all', from: null, to: null },
+    chartPointCache: null,       // { datastreamId, rangeKey, points, observationTotal, ... }
+    // Comparison mode. compareMode makes the datastream pills toggle membership
+    // instead of switching; comparedIds are the extra series drawn alongside
+    // state.currentDatastream. Empty means the chart behaves exactly as before.
+    compareMode: false,
+    comparedIds: [],
+    chartSeries: [],             // [{ datastreamId, name, unitSymbol, points, observationTotal }]
     map: null,
     markerCluster: null,
     maxClusterSize: 1,
@@ -80,7 +90,12 @@ const state = {
     frostVersion: initialEndpoint.version,
     get frostRoot() { return `${this.frostBase}/${this.frostVersion}`; },
     get isConfigured() { return !!this.frostBase; },
-    frostReadAuth: null,   // Base64-encoded "user:pass" for read access, or null for anonymous
+    // Base64 "user:pass" for read access, or null for anonymous. Restored from
+    // sessionStorage so it survives navigating between the map, query builder
+    // and investigate pages, but not the browser session. See js/connection.js.
+    frostReadAuth: (() => {
+        try { return sessionStorage.getItem('rime.staAuth') || null; } catch (_) { return null; }
+    })(),
     fetchGeneration: 0,    // Incremented on every new fetch; stale generations discard their results
 };
 
